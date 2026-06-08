@@ -9,14 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PortalIndexRouteImport } from './routes/portal.index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as PortalRequestsRouteImport } from './routes/portal.requests'
+import { Route as PortalMessagesRouteImport } from './routes/portal.messages'
+import { Route as PortalDeliverablesRouteImport } from './routes/portal.deliverables'
+import { Route as AppTimeRouteImport } from './routes/app.time'
+import { Route as AppTeamRouteImport } from './routes/app.team'
+import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppRequestsRouteImport } from './routes/app.requests'
+import { Route as AppReportingRouteImport } from './routes/app.reporting'
+import { Route as AppMessagesRouteImport } from './routes/app.messages'
+import { Route as AppDocumentsRouteImport } from './routes/app.documents'
+import { Route as AppDeliverablesRouteImport } from './routes/app.deliverables'
+import { Route as PortalProjectsIndexRouteImport } from './routes/portal.projects.index'
 import { Route as AppProjectsIndexRouteImport } from './routes/app.projects.index'
 import { Route as AppClientsIndexRouteImport } from './routes/app.clients.index'
+import { Route as PortalProjectsProjectIdRouteImport } from './routes/portal.projects.$projectId'
 import { Route as AppProjectsProjectIdRouteImport } from './routes/app.projects.$projectId'
 import { Route as AppClientsClientIdRouteImport } from './routes/app.clients.$clientId'
 
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -27,10 +47,75 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalRoute,
+} as any)
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const PortalRequestsRoute = PortalRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalMessagesRoute = PortalMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalDeliverablesRoute = PortalDeliverablesRouteImport.update({
+  id: '/deliverables',
+  path: '/deliverables',
+  getParentRoute: () => PortalRoute,
+} as any)
+const AppTimeRoute = AppTimeRouteImport.update({
+  id: '/time',
+  path: '/time',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRequestsRoute = AppRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportingRoute = AppReportingRouteImport.update({
+  id: '/reporting',
+  path: '/reporting',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMessagesRoute = AppMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocumentsRoute = AppDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDeliverablesRoute = AppDeliverablesRouteImport.update({
+  id: '/deliverables',
+  path: '/deliverables',
+  getParentRoute: () => AppRoute,
+} as any)
+const PortalProjectsIndexRoute = PortalProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => PortalRoute,
 } as any)
 const AppProjectsIndexRoute = AppProjectsIndexRouteImport.update({
   id: '/projects/',
@@ -41,6 +126,11 @@ const AppClientsIndexRoute = AppClientsIndexRouteImport.update({
   id: '/clients/',
   path: '/clients/',
   getParentRoute: () => AppRoute,
+} as any)
+const PortalProjectsProjectIdRoute = PortalProjectsProjectIdRouteImport.update({
+  id: '/projects/$projectId',
+  path: '/projects/$projectId',
+  getParentRoute: () => PortalRoute,
 } as any)
 const AppProjectsProjectIdRoute = AppProjectsProjectIdRouteImport.update({
   id: '/projects/$projectId',
@@ -56,66 +146,162 @@ const AppClientsClientIdRoute = AppClientsClientIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/portal': typeof PortalRouteWithChildren
+  '/app/deliverables': typeof AppDeliverablesRoute
+  '/app/documents': typeof AppDocumentsRoute
+  '/app/messages': typeof AppMessagesRoute
+  '/app/reporting': typeof AppReportingRoute
+  '/app/requests': typeof AppRequestsRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/team': typeof AppTeamRoute
+  '/app/time': typeof AppTimeRoute
+  '/portal/deliverables': typeof PortalDeliverablesRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/requests': typeof PortalRequestsRoute
   '/app/': typeof AppIndexRoute
+  '/portal/': typeof PortalIndexRoute
   '/app/clients/$clientId': typeof AppClientsClientIdRoute
   '/app/projects/$projectId': typeof AppProjectsProjectIdRoute
+  '/portal/projects/$projectId': typeof PortalProjectsProjectIdRoute
   '/app/clients/': typeof AppClientsIndexRoute
   '/app/projects/': typeof AppProjectsIndexRoute
+  '/portal/projects/': typeof PortalProjectsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app/deliverables': typeof AppDeliverablesRoute
+  '/app/documents': typeof AppDocumentsRoute
+  '/app/messages': typeof AppMessagesRoute
+  '/app/reporting': typeof AppReportingRoute
+  '/app/requests': typeof AppRequestsRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/team': typeof AppTeamRoute
+  '/app/time': typeof AppTimeRoute
+  '/portal/deliverables': typeof PortalDeliverablesRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/requests': typeof PortalRequestsRoute
   '/app': typeof AppIndexRoute
+  '/portal': typeof PortalIndexRoute
   '/app/clients/$clientId': typeof AppClientsClientIdRoute
   '/app/projects/$projectId': typeof AppProjectsProjectIdRoute
+  '/portal/projects/$projectId': typeof PortalProjectsProjectIdRoute
   '/app/clients': typeof AppClientsIndexRoute
   '/app/projects': typeof AppProjectsIndexRoute
+  '/portal/projects': typeof PortalProjectsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/portal': typeof PortalRouteWithChildren
+  '/app/deliverables': typeof AppDeliverablesRoute
+  '/app/documents': typeof AppDocumentsRoute
+  '/app/messages': typeof AppMessagesRoute
+  '/app/reporting': typeof AppReportingRoute
+  '/app/requests': typeof AppRequestsRoute
+  '/app/settings': typeof AppSettingsRoute
+  '/app/team': typeof AppTeamRoute
+  '/app/time': typeof AppTimeRoute
+  '/portal/deliverables': typeof PortalDeliverablesRoute
+  '/portal/messages': typeof PortalMessagesRoute
+  '/portal/requests': typeof PortalRequestsRoute
   '/app/': typeof AppIndexRoute
+  '/portal/': typeof PortalIndexRoute
   '/app/clients/$clientId': typeof AppClientsClientIdRoute
   '/app/projects/$projectId': typeof AppProjectsProjectIdRoute
+  '/portal/projects/$projectId': typeof PortalProjectsProjectIdRoute
   '/app/clients/': typeof AppClientsIndexRoute
   '/app/projects/': typeof AppProjectsIndexRoute
+  '/portal/projects/': typeof PortalProjectsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/app'
+    | '/portal'
+    | '/app/deliverables'
+    | '/app/documents'
+    | '/app/messages'
+    | '/app/reporting'
+    | '/app/requests'
+    | '/app/settings'
+    | '/app/team'
+    | '/app/time'
+    | '/portal/deliverables'
+    | '/portal/messages'
+    | '/portal/requests'
     | '/app/'
+    | '/portal/'
     | '/app/clients/$clientId'
     | '/app/projects/$projectId'
+    | '/portal/projects/$projectId'
     | '/app/clients/'
     | '/app/projects/'
+    | '/portal/projects/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/app/deliverables'
+    | '/app/documents'
+    | '/app/messages'
+    | '/app/reporting'
+    | '/app/requests'
+    | '/app/settings'
+    | '/app/team'
+    | '/app/time'
+    | '/portal/deliverables'
+    | '/portal/messages'
+    | '/portal/requests'
     | '/app'
+    | '/portal'
     | '/app/clients/$clientId'
     | '/app/projects/$projectId'
+    | '/portal/projects/$projectId'
     | '/app/clients'
     | '/app/projects'
+    | '/portal/projects'
   id:
     | '__root__'
     | '/'
     | '/app'
+    | '/portal'
+    | '/app/deliverables'
+    | '/app/documents'
+    | '/app/messages'
+    | '/app/reporting'
+    | '/app/requests'
+    | '/app/settings'
+    | '/app/team'
+    | '/app/time'
+    | '/portal/deliverables'
+    | '/portal/messages'
+    | '/portal/requests'
     | '/app/'
+    | '/portal/'
     | '/app/clients/$clientId'
     | '/app/projects/$projectId'
+    | '/portal/projects/$projectId'
     | '/app/clients/'
     | '/app/projects/'
+    | '/portal/projects/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  PortalRoute: typeof PortalRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app': {
       id: '/app'
       path: '/app'
@@ -130,12 +316,103 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/portal/': {
+      id: '/portal/'
+      path: '/'
+      fullPath: '/portal/'
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/app/': {
       id: '/app/'
       path: '/'
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/portal/requests': {
+      id: '/portal/requests'
+      path: '/requests'
+      fullPath: '/portal/requests'
+      preLoaderRoute: typeof PortalRequestsRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/messages': {
+      id: '/portal/messages'
+      path: '/messages'
+      fullPath: '/portal/messages'
+      preLoaderRoute: typeof PortalMessagesRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/portal/deliverables': {
+      id: '/portal/deliverables'
+      path: '/deliverables'
+      fullPath: '/portal/deliverables'
+      preLoaderRoute: typeof PortalDeliverablesRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/app/time': {
+      id: '/app/time'
+      path: '/time'
+      fullPath: '/app/time'
+      preLoaderRoute: typeof AppTimeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/team': {
+      id: '/app/team'
+      path: '/team'
+      fullPath: '/app/team'
+      preLoaderRoute: typeof AppTeamRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/settings': {
+      id: '/app/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/requests': {
+      id: '/app/requests'
+      path: '/requests'
+      fullPath: '/app/requests'
+      preLoaderRoute: typeof AppRequestsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/reporting': {
+      id: '/app/reporting'
+      path: '/reporting'
+      fullPath: '/app/reporting'
+      preLoaderRoute: typeof AppReportingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/messages': {
+      id: '/app/messages'
+      path: '/messages'
+      fullPath: '/app/messages'
+      preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/documents': {
+      id: '/app/documents'
+      path: '/documents'
+      fullPath: '/app/documents'
+      preLoaderRoute: typeof AppDocumentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/deliverables': {
+      id: '/app/deliverables'
+      path: '/deliverables'
+      fullPath: '/app/deliverables'
+      preLoaderRoute: typeof AppDeliverablesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/portal/projects/': {
+      id: '/portal/projects/'
+      path: '/projects'
+      fullPath: '/portal/projects/'
+      preLoaderRoute: typeof PortalProjectsIndexRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/app/projects/': {
       id: '/app/projects/'
@@ -150,6 +427,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/clients/'
       preLoaderRoute: typeof AppClientsIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/portal/projects/$projectId': {
+      id: '/portal/projects/$projectId'
+      path: '/projects/$projectId'
+      fullPath: '/portal/projects/$projectId'
+      preLoaderRoute: typeof PortalProjectsProjectIdRouteImport
+      parentRoute: typeof PortalRoute
     }
     '/app/projects/$projectId': {
       id: '/app/projects/$projectId'
@@ -169,6 +453,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppDeliverablesRoute: typeof AppDeliverablesRoute
+  AppDocumentsRoute: typeof AppDocumentsRoute
+  AppMessagesRoute: typeof AppMessagesRoute
+  AppReportingRoute: typeof AppReportingRoute
+  AppRequestsRoute: typeof AppRequestsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppTeamRoute: typeof AppTeamRoute
+  AppTimeRoute: typeof AppTimeRoute
   AppIndexRoute: typeof AppIndexRoute
   AppClientsClientIdRoute: typeof AppClientsClientIdRoute
   AppProjectsProjectIdRoute: typeof AppProjectsProjectIdRoute
@@ -177,6 +469,14 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppDeliverablesRoute: AppDeliverablesRoute,
+  AppDocumentsRoute: AppDocumentsRoute,
+  AppMessagesRoute: AppMessagesRoute,
+  AppReportingRoute: AppReportingRoute,
+  AppRequestsRoute: AppRequestsRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppTeamRoute: AppTeamRoute,
+  AppTimeRoute: AppTimeRoute,
   AppIndexRoute: AppIndexRoute,
   AppClientsClientIdRoute: AppClientsClientIdRoute,
   AppProjectsProjectIdRoute: AppProjectsProjectIdRoute,
@@ -186,10 +486,42 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface PortalRouteChildren {
+  PortalDeliverablesRoute: typeof PortalDeliverablesRoute
+  PortalMessagesRoute: typeof PortalMessagesRoute
+  PortalRequestsRoute: typeof PortalRequestsRoute
+  PortalIndexRoute: typeof PortalIndexRoute
+  PortalProjectsProjectIdRoute: typeof PortalProjectsProjectIdRoute
+  PortalProjectsIndexRoute: typeof PortalProjectsIndexRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalDeliverablesRoute: PortalDeliverablesRoute,
+  PortalMessagesRoute: PortalMessagesRoute,
+  PortalRequestsRoute: PortalRequestsRoute,
+  PortalIndexRoute: PortalIndexRoute,
+  PortalProjectsProjectIdRoute: PortalProjectsProjectIdRoute,
+  PortalProjectsIndexRoute: PortalProjectsIndexRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  PortalRoute: PortalRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
