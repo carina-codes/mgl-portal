@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @source "../src";
+@source inline("bg-todo bg-progress bg-review bg-done text-todo-foreground text-progress-foreground text-review-foreground text-done-foreground");
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
