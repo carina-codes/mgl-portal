@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
-import { channels, messages, users } from "@/lib/mock-data";
+import { channels, messages as seedMessages, users } from "@/lib/mock-data";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Lock } from "lucide-react";
+import { Lock, Send } from "lucide-react";
+import { RichEditor } from "@/components/rich-editor";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/messages")({ component: MessagesPage });
 
