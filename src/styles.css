@@ -204,3 +204,59 @@
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
 }
+
+/* ───── Tiptap RichEditor styling ───── */
+.tiptap {
+  outline: none;
+}
+.tiptap p { margin: 0; }
+.tiptap p + p,
+.tiptap h2 + p,
+.tiptap p + h2,
+.tiptap ul + p,
+.tiptap ol + p { margin-top: 0.5rem; }
+.tiptap h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+.tiptap h3 { font-size: 0.95rem; font-weight: 600; }
+.tiptap ul, .tiptap ol { padding-left: 1.25rem; margin: 0.25rem 0; }
+.tiptap ul { list-style: disc; }
+.tiptap ol { list-style: decimal; }
+.tiptap blockquote {
+  border-left: 3px solid var(--color-primary);
+  padding-left: 0.75rem;
+  color: var(--color-muted-foreground);
+  margin: 0.5rem 0;
+}
+.tiptap code {
+  background-color: var(--color-muted);
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.375rem;
+  font-size: 0.85em;
+}
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.tiptap ul[data-type="taskList"] li > label {
+  margin-top: 0.15rem;
+}
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--color-muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.mgl-mention {
+  background-color: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  border-radius: 0.5rem;
+  padding: 0.05rem 0.35rem;
+  font-weight: 500;
+  font-size: 0.9em;
+}
+.tippy-box { background: transparent; }
