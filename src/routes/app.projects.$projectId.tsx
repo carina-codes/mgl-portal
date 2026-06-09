@@ -433,14 +433,17 @@ function KanbanCard({
   task,
   draggable,
   onDragStart,
+  setRef,
 }: {
   task: Task;
   draggable?: boolean;
   onDragStart?: () => void;
+  setRef?: (el: HTMLDivElement | null) => void;
 }) {
   const pmeta = PRIORITY_META[task.priority];
   return (
     <div
+      ref={setRef}
       draggable={draggable}
       onDragStart={onDragStart}
       className="cursor-grab rounded-2xl bg-white p-4 soft-shadow transition-transform active:cursor-grabbing active:scale-[0.98]"
