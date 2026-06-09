@@ -43,8 +43,12 @@ import {
   Eye,
   Download,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { AppDialog, TextField, SelectField, FieldGroup, FieldLabel } from "@/components/ui/app-dialog";
+import { RichEditor } from "@/components/rich-editor";
+import { celebrateFromElement } from "@/lib/confetti";
 
 export const Route = createFileRoute("/app/projects/$projectId")({
   component: ProjectDetail,
@@ -226,15 +230,58 @@ function KanbanBoard({ projectId }: { projectId: string }) {
   const [taskList, setTaskList] = useState<Task[]>(initial);
   const [query, setQuery] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: "",
+    description: "",
+    stage: "todo" as TaskStage,
+    priority: "medium" as Task["priority"],
+  });
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const stages: TaskStage[] = ["todo", "in_progress", "in_review", "completed"];
 
   function onDrop(stage: TaskStage) {
     if (!dragId) return;
+    const movedId = dragId;
     setTaskList((list) =>
-      list.map((t) => (t.id === dragId ? { ...t, stage, progress: stage === "completed" ? 100 : t.progress } : t)),
+      list.map((t) => (t.id === movedId ? { ...t, stage, progress: stage === "completed" ? 100 : t.progress } : t)),
     );
     setDragId(null);
+    if (stage === "completed") {
+      const task = taskList.find((t) => t.id === movedId);
+      // Wait one frame so the card is positioned in the Done column
+      requestAnimationFrame(() => {
+        celebrateFromElement(cardRefs.current[movedId] ?? null);
+        toast.success("Task completed", {
+          description: task?.title ?? "Nice work — momentum 🚀",
+        });
+      });
+    }
+  }
+
+  function handleCreateTask() {
+    if (!newTask.title.trim()) {
+      toast.error("Add a title for your task");
+      return;
+    }
+    const task: Task = {
+      id: `t-${Date.now()}`,
+      projectId,
+      title: newTask.title.trim(),
+      note: newTask.description.replace(/<[^>]+>/g, "").slice(0, 140),
+      stage: newTask.stage,
+      priority: newTask.priority,
+      progress: newTask.stage === "completed" ? 100 : 0,
+      assignees: [],
+      attachments: 0,
+      comments: 0,
+      dueDate: "",
+    } as Task;
+    setTaskList((l) => [task, ...l]);
+    setNewTask({ title: "", description: "", stage: "todo", priority: "medium" });
+    setNewTaskOpen(false);
+    toast.success("Task created", { description: task.title });
   }
 
   return (
@@ -258,7 +305,10 @@ function KanbanBoard({ projectId }: { projectId: string }) {
             <Filter className="h-3.5 w-3.5" /> Filter
           </button>
         </div>
-        <button className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <button
+          onClick={() => setNewTaskOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+        >
           <Plus className="h-4 w-4" /> Add new task
         </button>
       </div>
@@ -291,9 +341,16 @@ function KanbanBoard({ projectId }: { projectId: string }) {
                     task={task}
                     draggable
                     onDragStart={() => setDragId(task.id)}
+                    setRef={(el) => (cardRefs.current[task.id] = el)}
                   />
                 ))}
-                <button className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-foreground/15 bg-white/40 py-2 text-xs text-muted-foreground hover:bg-white/70">
+                <button
+                  onClick={() => {
+                    setNewTask((n) => ({ ...n, stage }));
+                    setNewTaskOpen(true);
+                  }}
+                  className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-foreground/15 bg-white/40 py-2 text-xs text-muted-foreground hover:bg-white/70"
+                >
                   <Plus className="h-3 w-3" /> Add task
                 </button>
               </div>
@@ -301,6 +358,73 @@ function KanbanBoard({ projectId }: { projectId: string }) {
           );
         })}
       </div>
+
+      <AppDialog
+        open={newTaskOpen}
+        onOpenChange={setNewTaskOpen}
+        title="New task"
+        description="Describe the work, assign a stage, and route it to the right person."
+        icon={<ListTodo className="h-5 w-5" />}
+        size="lg"
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
+            <button
+              onClick={() => setNewTaskOpen(false)}
+              className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreateTask}
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+            >
+              Create task
+            </button>
+          </div>
+        }
+      >
+        <FieldGroup>
+          <TextField
+            label="Title"
+            placeholder="e.g. Polish hero animation timing"
+            value={newTask.title}
+            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+            autoFocus
+          />
+          <div>
+            <FieldLabel>Description</FieldLabel>
+            <RichEditor
+              value={newTask.description}
+              onChange={(html) => setNewTask({ ...newTask, description: html })}
+              placeholder="Add context, links, or @mention a teammate…"
+              minHeight={140}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField
+              label="Stage"
+              value={newTask.stage}
+              onChange={(e) => setNewTask({ ...newTask, stage: e.target.value as TaskStage })}
+            >
+              {stages.map((s) => (
+                <option key={s} value={s}>
+                  {STAGE_META[s].label}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField
+              label="Priority"
+              value={newTask.priority}
+              onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as Task["priority"] })}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </SelectField>
+          </div>
+        </FieldGroup>
+      </AppDialog>
     </>
   );
 }
@@ -309,14 +433,17 @@ function KanbanCard({
   task,
   draggable,
   onDragStart,
+  setRef,
 }: {
   task: Task;
   draggable?: boolean;
   onDragStart?: () => void;
+  setRef?: (el: HTMLDivElement | null) => void;
 }) {
   const pmeta = PRIORITY_META[task.priority];
   return (
     <div
+      ref={setRef}
       draggable={draggable}
       onDragStart={onDragStart}
       className="cursor-grab rounded-2xl bg-white p-4 soft-shadow transition-transform active:cursor-grabbing active:scale-[0.98]"
