@@ -43,8 +43,12 @@ import {
   Eye,
   Download,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { AppDialog, TextField, SelectField, FieldGroup, FieldLabel } from "@/components/ui/app-dialog";
+import { RichEditor } from "@/components/rich-editor";
+import { celebrateFromElement } from "@/lib/confetti";
 
 export const Route = createFileRoute("/app/projects/$projectId")({
   component: ProjectDetail,
