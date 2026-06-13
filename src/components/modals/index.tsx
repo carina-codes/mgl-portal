@@ -1172,7 +1172,7 @@ function RejectRequestModal({ close, payload }: { close: () => void; payload?: M
 function ConvertRequestToTaskModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const id = payload?.requestId as string;
   const req = useStore((s) => s.requests.find((r) => r.id === id));
-  const projects = useStore((s) => s.projects.filter((p) => p.clientId === req?.clientId));
+  const projects = useStore((s) => s.projects).filter((p) => p.clientId === req?.clientId);
   const convert = useStore((s) => s.convertRequestToTask);
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const { busy, run } = useAsyncAction();
