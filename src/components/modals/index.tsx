@@ -1218,7 +1218,7 @@ function ConvertRequestToProjectModal({ close, payload }: { close: () => void; p
   const id = payload?.requestId as string;
   const req = useStore((s) => s.requests.find((r) => r.id === id));
   const convert = useStore((s) => s.convertRequestToProject);
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const [form, setForm] = useState(() => ({
     name: req?.title ?? "",
     type: "fixed" as "fixed" | "hourly",
