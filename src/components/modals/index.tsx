@@ -211,7 +211,7 @@ export function ModalsHost() {
 
 function NewProjectModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const clients = useStore((s) => s.clients);
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const createProject = useStore((s) => s.createProject);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState({
@@ -645,7 +645,7 @@ function ArchiveClientModal({ close, payload }: { close: () => void; payload?: M
 
 function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const projects = useStore((s) => s.projects);
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const create = useStore((s) => s.createTask);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState({
@@ -823,7 +823,7 @@ function DeleteTaskModal({ close, payload }: { close: () => void; payload?: Moda
 function AssignTaskModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const id = payload?.taskId as string;
   const task = useStore((s) => s.tasks.find((t) => t.id === id));
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const assign = useStore((s) => s.assignTask);
   const [selected, setSelected] = useState<string[]>(task?.assignees ?? []);
   const { busy, run } = useAsyncAction();
@@ -1171,7 +1171,7 @@ function RejectRequestModal({ close, payload }: { close: () => void; payload?: M
 function ConvertRequestToTaskModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const id = payload?.requestId as string;
   const req = useStore((s) => s.requests.find((r) => r.id === id));
-  const projects = useStore((s) => s.projects.filter((p) => p.clientId === req?.clientId));
+  const projects = useStore((s) => s.projects).filter((p) => p.clientId === req?.clientId);
   const convert = useStore((s) => s.convertRequestToTask);
   const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const { busy, run } = useAsyncAction();
@@ -1217,7 +1217,7 @@ function ConvertRequestToProjectModal({ close, payload }: { close: () => void; p
   const id = payload?.requestId as string;
   const req = useStore((s) => s.requests.find((r) => r.id === id));
   const convert = useStore((s) => s.convertRequestToProject);
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const [form, setForm] = useState(() => ({
     name: req?.title ?? "",
     type: "fixed" as "fixed" | "hourly",
@@ -1729,7 +1729,7 @@ function RemoveMemberModal({ close, payload }: { close: () => void; payload?: Mo
 
 function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const projects = useStore((s) => s.projects);
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const log = useStore((s) => s.logTime);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState({
