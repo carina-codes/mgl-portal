@@ -824,7 +824,7 @@ function DeleteTaskModal({ close, payload }: { close: () => void; payload?: Moda
 function AssignTaskModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const id = payload?.taskId as string;
   const task = useStore((s) => s.tasks.find((t) => t.id === id));
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const assign = useStore((s) => s.assignTask);
   const [selected, setSelected] = useState<string[]>(task?.assignees ?? []);
   const { busy, run } = useAsyncAction();
