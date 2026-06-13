@@ -646,7 +646,7 @@ function ArchiveClientModal({ close, payload }: { close: () => void; payload?: M
 
 function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const projects = useStore((s) => s.projects);
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const create = useStore((s) => s.createTask);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState({
