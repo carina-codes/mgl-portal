@@ -1730,7 +1730,7 @@ function RemoveMemberModal({ close, payload }: { close: () => void; payload?: Mo
 
 function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const projects = useStore((s) => s.projects);
-  const team = useStore((s) => s.users.filter((u) => u.role !== "client"));
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const log = useStore((s) => s.logTime);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState({
