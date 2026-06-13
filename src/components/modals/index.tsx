@@ -211,8 +211,7 @@ export function ModalsHost() {
 
 function NewProjectModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const clients = useStore((s) => s.clients);
-  const allUsers = useStore((s) => s.users);
-  const team = allUsers.filter((u) => u.role !== "client");
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const createProject = useStore((s) => s.createProject);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState({
