@@ -1,4 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -45,7 +48,7 @@ export function AppShell({
   subtitle?: ReactNode;
   actions?: ReactNode;
 }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pathname = usePathname() || "";
   const { role, setRole } = useRole();
   const user = useCurrentUser();
 
@@ -73,7 +76,7 @@ export function AppShell({
               return (
                 <Link
                   key={item.to}
-                  to={item.to}
+                  href={item.to}
                   className={cn(
                     "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                     active
@@ -95,7 +98,7 @@ export function AppShell({
 
           <div className="mt-4 space-y-2">
             <Link
-              to="/app/settings"
+              href="/app/settings"
               className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
             >
               <Settings className="h-4 w-4" />

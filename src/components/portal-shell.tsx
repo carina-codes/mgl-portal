@@ -1,4 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Home, FolderOpen, MessageSquare, PackageCheck, Send } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
@@ -24,7 +27,7 @@ export function PortalShell({
   subtitle?: ReactNode;
   actions?: ReactNode;
 }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const pathname = usePathname() || "";
   const user = useCurrentUser();
   const { setRole } = useRole();
 
@@ -48,7 +51,7 @@ export function PortalShell({
               return (
                 <Link
                   key={item.to}
-                  to={item.to}
+                  href={item.to}
                   className={cn(
                     "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
                     active
