@@ -91,7 +91,7 @@ function ClientsPage() {
           const clientProjects = projects.filter((p) => p.clientId === c.id);
           return (
             <div key={c.id} className="panel p-5 transition-transform hover:-translate-y-0.5">
-              <Link href={`/app/clients/${c.id }`} className="block">
+              <Link href={`/owner/clients/${c.id }`} className="block">
                 <div className="flex items-start gap-3">
                   <div
                     className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl font-semibold text-white"

@@ -57,7 +57,7 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold">Active projects</h2>
               <p className="text-xs text-muted-foreground">Across all clients</p>
             </div>
-            <Link href="/app/projects" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/owner/projects" className="text-sm font-medium text-primary hover:underline">
               View all →
             </Link>
           </div>
@@ -68,7 +68,7 @@ export default function Dashboard() {
               return (
                 <Link
                   key={p.id}
-                  href={`/app/projects/${p.id}`}
+                  href={`/owner/projects/${p.id}`}
                   className="flex items-center gap-4 rounded-2xl border border-border bg-background p-4 transition-colors hover:border-primary/40"
                 >
                   <div className={`h-12 w-12 shrink-0 rounded-2xl ${stageColor}`} />
@@ -106,7 +106,7 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold">Request inbox</h2>
               <p className="text-xs text-muted-foreground">Awaiting your call</p>
             </div>
-            <Link href="/app/requests" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/owner/requests" className="text-sm font-medium text-primary hover:underline">
               All →
             </Link>
           </div>
@@ -160,7 +160,7 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold">Team activity</h2>
               <p className="text-xs text-muted-foreground">Today's contributors</p>
             </div>
-            <Link href="/app/team" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/owner/team" className="text-sm font-medium text-primary hover:underline">
               All →
             </Link>
           </div>

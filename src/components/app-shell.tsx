@@ -53,16 +53,16 @@ import {
 import { useEffect, useState } from "react";
 
 const NAV = [
-  { to: "/app/owner", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/app/owner/clients", label: "Clients", icon: Users },
-  { to: "/app/owner/projects", label: "Projects", icon: FolderKanban },
-  { to: "/app/owner/requests", label: "Requests", icon: Inbox, badge: 4 },
-  { to: "/app/owner/deliverables", label: "Deliverables", icon: PackageCheck },
-  { to: "/app/owner/documents", label: "Documents", icon: FileText },
-  { to: "/app/owner/messages", label: "Messages", icon: MessageSquare, badge: 6 },
-  { to: "/app/owner/time", label: "Time tracking", icon: Clock },
-  { to: "/app/owner/reporting", label: "Reporting", icon: BarChart3 },
-  { to: "/app/owner/team", label: "Team", icon: UserCog },
+  { to: "/owner", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/owner/clients", label: "Clients", icon: Users },
+  { to: "/owner/projects", label: "Projects", icon: FolderKanban },
+  { to: "/owner/requests", label: "Requests", icon: Inbox, badge: 4 },
+  { to: "/owner/deliverables", label: "Deliverables", icon: PackageCheck },
+  { to: "/owner/documents", label: "Documents", icon: FileText },
+  { to: "/owner/messages", label: "Messages", icon: MessageSquare, badge: 6 },
+  { to: "/owner/time", label: "Time tracking", icon: Clock },
+  { to: "/owner/reporting", label: "Reporting", icon: BarChart3 },
+  { to: "/owner/team", label: "Team", icon: UserCog },
 ];
 
 const statusConfig = {
@@ -247,7 +247,7 @@ export function AppShell({
 
           <div className="mt-4 space-y-2">
             <Link
-              href="/app/owner/settings"
+              href="/owner/settings"
               className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
             >
               <Settings className="h-4 w-4" />
@@ -265,7 +265,7 @@ export function AppShell({
                     key={r}
                     onClick={() => {
                       setRole(r);
-                      window.location.href = `/app/${r}`;
+                      window.location.href = `/${r}`;
                     }}
                     className={cn(
                       "flex-1 rounded-full px-2 py-1 font-medium capitalize transition-colors",
@@ -421,7 +421,7 @@ export function AppShell({
                 {/* Footer */}
                 <div className="border-t border-border bg-muted/10 px-4 py-2.5 text-center">
                   <Link
-                    href="/app/owner/settings"
+                    href="/owner/settings"
                     className="inline-block text-[11px] font-medium text-primary hover:underline"
                   >
                     View all notification settings
@@ -512,20 +512,20 @@ export function AppShell({
                 {/* Main links */}
                 <DropdownMenuGroup>
                   <DropdownMenuItem asChild>
-                    <Link href="/app/owner/settings" className="cursor-pointer flex items-center w-full px-3 py-2">
+                    <Link href="/owner/settings" className="cursor-pointer flex items-center w-full px-3 py-2">
                       <CircleUser className="mr-2 h-4 w-4 text-muted-foreground" />
                       <span className="flex-1">My profile</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/app/owner/settings" className="cursor-pointer flex items-center w-full px-3 py-2">
+                    <Link href="/owner/settings" className="cursor-pointer flex items-center w-full px-3 py-2">
                       <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
                       <span className="flex-1">Settings</span>
                       <DropdownMenuShortcut className="text-[10px]">⌘,</DropdownMenuShortcut>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/app/owner/team" className="cursor-pointer flex items-center w-full px-3 py-2">
+                    <Link href="/owner/team" className="cursor-pointer flex items-center w-full px-3 py-2">
                       <Users className="mr-2 h-4 w-4 text-muted-foreground" />
                       <span className="flex-1">Team</span>
                     </Link>

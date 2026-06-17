@@ -10,11 +10,11 @@ export default function AppRootRedirect() {
 
   useEffect(() => {
     if (role === "owner") {
-      router.replace("/app/owner");
+      router.replace("/owner");
     } else if (role === "client") {
-      router.replace("/app/client");
+      router.replace("/client");
     } else if (role === "team") {
-      router.replace("/app/team");
+      router.replace("/team");
     }
   }, [role, router]);
 

@@ -76,7 +76,7 @@ function ProjectsPage() {
             const client = clients.find((c) => c.id === p.clientId)!;
             return (
               <div key={p.id} className="panel p-5 transition-transform hover:-translate-y-0.5">
-                <Link href={`/app/projects/${p.id }`} className="block">
+                <Link href={`/owner/projects/${p.id }`} className="block">
                   <div className={`h-24 w-full rounded-2xl bg-${p.accent}`} />
                   <div className="mt-4 flex items-center gap-2">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${PROJECT_STATUS_META[p.status].cls}`}>
@@ -130,7 +130,7 @@ function ProjectsPage() {
                 return (
                   <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                     <td className="px-5 py-3 font-medium">
-                      <Link href={`/app/projects/${p.id }`} className="hover:text-primary">{p.name}</Link>
+                      <Link href={`/owner/projects/${p.id }`} className="hover:text-primary">{p.name}</Link>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{client?.name}</td>
                     <td className="px-5 py-3">

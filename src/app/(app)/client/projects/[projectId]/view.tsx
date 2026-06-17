@@ -18,7 +18,7 @@ function PortalProjectDetail() {
 
   return (
     <PortalShell>
-      <Link href="/app/client/projects" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/client/projects" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-3.5 w-3.5" /> All projects
       </Link>
 

@@ -26,7 +26,7 @@ function ClientDetail() {
 
   return (
     <AppShell>
-      <Link href="/app/clients" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/owner/clients" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-3.5 w-3.5" /> All clients
       </Link>
 
@@ -88,7 +88,7 @@ function ClientDetail() {
             {clientProjects.map((p) => (
               <Link
                 key={p.id}
-                href={`/app/projects/${p.id }`}
+                href={`/owner/projects/${p.id }`}
                 className="block rounded-2xl border border-border bg-background p-4 hover:border-primary/40"
               >
                 <div className="flex items-center justify-between">

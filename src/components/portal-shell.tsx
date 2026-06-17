@@ -9,11 +9,11 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 const NAV = [
-  { to: "/app/client", label: "Overview", icon: Home, exact: true },
-  { to: "/app/client/projects", label: "Projects", icon: FolderOpen },
-  { to: "/app/client/deliverables", label: "Deliverables", icon: PackageCheck },
-  { to: "/app/client/messages", label: "Messages", icon: MessageSquare },
-  { to: "/app/client/requests", label: "Requests", icon: Send },
+  { to: "/client", label: "Overview", icon: Home, exact: true },
+  { to: "/client/projects", label: "Projects", icon: FolderOpen },
+  { to: "/client/deliverables", label: "Deliverables", icon: PackageCheck },
+  { to: "/client/messages", label: "Messages", icon: MessageSquare },
+  { to: "/client/requests", label: "Requests", icon: Send },
 ];
 
 export function PortalShell({
@@ -69,7 +69,7 @@ export function PortalShell({
             <button
               onClick={() => {
                 setRole("owner");
-                window.location.href = "/app/owner";
+                window.location.href = "/owner";
               }}
               className="hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
             >
