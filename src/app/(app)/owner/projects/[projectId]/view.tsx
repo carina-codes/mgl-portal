@@ -1560,7 +1560,7 @@ function ChatTab({ projectId }: { projectId: string }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[440px] scrollbar-thin">
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[605px] scrollbar-thin">
           <button
             onClick={() => setActiveThreadId(projectId)}
             className={cn(
