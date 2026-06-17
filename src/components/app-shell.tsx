@@ -51,6 +51,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { SearchDialog } from "./search-dialog";
 
 const NAV = [
   { to: "/owner", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -162,6 +163,7 @@ export function AppShell({
   const [status, setStatus] = useState<"online" | "away" | "dnd">("online");
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -286,16 +288,16 @@ export function AppShell({
         <div className="min-w-0 flex-1">
           {/* Top bar */}
           <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/80 px-6 py-3 backdrop-blur-xl">
-            <div className="relative flex-1 max-w-md">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="relative flex h-10 w-full max-w-md items-center rounded-full border border-border bg-card pl-10 pr-16 text-sm text-muted-foreground hover:bg-muted/50 cursor-pointer transition-all focus:outline-none"
+            >
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                placeholder="Search projects, clients, tasks..."
-                className="h-10 w-full rounded-full border border-border bg-card pl-10 pr-16 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-              />
+              <span className="text-muted-foreground">Search projects, clients, tasks...</span>
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                 ⌘K
               </kbd>
-            </div>
+            </button>
             <Popover>
               <PopoverTrigger asChild>
                 <button className="relative grid h-10 w-10 place-items-center rounded-full bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-all focus:outline-none data-[state=open]:bg-muted data-[state=open]:text-foreground">
@@ -607,6 +609,7 @@ export function AppShell({
           </main>
         </div>
       </div>
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }
