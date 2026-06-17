@@ -310,21 +310,14 @@ export function AppShell({
                 <DropdownMenuGroup>
                   <DropdownMenuItem
                     onClick={toggleTheme}
-                    className="cursor-pointer flex items-center justify-between px-3 py-2"
+                    className="cursor-pointer flex items-center px-3 py-2"
                   >
-                    <div className="flex items-center">
-                      {theme === "light" ? (
-                        <>
-                          <Moon className="mr-2 h-4 w-4 text-muted-foreground" />
-                          <span>Appearance</span>
-                        </>
-                      ) : (
-                        <>
-                          <Sun className="mr-2 h-4 w-4 text-muted-foreground" />
-                          <span>Appearance</span>
-                        </>
-                      )}
-                    </div>
+                    {theme === "light" ? (
+                      <Moon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Sun className="mr-2 h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="flex-1">Appearance</span>
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       {theme === "light" ? "Light" : "Dark"}
                     </span>
