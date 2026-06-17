@@ -97,7 +97,7 @@ export function SearchDropdown() {
             </CommandEmpty>
 
             {projects.length > 0 && (
-              <CommandGroup heading="Projects" className="text-[10px] uppercase tracking-wider text-muted-foreground px-2.5 py-1.5 font-medium">
+              <CommandGroup heading="Projects" className="px-2 py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground">
                 <div className="space-y-0.5 mt-1">
                   {projects.map((project) => (
                     <CommandItem
@@ -124,7 +124,7 @@ export function SearchDropdown() {
             )}
 
             {clients.length > 0 && (
-              <CommandGroup heading="Clients" className="text-[10px] uppercase tracking-wider text-muted-foreground px-2.5 py-1.5 font-medium">
+              <CommandGroup heading="Clients" className="px-2 py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground">
                 <div className="space-y-0.5 mt-1">
                   {clients.map((client) => (
                     <CommandItem
@@ -154,7 +154,7 @@ export function SearchDropdown() {
             )}
 
             {tasks.length > 0 && (
-              <CommandGroup heading="Tasks" className="text-[10px] uppercase tracking-wider text-muted-foreground px-2.5 py-1.5 font-medium">
+              <CommandGroup heading="Tasks" className="px-2 py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground">
                 <div className="space-y-0.5 mt-1">
                   {tasks.slice(0, 6).map((task) => {
                     const project = projects.find((p) => p.id === task.projectId);
@@ -185,7 +185,7 @@ export function SearchDropdown() {
               </CommandGroup>
             )}
 
-            <CommandGroup heading="Quick Actions" className="text-[10px] uppercase tracking-wider text-muted-foreground px-2.5 py-1.5 font-medium">
+            <CommandGroup heading="Quick Actions" className="px-2 py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground">
               <div className="space-y-0.5 mt-1">
                 <CommandItem
                   onSelect={() => runCommand(() => router.push("/owner"))}
