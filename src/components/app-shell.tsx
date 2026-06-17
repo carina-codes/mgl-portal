@@ -69,7 +69,7 @@ const NAV = [
 const statusConfig = {
   online: { color: "bg-emerald-500", label: "Online" },
   away: { color: "bg-amber-400", label: "Away" },
-  dnd: { color: "bg-red-500", label: "Do not disturb" },
+  dnd: { color: "bg-red-500", label: "Busy" },
 } as const;
 
 const roleBadge = {
