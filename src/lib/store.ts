@@ -30,6 +30,7 @@ import {
   type Document,
   type TimeEntry,
   type User,
+  type Comment,
 } from "./mock-data";
 
 export type AIActionLog = {
@@ -38,6 +39,13 @@ export type AIActionLog = {
   title: string;
   meta: string;
   ts: string;
+};
+
+export type StorageConnection = {
+  provider: "gdrive" | "dropbox" | "onedrive" | "box";
+  connected: boolean;
+  connectedAt?: string;
+  email?: string;
 };
 
 type State = {
@@ -52,6 +60,8 @@ type State = {
   messages: typeof seedMessages;
   timeEntries: TimeEntry[];
   aiActions: AIActionLog[];
+  comments: Comment[];
+  storageConnections: StorageConnection[];
 
   /* Clients */
   createClient: (input: Partial<Client> & Pick<Client, "name" | "industry" | "contact" | "contactEmail">) => Client;
@@ -100,12 +110,37 @@ type State = {
   logTime: (input: Partial<TimeEntry> & Pick<TimeEntry, "userId" | "projectId" | "hours" | "date">) => TimeEntry;
   updateTimeEntry: (id: string, patch: Partial<TimeEntry>) => void;
 
+  /* Comments */
+  createComment: (input: Partial<Comment> & Pick<Comment, "threadId" | "author" | "body" | "visibility">) => Comment;
+
+  /* Storage Connections */
+  connectStorage: (provider: "gdrive" | "dropbox" | "onedrive" | "box", email: string) => void;
+  disconnectStorage: (provider: "gdrive" | "dropbox" | "onedrive" | "box") => void;
+
   /* AI */
   logAIAction: (a: Omit<AIActionLog, "id" | "ts">) => void;
 };
 
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4)}`;
 const today = () => new Date().toISOString().slice(0, 10);
+
+const seedComments: Comment[] = [
+  // Project-level comments for Project 1 (NovaBoard Mobile, p1)
+  { id: "cm1", threadId: "p1", author: "u8", body: "Just reviewed the onboarding v3 — feels really clean. One small ask: can we slow the transition between step 2 and 3?", createdAt: "Today · 10:42", visibility: "client" },
+  { id: "cm2", threadId: "p1", author: "u2", body: "Great call — easing it now. Will repost as v3.1 by EOD.", createdAt: "Today · 10:51", visibility: "client" },
+  { id: "cm3", threadId: "p1", author: "u3", body: "Internal note: I'll wire the new transition curve to the design token so we don't drift from web.", createdAt: "Today · 10:57", visibility: "internal" },
+  { id: "cm4", threadId: "p1", author: "u2", body: "Perfect. Marking the onboarding deliverable as ready for re-review.", createdAt: "Today · 11:14", visibility: "client" },
+  { id: "cm5", threadId: "p1", author: "u8", body: "Thanks team 🙏", createdAt: "Today · 11:22", visibility: "client" },
+
+  // Task-level comments for Project 1, Task 1 (p1-t1: Design Notification Banner)
+  { id: "cm-t1-1", threadId: "p1-t1", author: "u2", body: "Should we use warning orange or warning red for the alert state?", createdAt: "Yesterday · 09:30", visibility: "client" },
+  { id: "cm-t1-2", threadId: "p1-t1", author: "u1", body: "Let's stick to the amber-500 from our brand system for warnings, and rose-500 only for critical errors.", createdAt: "Yesterday · 10:15", visibility: "client" },
+
+  // Task-level comments for Project 1, Task 5 (p1-t5: Create Dashboard Wireframe)
+  { id: "cm-t5-1", threadId: "p1-t5", author: "u8", body: "Can we see the layout with the sidebar collapsed as well?", createdAt: "2 days ago", visibility: "client" },
+  { id: "cm-t5-2", threadId: "p1-t5", author: "u2", body: "Absolutely. I'll add a view showing the collapsed sidebar state. It will free up about 180px of horizontal space.", createdAt: "Yesterday · 14:00", visibility: "client" },
+  { id: "cm-t5-3", threadId: "p1-t5", author: "u4", body: "Designed some new icon variants for the collapsed view. They're in the brand kit.", createdAt: "Yesterday · 16:30", visibility: "internal" },
+];
 
 export const useStore = create<State>((set, get) => ({
   users: [...seedUsers],
@@ -123,6 +158,13 @@ export const useStore = create<State>((set, get) => ({
     { id: "a2", iconKey: "move", title: "Moved 2 tasks to In Review", meta: "Auto-detected from comment thread", ts: "1h ago" },
     { id: "a3", iconKey: "draft", title: "Drafted client reply to Elena", meta: "Northwind Brand · awaiting your review", ts: "2h ago" },
     { id: "a4", iconKey: "summary", title: "Summarized 4 requests from Lumen", meta: "Highlighted 1 needing clarification", ts: "Yesterday" },
+  ],
+  comments: [...seedComments],
+  storageConnections: [
+    { provider: "gdrive", connected: false },
+    { provider: "dropbox", connected: false },
+    { provider: "onedrive", connected: false },
+    { provider: "box", connected: false },
   ],
 
   /* Clients */
@@ -360,6 +402,53 @@ export const useStore = create<State>((set, get) => ({
   },
   updateTimeEntry: (id, patch) =>
     set((s) => ({ timeEntries: s.timeEntries.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
+
+  /* Comments */
+  createComment: (input) => {
+    const c: Comment = {
+      id: uid("cm"),
+      threadId: input.threadId,
+      author: input.author,
+      body: input.body,
+      createdAt: "Just now",
+      visibility: input.visibility ?? "client",
+      attachments: input.attachments ?? [],
+    };
+    set((s) => {
+      // Also update comment count on the task if threadId represents a task
+      const updatedTasks = s.tasks.map((t) => {
+        if (t.id === input.threadId) {
+          return { ...t, comments: (t.comments || 0) + 1 };
+        }
+        return t;
+      });
+      return {
+        comments: [...s.comments, c],
+        tasks: updatedTasks,
+      };
+    });
+    return c;
+  },
+
+  /* Storage Connections */
+  connectStorage: (provider, email) => {
+    set((s) => ({
+      storageConnections: s.storageConnections.map((conn) =>
+        conn.provider === provider
+          ? { ...conn, connected: true, email, connectedAt: today() }
+          : conn
+      ),
+    }));
+  },
+  disconnectStorage: (provider) => {
+    set((s) => ({
+      storageConnections: s.storageConnections.map((conn) =>
+        conn.provider === provider
+          ? { ...conn, connected: false, email: undefined, connectedAt: undefined }
+          : conn
+      ),
+    }));
+  },
 
   /* AI */
   logAIAction: (a) =>
