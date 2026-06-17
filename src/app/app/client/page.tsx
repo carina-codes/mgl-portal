@@ -18,7 +18,7 @@ function PortalHome() {
       title={`Hello, Marcus`}
       subtitle={`Here's what's happening on your ${myProjects.length} ${client.name} projects.`}
       actions={
-        <Link href="/portal/requests" className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <Link href="/app/client/requests" className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           <Send className="h-4 w-4" /> Submit a request
         </Link>
       }
@@ -35,7 +35,7 @@ function PortalHome() {
           {myProjects.map((p) => (
             <Link
               key={p.id}
-              href={`/portal/projects/${p.id }`}
+              href={`/app/client/projects/${p.id }`}
               className="flex items-center gap-4 rounded-2xl border border-border bg-background p-4 transition-colors hover:border-primary/40"
             >
               <div className={`h-12 w-12 rounded-2xl bg-${p.accent}`} />

@@ -20,13 +20,13 @@ export default function Landing() {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href="/portal"
+            href="/app/client"
             className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
           >
             Client portal
           </Link>
           <Link
-            href="/app"
+            href="/app/owner"
             className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Enter platform <ArrowRight className="h-3.5 w-3.5" />
@@ -48,13 +48,13 @@ export default function Landing() {
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link
-            href="/app"
+            href="/app/owner"
             className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
           >
             <LayoutDashboard className="h-4 w-4" /> Open internal dashboard
           </Link>
           <Link
-            href="/portal"
+            href="/app/client"
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-muted"
           >
             <Users className="h-4 w-4" /> Preview client portal

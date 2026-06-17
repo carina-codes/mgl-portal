@@ -15,7 +15,7 @@ function PortalProjects() {
         {myProjects.map((p) => (
           <Link
             key={p.id}
-            href={`/portal/projects/${p.id }`}
+            href={`/app/client/projects/${p.id }`}
             className="panel p-5 transition-transform hover:-translate-y-0.5"
           >
             <div className={`h-24 w-full rounded-2xl bg-${p.accent}`} />
