@@ -177,7 +177,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                    {Math.floor(Math.random() * 6 + 2)}h today
+                    {(u.id.charCodeAt(u.id.length - 1) % 6) + 2}h today
                   </div>
                 </div>
               ))}

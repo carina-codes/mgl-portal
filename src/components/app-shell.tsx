@@ -23,6 +23,18 @@ import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
+  DropdownMenuShortcut,
+} from "@/components/ui/dropdown-menu";
+import { LogOut, Sun, Moon, HelpCircle, User, CircleUser, Shield, Keyboard, ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -36,6 +48,18 @@ const NAV = [
   { to: "/app/reporting", label: "Reporting", icon: BarChart3 },
   { to: "/app/team", label: "Team", icon: UserCog },
 ];
+
+const statusConfig = {
+  online: { color: "bg-emerald-500", label: "Online" },
+  away: { color: "bg-amber-400", label: "Away" },
+  dnd: { color: "bg-red-500", label: "Do not disturb" },
+} as const;
+
+const roleBadge = {
+  owner: { label: "Owner", class: "bg-primary/15 text-primary" },
+  team: { label: "Team", class: "bg-blue-500/15 text-blue-600" },
+  client: { label: "Client", class: "bg-emerald-500/15 text-emerald-600" },
+} as const;
 
 export function AppShell({
   children,
@@ -51,6 +75,32 @@ export function AppShell({
   const pathname = usePathname() || "";
   const { role, setRole } = useRole();
   const user = useCurrentUser();
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [status, setStatus] = useState<"online" | "away" | "dnd">("online");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      setTheme("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      setTheme("light");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (theme === "light") {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setTheme("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setTheme("light");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -151,11 +201,170 @@ export function AppShell({
               <Bell className="h-4 w-4" />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
             </button>
-            <button className="flex items-center gap-2 rounded-full bg-card border border-border py-1 pr-3 pl-1">
-              <UserAvatar user={user} size={32} />
-              <span className="text-sm font-medium">{user.name.split(" ")[0]}</span>
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-full bg-card border border-border py-1 pr-3 pl-1 transition-all hover:bg-muted cursor-pointer focus:outline-none">
+                  <div className="relative">
+                    <UserAvatar user={user} size={32} />
+                    <span
+                      className={cn(
+                        "absolute bottom-0 right-0 h-2 w-2 rounded-full border border-card",
+                        statusConfig[status].color,
+                      )}
+                    />
+                  </div>
+                  <span className="text-sm font-medium">{user.name.split(" ")[0]}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72 p-1.5">
+                {/* User info header */}
+                <DropdownMenuLabel className="font-normal px-3 py-3">
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <UserAvatar user={user} size={44} />
+                      <span
+                        className={cn(
+                          "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background",
+                          statusConfig[status].color,
+                        )}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold">{user.name}</span>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                            roleBadge[role].class,
+                          )}
+                        >
+                          {roleBadge[role].label}
+                        </span>
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+                      <div className="truncate text-[11px] text-muted-foreground/70">{user.title}</div>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator className="-mx-1.5" />
+
+                {/* Status selector */}
+                <DropdownMenuLabel className="font-normal px-3 py-2">
+                  <div className="pb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    Status
+                  </div>
+                  <div className="flex gap-1 rounded-lg bg-muted/50 p-0.5">
+                    {(["online", "away", "dnd"] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setStatus(s);
+                        }}
+                        className={cn(
+                          "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-medium transition-all cursor-pointer",
+                          status === s
+                            ? "bg-popover shadow-sm text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        <span className={cn("h-1.5 w-1.5 rounded-full", statusConfig[s].color)} />
+                        {statusConfig[s].label}
+                      </button>
+                    ))}
+                  </div>
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator className="-mx-1.5" />
+
+                {/* Main links */}
+                <DropdownMenuGroup>
+                  <DropdownMenuItem asChild>
+                    <Link href="/app/settings" className="cursor-pointer flex items-center w-full px-3 py-2">
+                      <CircleUser className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">My profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/app/settings" className="cursor-pointer flex items-center w-full px-3 py-2">
+                      <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">Settings</span>
+                      <DropdownMenuShortcut className="text-[10px]">⌘,</DropdownMenuShortcut>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/app/team" className="cursor-pointer flex items-center w-full px-3 py-2">
+                      <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">Team</span>
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator className="-mx-1.5" />
+
+                {/* Preferences */}
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={toggleTheme}
+                    className="cursor-pointer flex items-center justify-between px-3 py-2"
+                  >
+                    <div className="flex items-center">
+                      {theme === "light" ? (
+                        <>
+                          <Moon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>Appearance</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sun className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>Appearance</span>
+                        </>
+                      )}
+                    </div>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {theme === "light" ? "Light" : "Dark"}
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer flex items-center px-3 py-2">
+                    <Keyboard className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">Keyboard shortcuts</span>
+                    <DropdownMenuShortcut className="text-[10px]">?</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer flex items-center px-3 py-2">
+                    <HelpCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">Help & support</span>
+                    <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator className="-mx-1.5" />
+
+                {/* Workspace & Sign out */}
+                <DropdownMenuGroup>
+                  <DropdownMenuItem className="cursor-pointer flex items-center px-3 py-2">
+                    <Shield className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>Admin console</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer flex items-center px-3 py-2">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+
+                <DropdownMenuSeparator className="-mx-1.5" />
+
+                {/* Footer info */}
+                <DropdownMenuLabel className="font-normal px-3 py-2 rounded-b-md bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground">
+                    MGL Client Platform · v2.4.0
+                  </div>
+                </DropdownMenuLabel>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </header>
 
           {/* Page */}
