@@ -79,14 +79,17 @@ function ProjectDetail() {
   const params = useParams();
   const projectId = params?.projectId as string;
   
-  const project = useStore((s) => s.projects.find((p) => p.id === projectId));
+  const projects = useStore((s) => s.projects);
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
+
+  const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
+  const client = useMemo(() => project ? clients.find((c) => c.id === project.clientId) : undefined, [clients, project]);
   
   const [tab, setTab] = useState<TabId>("tasks");
 
   if (!project) throw notFound();
-  const client = clients.find((c) => c.id === project.clientId)!;
+  if (!client) throw notFound();
 
   return (
     <AppShell>
@@ -161,8 +164,10 @@ function ProjectDetail() {
 }
 
 function Overview({ projectId }: { projectId: string }) {
-  const project = useStore((s) => s.projects.find((p) => p.id === projectId))!;
-  const t = useStore((s) => s.tasks.filter((x) => x.projectId === projectId));
+  const projects = useStore((s) => s.projects);
+  const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
+  const allTasks = useStore((s) => s.tasks);
+  const t = useMemo(() => allTasks.filter((x) => x.projectId === projectId), [allTasks, projectId]);
   const users = useStore((s) => s.users);
 
   return (
@@ -249,7 +254,8 @@ function TasksTab({ projectId }: { projectId: string }) {
   const [query, setQuery] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   
-  const tasks = useStore((s) => s.tasks.filter((t) => t.projectId === projectId));
+  const allTasks = useStore((s) => s.tasks);
+  const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const createTask = useStore((s) => s.createTask);
   const updateTask = useStore((s) => s.updateTask);
   const users = useStore((s) => s.users);
@@ -455,7 +461,8 @@ function KanbanBoardView({
   setNewTaskStage: (stage: TaskStage) => void;
   setNewTaskOpen: (open: boolean) => void;
 }) {
-  const tasks = useStore((s) => s.tasks.filter((t) => t.projectId === projectId));
+  const allTasks = useStore((s) => s.tasks);
+  const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const updateTask = useStore((s) => s.updateTask);
   const [dragId, setDragId] = useState<string | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -593,7 +600,8 @@ function TasksListView({
   query: string;
   onCardClick: (id: string) => void;
 }) {
-  const tasks = useStore((s) => s.tasks.filter((t) => t.projectId === projectId));
+  const allTasks = useStore((s) => s.tasks);
+  const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const users = useStore((s) => s.users);
 
   // Sorting
@@ -714,7 +722,8 @@ function TasksCalendarView({
   query: string;
   onCardClick: (id: string) => void;
 }) {
-  const tasks = useStore((s) => s.tasks.filter((t) => t.projectId === projectId));
+  const allTasks = useStore((s) => s.tasks);
+  const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const updateTask = useStore((s) => s.updateTask);
   const [currentYear, setCurrentYear] = useState(2026);
   const [currentMonth, setCurrentMonth] = useState(5); // June is index 5 (0-indexed)
@@ -882,10 +891,12 @@ function TasksCalendarView({
 /* ───── 2.4 Task Details Drawer ───── */
 
 function TaskDetailsDrawer({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
-  const task = useStore((s) => s.tasks.find((t) => t.id === taskId));
+  const tasks = useStore((s) => s.tasks);
+  const task = useMemo(() => tasks.find((t) => t.id === taskId), [tasks, taskId]);
   const updateTask = useStore((s) => s.updateTask);
   const users = useStore((s) => s.users);
-  const comments = useStore((s) => s.comments.filter((c) => c.threadId === taskId));
+  const allComments = useStore((s) => s.comments);
+  const comments = useMemo(() => allComments.filter((c) => c.threadId === taskId), [allComments, taskId]);
 
   const teamMembers = users.filter((u) => u.role !== "client");
 
@@ -1089,7 +1100,8 @@ function NewCommentForm({ threadId }: { threadId: string }) {
 /* ───── Requests Tab ───── */
 
 function RequestsTab({ projectId }: { projectId: string }) {
-  const requests = useStore((s) => s.requests.filter((r) => r.projectId === projectId));
+  const allRequests = useStore((s) => s.requests);
+  const requests = useMemo(() => allRequests.filter((r) => r.projectId === projectId), [allRequests, projectId]);
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {requests.length === 0 && <EmptyState icon={Inbox} label="No requests for this project yet" />}
@@ -1112,8 +1124,10 @@ function RequestsTab({ projectId }: { projectId: string }) {
 /* ───── Centralized Files Tab ───── */
 
 function FilesTab({ projectId }: { projectId: string }) {
-  const deliverables = useStore((s) => s.deliverables.filter((d) => d.projectId === projectId));
-  const documents = useStore((s) => s.documents.filter((d) => d.projectId === projectId && d.name !== ".keep"));
+  const allDeliverables = useStore((s) => s.deliverables);
+  const deliverables = useMemo(() => allDeliverables.filter((d) => d.projectId === projectId), [allDeliverables, projectId]);
+  const allDocuments = useStore((s) => s.documents);
+  const documents = useMemo(() => allDocuments.filter((d) => d.projectId === projectId && d.name !== ".keep"), [allDocuments, projectId]);
   const uploadDocument = useStore((s) => s.uploadDocument);
   const deleteDocument = useStore((s) => s.deleteDocument);
   const updateDocument = useStore((s) => s.updateTask); // Reuse or custom update logic
@@ -1468,8 +1482,10 @@ function ChatTab({ projectId }: { projectId: string }) {
   const [activeThreadId, setActiveThreadId] = useState<string>(projectId);
   const [chatSearch, setChatSearch] = useState("");
   
-  const project = useStore((s) => s.projects.find((p) => p.id === projectId))!;
-  const tasks = useStore((s) => s.tasks.filter((t) => t.projectId === projectId));
+  const projects = useStore((s) => s.projects);
+  const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
+  const allTasks = useStore((s) => s.tasks);
+  const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const comments = useStore((s) => s.comments);
   const createComment = useStore((s) => s.createComment);
   const users = useStore((s) => s.users);
@@ -1923,8 +1939,10 @@ function StorageTab({ projectId }: { projectId: string }) {
 /* ───── Time Entries Tab ───── */
 
 function TimeTab({ projectId }: { projectId: string }) {
-  const entries = useStore((s) => s.timeEntries.filter((t) => t.projectId === projectId)).slice(0, 20);
-  const project = useStore((s) => s.projects.find((p) => p.id === projectId))!;
+  const allTimeEntries = useStore((s) => s.timeEntries);
+  const entries = useMemo(() => allTimeEntries.filter((t) => t.projectId === projectId).slice(0, 20), [allTimeEntries, projectId]);
+  const projects = useStore((s) => s.projects);
+  const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
   const users = useStore((s) => s.users);
   
   const logged = entries.reduce((s, t) => s + t.hours, 0);
