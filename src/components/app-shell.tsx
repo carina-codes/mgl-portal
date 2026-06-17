@@ -33,7 +33,23 @@ import {
   DropdownMenuGroup,
   DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Sun, Moon, HelpCircle, User, CircleUser, Shield, Keyboard, ExternalLink } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  LogOut,
+  Sun,
+  Moon,
+  HelpCircle,
+  User,
+  CircleUser,
+  Shield,
+  Keyboard,
+  ExternalLink,
+  Check,
+  Trash2,
+  Upload,
+  CircleDot,
+  FileCheck,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -61,6 +77,73 @@ const roleBadge = {
   client: { label: "Client", class: "bg-emerald-500/15 text-emerald-600" },
 } as const;
 
+interface NotificationItem {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  read: boolean;
+  type: "request" | "upload" | "comment" | "payment" | "milestone";
+}
+
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: "n1",
+    title: "New change request",
+    description: "Elena Marchetti (Client) requested revisions on NovaBoard Web App UI.",
+    time: "1 hour ago",
+    read: false,
+    type: "request",
+  },
+  {
+    id: "n2",
+    title: "Mia Tanaka uploaded assets",
+    description: "Uploaded 3 new design concepts to the NovaBoard iOS App project.",
+    time: "3 hours ago",
+    read: false,
+    type: "upload",
+  },
+  {
+    id: "n3",
+    title: "New feedback comment",
+    description: "Elena Marchetti commented on the Marketing Site Copy draft.",
+    time: "5 hours ago",
+    read: false,
+    type: "comment",
+  },
+  {
+    id: "n4",
+    title: "Payment received",
+    description: "Invoice #INV-2026-004 ($4,250.00) has been paid by Elena Marchetti.",
+    time: "Yesterday",
+    read: true,
+    type: "payment",
+  },
+  {
+    id: "n5",
+    title: "Milestone achieved",
+    description: "Project NovaBoard iOS App is now 75% complete.",
+    time: "2 days ago",
+    read: true,
+    type: "milestone",
+  },
+];
+
+const getNotificationTypeConfig = (type: NotificationItem["type"]) => {
+  switch (type) {
+    case "request":
+      return { icon: Inbox, color: "text-blue-500 bg-blue-500/10" };
+    case "upload":
+      return { icon: Upload, color: "text-purple-500 bg-purple-500/10" };
+    case "comment":
+      return { icon: MessageSquare, color: "text-amber-500 bg-amber-500/10" };
+    case "payment":
+      return { icon: FileCheck, color: "text-emerald-500 bg-emerald-500/10" };
+    case "milestone":
+      return { icon: CircleDot, color: "text-pink-500 bg-pink-500/10" };
+  }
+};
+
 export function AppShell({
   children,
   title,
@@ -77,6 +160,22 @@ export function AppShell({
   const user = useCurrentUser();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [status, setStatus] = useState<"online" | "away" | "dnd">("online");
+  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAllAsRead = () => setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const clearAll = () => setNotifications([]);
+  const toggleRead = (id: string) =>
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: !n.read } : n))
+    );
+
+  const filteredNotifications = notifications.filter((n) => {
+    if (notifFilter === "unread") return !n.read;
+    return true;
+  });
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
@@ -197,10 +296,139 @@ export function AppShell({
                 ⌘K
               </kbd>
             </div>
-            <button className="relative grid h-10 w-10 place-items-center rounded-full bg-card border border-border text-muted-foreground hover:text-foreground">
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
-            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="relative grid h-10 w-10 place-items-center rounded-full bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-all focus:outline-none data-[state=open]:bg-muted data-[state=open]:text-foreground">
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-96 p-0 rounded-2xl overflow-hidden shadow-2xl border border-border bg-card">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-sm">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                        title="Mark all as read"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                    )}
+                    {notifications.length > 0 && (
+                      <button
+                        onClick={clearAll}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                        title="Clear all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filter Tabs */}
+                {notifications.length > 0 && (
+                  <div className="flex border-b border-border bg-muted/20 px-3 py-1.5 text-xs">
+                    <button
+                      onClick={() => setNotifFilter("all")}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 font-medium transition-colors cursor-pointer",
+                        notifFilter === "all"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setNotifFilter("unread")}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 font-medium transition-colors cursor-pointer ml-1",
+                        notifFilter === "unread"
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      Unread ({unreadCount})
+                    </button>
+                  </div>
+                )}
+
+                {/* List */}
+                <div className="max-h-[360px] overflow-y-auto scrollbar-thin divide-y divide-border/50">
+                  {filteredNotifications.length > 0 ? (
+                    filteredNotifications.map((notif) => {
+                      const config = getNotificationTypeConfig(notif.type);
+                      const IconComponent = config.icon;
+                      return (
+                        <div
+                          key={notif.id}
+                          onClick={() => toggleRead(notif.id)}
+                          className={cn(
+                            "group flex gap-3 p-3.5 text-left transition-colors cursor-pointer hover:bg-muted/40",
+                            !notif.read && "bg-primary/[0.02]"
+                          )}
+                        >
+                          <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", config.color)}>
+                            <IconComponent className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={cn("text-xs font-semibold leading-normal", !notif.read ? "text-foreground" : "text-foreground/80")}>
+                                {notif.title}
+                              </p>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-muted-foreground/60 whitespace-nowrap">{notif.time}</span>
+                                {!notif.read && (
+                                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                                )}
+                              </div>
+                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground leading-normal line-clamp-2">
+                              {notif.description}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                      <div className="grid h-12 w-12 place-items-center rounded-full bg-muted/40 text-muted-foreground/60">
+                        <Bell className="h-5 w-5" />
+                      </div>
+                      <h4 className="mt-3 font-semibold text-xs text-foreground/80">All caught up</h4>
+                      <p className="mt-1 text-[11px] text-muted-foreground max-w-[200px]">
+                        {notifFilter === "unread"
+                          ? "You don't have any unread notifications."
+                          : "No new notifications at the moment."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-border bg-muted/10 px-4 py-2.5 text-center">
+                  <Link
+                    href="/app/settings"
+                    className="inline-block text-[11px] font-medium text-primary hover:underline"
+                  >
+                    View all notification settings
+                  </Link>
+                </div>
+              </PopoverContent>
+            </Popover>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-full bg-card border border-border py-1 pr-3 pl-1 transition-all hover:bg-muted cursor-pointer focus:outline-none">
