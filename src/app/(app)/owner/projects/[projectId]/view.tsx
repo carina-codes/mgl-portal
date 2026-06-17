@@ -1052,8 +1052,7 @@ function NewCommentForm({ threadId }: { threadId: string }) {
   const [isInternal, setIsInternal] = useState(false);
   const createComment = useStore((s) => s.createComment);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (!commentText.trim()) return;
 
     createComment({
@@ -1066,34 +1065,36 @@ function NewCommentForm({ threadId }: { threadId: string }) {
     toast.success("Comment posted successfully");
   };
 
+  const isEnabled = commentText.replace(/<[^>]+>/g, "").trim().length > 0;
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <textarea
-        value={commentText}
-        onChange={(e) => setCommentText(e.target.value)}
-        placeholder="Post a reply..."
-        rows={2}
-        className="w-full rounded-xl border border-border bg-background p-2.5 text-xs outline-none focus:ring-1 focus:ring-primary text-foreground resize-none"
-      />
-      <div className="flex justify-between items-center">
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={isInternal}
-            onChange={(e) => setIsInternal(e.target.checked)}
-            className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
-          />
-          <span>Internal only</span>
-        </label>
-        <button
-          type="submit"
-          disabled={!commentText.trim()}
-          className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all cursor-pointer"
-        >
-          Send
-        </button>
-      </div>
-    </form>
+    <RichEditor
+      value={commentText}
+      onChange={setCommentText}
+      placeholder="Post a reply..."
+      minHeight={80}
+      compact
+      footer={
+        <div className="flex justify-between items-center">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isInternal}
+              onChange={(e) => setIsInternal(e.target.checked)}
+              className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
+            />
+            <span>Internal only</span>
+          </label>
+          <button
+            onClick={handleSubmit}
+            disabled={!isEnabled}
+            className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all cursor-pointer"
+          >
+            Send
+          </button>
+        </div>
+      }
+    />
   );
 }
 
@@ -1716,8 +1717,7 @@ function ChatInputBox({ threadId, onAttachClick }: { threadId: string; onAttachC
   const [isInternal, setIsInternal] = useState(false);
   const createComment = useStore((s) => s.createComment);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (!commentText.trim()) return;
 
     createComment({
@@ -1730,45 +1730,46 @@ function ChatInputBox({ threadId, onAttachClick }: { threadId: string; onAttachC
     toast.success("Comment posted");
   };
 
+  const isEnabled = commentText.replace(/<[^>]+>/g, "").trim().length > 0;
+
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border border-border bg-background p-3 flex flex-col gap-2.5">
-      <textarea
-        value={commentText}
-        onChange={(e) => setCommentText(e.target.value)}
-        rows={2}
-        placeholder="Type your message, post progress, or ask queries..."
-        className="w-full resize-none bg-transparent text-sm text-foreground focus:outline-none"
-      />
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <div className="flex items-center gap-3">
-          <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none font-semibold">
-            <input
-              type="checkbox"
-              checked={isInternal}
-              onChange={(e) => setIsInternal(e.target.checked)}
-              className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
-            />
-            <span>Internal only</span>
-          </label>
+    <RichEditor
+      value={commentText}
+      onChange={setCommentText}
+      placeholder="Type your message, post progress, or ask queries..."
+      minHeight={100}
+      footer={
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none font-semibold">
+              <input
+                type="checkbox"
+                checked={isInternal}
+                onChange={(e) => setIsInternal(e.target.checked)}
+                className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
+              />
+              <span>Internal only</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={onAttachClick}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 px-2.5 py-1 rounded-full border border-border/60 transition-all cursor-pointer font-semibold"
+            >
+              <Paperclip className="h-3.5 w-3.5" /> Attach
+            </button>
+          </div>
 
           <button
-            type="button"
-            onClick={onAttachClick}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 px-2.5 py-1 rounded-full border border-border/60 transition-all cursor-pointer font-semibold"
+            onClick={handleSubmit}
+            disabled={!isEnabled}
+            className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all cursor-pointer inline-flex items-center gap-1"
           >
-            <Paperclip className="h-3.5 w-3.5" /> Attach
+            <Send className="h-3 w-3" /> Send
           </button>
         </div>
-
-        <button
-          type="submit"
-          disabled={!commentText.trim()}
-          className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-all cursor-pointer inline-flex items-center gap-1"
-        >
-          <Send className="h-3 w-3" /> Send
-        </button>
-      </div>
-    </form>
+      }
+    />
   );
 }
 
