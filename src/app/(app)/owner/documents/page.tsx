@@ -129,7 +129,7 @@ function DocumentsPage() {
       />
 
       {view === "list" ? (
-        <div className="panel p-2">
+        <div className="panel overflow-hidden">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">

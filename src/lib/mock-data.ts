@@ -1,5 +1,5 @@
 /**
- * Mock data layer for the MGL Client Platform prototype.
+ * Mock data layer for the Carina Client Platform prototype.
  *
  * All data is in-memory. The shape mirrors what a future Supabase / Next.js
  * backend would return, so screens can be wired up to real services with
@@ -32,16 +32,63 @@ export type Client = {
   openRequests: number;
   hoursMonth: number;
   health: "healthy" | "watch" | "at-risk";
+  // Expanded fields:
+  website?: string;
+  phone?: string;
+  timezone?: string;
+  address?: string;
+  description?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  preferredContactMethod?: "email" | "phone" | "messages";
+  contactPhone?: string;
+  contactRole?: string;
+  workingHours?: string;
+  preferredMeetingTimes?: string;
+  availabilityNotes?: string;
+  mapDirectionsLink?: string;
+  notes?: string;
+  internalNotes?: string;
+  lastActivity?: string;
+  tags?: string[];
+  additionalContacts?: Array<{
+    name: string;
+    title: string;
+    email: string;
+    phone: string;
+    department: string;
+  }>;
+  socialLinks?: {
+    linkedin?: string;
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    other?: string;
+  };
+  shareLinks?: ProjectShareLink[];
 };
 
 export type ProjectStatus = "planning" | "in_progress" | "review" | "completed" | "on_hold";
+
+export type ProjectShareLink = {
+  id: string;
+  userId: string;
+  token: string;
+  status: "active" | "disabled";
+  permission: "owner" | "admin" | "edit" | "comment" | "view";
+  createdAt: string;
+  lastUsedAt?: string;
+  expiresAt?: string;
+};
 
 export type Project = {
   id: string;
   name: string;
   clientId: string;
   status: ProjectStatus;
-  type: "fixed" | "hourly";
+  type: "fixed" | "hourly" | "retainer";
   budget: number;
   spent: number;
   hoursEstimate: number;
@@ -53,6 +100,27 @@ export type Project = {
   lead: string;
   description: string;
   accent: "todo" | "progress" | "review" | "done";
+  
+  // Settings & Sharing
+  shareLinks?: ProjectShareLink[];
+  shareLink?: string;
+  sharePermission?: "view" | "comment" | "edit";
+  shareExpiresAt?: string;
+  sharePasswordEnabled?: boolean;
+  sharePassword?: string;
+  memberPermissions?: Record<string, "view" | "comment" | "edit" | "admin" | "owner">;
+  clientShareToken?: string;
+  clientShareEnabled?: boolean;
+  teamShareToken?: string;
+  teamShareEnabled?: boolean;
+  visibility?: "private" | "team" | "client";
+  notifications?: {
+    tasks?: boolean;
+    mentions?: boolean;
+    comments?: boolean;
+    status?: boolean;
+    files?: boolean;
+  };
 };
 
 export type TaskStage = "todo" | "in_progress" | "in_review" | "completed";
@@ -70,6 +138,13 @@ export type Task = {
   assignees: string[];
   attachments: number;
   comments: number;
+  startDate?: string;
+  tags?: string[];
+  followers?: string[];
+  estimatedHours?: number;
+  customFields?: Record<string, string>;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type RequestType =
@@ -102,26 +177,7 @@ export type ClientRequest = {
   priority: Priority;
 };
 
-export type DeliverableStatus =
-  | "draft"
-  | "internal_review"
-  | "client_review"
-  | "approved"
-  | "rejected"
-  | "revision_requested";
 
-export type Deliverable = {
-  id: string;
-  projectId: string;
-  title: string;
-  description: string;
-  version: string;
-  status: DeliverableStatus;
-  updatedAt: string;
-  thumbnail: string; // gradient seed
-  fileCount: number;
-  feedback: number;
-};
 
 export type Comment = {
   id: string;
@@ -153,6 +209,7 @@ export type Document = {
   uploadedBy: string;
   uploadedAt: string;
   shared: boolean;
+  previewUrl?: string;
 };
 
 export type Message = {
@@ -177,12 +234,12 @@ export type Channel = {
 // ─────────────────────────────────────────────────────────── Users / Team
 
 export const users: User[] = [
-  { id: "u1", name: "Jordan Reyes", email: "jordan@mglagency.com", role: "owner", title: "Founder & Strategy Lead", color: "#0049FE", avatar: "JR" },
-  { id: "u2", name: "Mia Tanaka", email: "mia@mglagency.com", role: "team", title: "Design Director", color: "#FF7A59", avatar: "MT" },
-  { id: "u3", name: "Devon Patel", email: "devon@mglagency.com", role: "team", title: "Senior Engineer", color: "#10B981", avatar: "DP" },
-  { id: "u4", name: "Ava Lindgren", email: "ava@mglagency.com", role: "team", title: "Brand Designer", color: "#A855F7", avatar: "AL" },
-  { id: "u5", name: "Noah Carter", email: "noah@mglagency.com", role: "team", title: "Producer", color: "#F59E0B", avatar: "NC" },
-  { id: "u6", name: "Priya Shah", email: "priya@mglagency.com", role: "team", title: "Motion Designer", color: "#EC4899", avatar: "PS" },
+  { id: "u1", name: "Carina Rivera", email: "carina@carina.studio", role: "owner", title: "Founder & Strategy Lead", color: "#0049FE", avatar: "CR" },
+  { id: "u2", name: "Mia Tanaka", email: "mia@carina.studio", role: "team", title: "Design Director", color: "#FF7A59", avatar: "MT" },
+  { id: "u3", name: "Devon Patel", email: "devon@carina.studio", role: "team", title: "Senior Engineer", color: "#10B981", avatar: "DP" },
+  { id: "u4", name: "Ava Lindgren", email: "ava@carina.studio", role: "team", title: "Brand Designer", color: "#A855F7", avatar: "AL" },
+  { id: "u5", name: "Noah Carter", email: "noah@carina.studio", role: "team", title: "Producer", color: "#F59E0B", avatar: "NC" },
+  { id: "u6", name: "Priya Shah", email: "priya@carina.studio", role: "team", title: "Motion Designer", color: "#EC4899", avatar: "PS" },
   // Client-side users
   { id: "u7", name: "Elena Brooks", email: "elena@northwind.io", role: "client", title: "VP Marketing, Northwind", color: "#0EA5E9", avatar: "EB" },
   { id: "u8", name: "Marcus Hale", email: "marcus@arcadia.com", role: "client", title: "CMO, Arcadia Solutions", color: "#84CC16", avatar: "MH" },
@@ -212,6 +269,33 @@ export const clients: Client[] = [
     openRequests: 4,
     hoursMonth: 62,
     health: "healthy",
+    website: "https://arcadia.com",
+    phone: "+1 (555) 019-2834",
+    timezone: "America/New_York",
+    address: "100 Broadway, 24th Floor",
+    city: "New York",
+    state: "NY",
+    country: "United States",
+    preferredContactMethod: "email",
+    contactPhone: "+1 (555) 019-2839",
+    contactRole: "Chief Marketing Officer",
+    workingHours: "9:00 AM - 6:00 PM EST",
+    preferredMeetingTimes: "Tuesdays & Thursdays, 2:00 PM - 4:00 PM",
+    availabilityNotes: "Marcus is out of office on Friday afternoons. For urgent design sign-offs, email Sarah.",
+    mapDirectionsLink: "https://maps.google.com/?q=100+Broadway+New+York+NY",
+    notes: "<h3>Arcadia Solutions Partnership</h3><p>Arcadia Solutions designs next-generation project collaboration tools for creators and engineers. Under active growth with a focus on web and mobile workflows. Key retainer client with highly technical specifications.</p>",
+    internalNotes: "Keep design components strictly compliant with their brand guidelines. Marcus is detail-oriented and reviews Figma prototypes exhaustively.",
+    lastActivity: "1 hour ago",
+    tags: ["Enterprise", "Retainer", "Tech"],
+    additionalContacts: [
+      { name: "Sarah Jenkins", title: "Product Manager", email: "sarah.j@arcadia.com", phone: "+1 (555) 019-2841", department: "Product" },
+      { name: "David Miller", title: "VP Engineering", email: "david.m@arcadia.com", phone: "+1 (555) 019-2842", department: "Engineering" }
+    ],
+    socialLinks: {
+      linkedin: "https://linkedin.com/company/arcadia-solutions",
+      twitter: "https://x.com/arcadia_sol",
+      facebook: "https://facebook.com/arcadia.sol"
+    }
   },
   {
     id: "c2",
@@ -227,6 +311,31 @@ export const clients: Client[] = [
     openRequests: 2,
     hoursMonth: 41,
     health: "watch",
+    website: "https://northwind.io",
+    phone: "+1 (555) 831-2940",
+    timezone: "America/Los_Angeles",
+    address: "450 Sutter St, Suite 1200",
+    city: "San Francisco",
+    state: "CA",
+    country: "United States",
+    preferredContactMethod: "messages",
+    contactPhone: "+1 (555) 831-2942",
+    contactRole: "VP Marketing",
+    workingHours: "8:00 AM - 5:00 PM PST",
+    preferredMeetingTimes: "Wednesdays, 10:00 AM - 12:00 PM",
+    availabilityNotes: "Elena prefers using the built-in portal messages over email.",
+    mapDirectionsLink: "https://maps.google.com/?q=450+Sutter+St+San+Francisco+CA",
+    notes: "<h3>Northwind Skincare Launch</h3><p>Northwind Studio is a direct-to-consumer organic skincare brand expanding its online platform with customized subscription plans and clean editorial visual assets.</p>",
+    internalNotes: "Marketing timelines are tight. Watch the skincare campaign milestones carefully.",
+    lastActivity: "2 hours ago",
+    tags: ["DTC", "Skincare", "E-commerce"],
+    additionalContacts: [
+      { name: "Oliver Sterling", title: "Creative Lead", email: "oliver@northwind.io", phone: "+1 (555) 831-2943", department: "Design" }
+    ],
+    socialLinks: {
+      linkedin: "https://linkedin.com/company/northwind-studio",
+      instagram: "https://instagram.com/northwind.skincare"
+    }
   },
   {
     id: "c3",
@@ -242,6 +351,31 @@ export const clients: Client[] = [
     openRequests: 3,
     hoursMonth: 28,
     health: "at-risk",
+    website: "https://lumenco.com",
+    phone: "+34 913 608 200",
+    timezone: "Europe/Madrid",
+    address: "Paseo de la Castellana, 12",
+    city: "Madrid",
+    state: "Madrid",
+    country: "Spain",
+    preferredContactMethod: "phone",
+    contactPhone: "+34 610 998 221",
+    contactRole: "Brand Director",
+    workingHours: "9:00 AM - 6:00 PM CET",
+    preferredMeetingTimes: "Mondays, 3:00 PM - 5:00 PM CET",
+    availabilityNotes: "Sofia travels frequently. Always confirm meetings 24 hours in advance.",
+    mapDirectionsLink: "https://maps.google.com/?q=Paseo+de+la+Castellana+12+Madrid",
+    notes: "<h3>Lumen Rebrand & Digital Experience</h3><p>Lumen & Co. runs premium boutique hotels in southern Europe. Currently undergoing a full branding overhaul and digital reservations relaunch.</p>",
+    internalNotes: "Retainer is currently at-risk due to delayed feedback cycles. Be proactive and schedule follow-ups via phone call.",
+    lastActivity: "5 hours ago",
+    tags: ["Hospitality", "Fixed-Bid", "Europe"],
+    additionalContacts: [
+      { name: "Carlos Vega", title: "Operations Manager", email: "carlos@lumenco.com", phone: "+34 610 998 225", department: "Operations" }
+    ],
+    socialLinks: {
+      linkedin: "https://linkedin.com/company/lumen-hospitality",
+      instagram: "https://instagram.com/lumen.hotels"
+    }
   },
   {
     id: "c4",
@@ -257,6 +391,28 @@ export const clients: Client[] = [
     openRequests: 1,
     hoursMonth: 19,
     health: "healthy",
+    website: "https://fieldform.co",
+    phone: "+1 (555) 728-1934",
+    timezone: "America/Chicago",
+    address: "222 Merchandise Mart Plaza, Suite 400",
+    city: "Chicago",
+    state: "IL",
+    country: "United States",
+    preferredContactMethod: "email",
+    contactPhone: "+1 (555) 728-1937",
+    contactRole: "Principal Architect",
+    workingHours: "8:30 AM - 5:30 PM CST",
+    preferredMeetingTimes: "Fridays, 9:00 AM - 11:00 AM",
+    availabilityNotes: "Preferred meeting platform is Google Meet.",
+    mapDirectionsLink: "https://maps.google.com/?q=222+Merchandise+Mart+Plaza+Chicago+IL",
+    notes: "<h3>Field & Form Digital Portfolio</h3><p>A high-end architectural firm specializing in modern sustainable residential design. Building a marketing portfolio site to display their award-winning projects.</p>",
+    internalNotes: "Portfolio project is high profile. Keep typography and minimal layout clean.",
+    lastActivity: "1 day ago",
+    tags: ["Architecture", "Portfolio", "Marketing-Site"],
+    additionalContacts: [],
+    socialLinks: {
+      linkedin: "https://linkedin.com/company/field-form-architecture"
+    }
   },
   {
     id: "c5",
@@ -272,7 +428,29 @@ export const clients: Client[] = [
     openRequests: 0,
     hoursMonth: 0,
     health: "watch",
-  },
+    website: "https://halcyon.health",
+    phone: "+1 (555) 289-4055",
+    timezone: "America/Los_Angeles",
+    address: "548 Market St, Suite 900",
+    city: "San Francisco",
+    state: "CA",
+    country: "United States",
+    preferredContactMethod: "email",
+    contactPhone: "+1 (555) 289-4057",
+    contactRole: "Head of Product",
+    workingHours: "9:00 AM - 5:00 PM PST",
+    preferredMeetingTimes: "Thursdays, 3:00 PM - 5:00 PM",
+    availabilityNotes: "Daniel is currently out of office on a product retreat. Re-engagement scheduled for Q3.",
+    mapDirectionsLink: "https://maps.google.com/?q=548+Market+St+San+Francisco+CA",
+    notes: "<h3>Halcyon Product Overhaul</h3><p>Healthtech platform focusing on digital health records and outpatient scheduling systems. Retainer currently paused while their internal development team prepares initial API specs.</p>",
+    internalNotes: "Check in with Daniel in late July to discuss resuming active sprints.",
+    lastActivity: "2 weeks ago",
+    tags: ["Healthtech", "Product-Design", "Paused"],
+    additionalContacts: [],
+    socialLinks: {
+      linkedin: "https://linkedin.com/company/halcyon-health"
+    }
+  }
 ];
 
 // ─────────────────────────────────────────────────────────── Projects
@@ -447,7 +625,26 @@ function buildTasks(): Task[] {
       const shift = pIdx % 4;
       const idx = (i + shift) % taskSeeds.length;
       const t = taskSeeds[idx];
-      out.push({ id: `${p.id}-t${i + 1}`, projectId: p.id, ...t });
+      
+      // Seed realistic dates in June 2026
+      const day = 1 + (i % 28);
+      const createdAt = `2026-06-${day.toString().padStart(2, "0")}T09:30:00Z`;
+      const updatedAt = `2026-06-${day.toString().padStart(2, "0")}T15:45:00Z`;
+      
+      out.push({
+        id: `${p.id}-t${i + 1}`,
+        projectId: p.id,
+        ...t,
+        startDate: `2026-06-${day.toString().padStart(2, "0")}`,
+        tags: ["Design", "Dev", "Client Feedback"].slice(0, (i % 3) + 1),
+        followers: ["u1", "u2", "u3"].slice(0, (i % 2) + 1),
+        estimatedHours: 4 + (i % 5) * 4,
+        customFields: {
+          "Client Priority": i % 3 === 0 ? "High" : "Normal",
+        },
+        createdAt,
+        updatedAt,
+      });
     });
   });
   return out;
@@ -474,16 +671,7 @@ export const requests: ClientRequest[] = [
   { id: "r10", clientId: "c1", projectId: "p2", type: "question", title: "Is Sentry monitoring included this sprint?", description: "Want to confirm scope before launch.", status: "submitted", submittedAt: "30 mins ago", submittedBy: "u8", priority: "low" },
 ];
 
-// ─────────────────────────────────────────────────────────── Deliverables
 
-export const deliverables: Deliverable[] = [
-  { id: "d1", projectId: "p1", title: "Onboarding flow — v3", description: "Updated based on Marcus' Jun 5 feedback.", version: "v3", status: "client_review", updatedAt: "1h ago", thumbnail: "from-[oklch(0.94_0.045_60)] to-[oklch(0.93_0.045_295)]", fileCount: 12, feedback: 4 },
-  { id: "d2", projectId: "p1", title: "Notification system — concepts", description: "Three directions for in-app + push.", version: "v1", status: "internal_review", updatedAt: "3h ago", thumbnail: "from-[oklch(0.94_0.04_230)] to-[oklch(0.94_0.035_14)]", fileCount: 8, feedback: 2 },
-  { id: "d3", projectId: "p2", title: "Pricing page — final", description: "Awaiting client sign-off.", version: "v4", status: "approved", updatedAt: "Yesterday", thumbnail: "from-[oklch(0.93_0.045_295)] to-[oklch(0.94_0.04_230)]", fileCount: 6, feedback: 11 },
-  { id: "d4", projectId: "p4", title: "Northwind wordmark — refinements", description: "Tightened kerning round 2.", version: "v2", status: "revision_requested", updatedAt: "2d ago", thumbnail: "from-[oklch(0.94_0.045_60)] to-[oklch(0.94_0.04_230)]", fileCount: 4, feedback: 7 },
-  { id: "d5", projectId: "p6", title: "Lumen brand book", description: "Draft for internal review.", version: "v1", status: "draft", updatedAt: "4d ago", thumbnail: "from-[oklch(0.93_0.045_295)] to-[oklch(0.94_0.035_14)]", fileCount: 32, feedback: 0 },
-  { id: "d6", projectId: "p7", title: "Field & Form homepage R1", description: "First pass at editorial homepage.", version: "v1", status: "client_review", updatedAt: "Today", thumbnail: "from-[oklch(0.94_0.04_230)] to-[oklch(0.93_0.045_295)]", fileCount: 5, feedback: 2 },
-];
 
 // ─────────────────────────────────────────────────────────── Documents
 
@@ -502,7 +690,7 @@ export const documents: Document[] = [
 
 export const channels: Channel[] = [
   { id: "ch1", name: "NovaBoard Mobile", projectId: "p1", clientId: "c1", unread: 3, lastMessage: "Mia: pushed onboarding v3 for review", lastAt: "1h" },
-  { id: "ch2", name: "Arcadia — internal", clientId: "c1", unread: 0, lastMessage: "Jordan: budget check for Q3 planning", lastAt: "3h" },
+  { id: "ch2", name: "Arcadia — internal", clientId: "c1", unread: 0, lastMessage: "Carina: budget check for Q3 planning", lastAt: "3h" },
   { id: "ch3", name: "Northwind Brand", projectId: "p4", clientId: "c2", unread: 1, lastMessage: "Elena: love the kerning round 2", lastAt: "Yest" },
   { id: "ch4", name: "Lumen Rebrand", projectId: "p6", clientId: "c3", unread: 2, lastMessage: "Sofia: any update on signage spec?", lastAt: "Yest" },
   { id: "ch5", name: "Field & Form Site", projectId: "p7", clientId: "c4", unread: 0, lastMessage: "Devon: shipped homepage to staging", lastAt: "2d" },
@@ -522,13 +710,16 @@ export const messages: Message[] = [
 function generateTime(): TimeEntry[] {
   const out: TimeEntry[] = [];
   let id = 1;
-  const today = new Date();
+  const today = new Date("2026-06-21T12:00:00Z");
   projects.forEach((p) => {
     p.team.forEach((uid) => {
       for (let d = 0; d < 6; d++) {
         const date = new Date(today);
         date.setDate(today.getDate() - d);
-        const hours = Math.round((Math.random() * 5 + 0.5) * 4) / 4;
+        // Deterministic hours and billable values to prevent hydration errors
+        const seed = (id * 7 + d * 13) % 20;
+        const hours = 1.0 + (seed % 8) * 0.5; // 1.0 to 4.5
+        const billable = ((id * 3 + d * 7) % 10) < 8; // ~80% billable
         out.push({
           id: `te${id++}`,
           userId: uid,
@@ -536,7 +727,7 @@ function generateTime(): TimeEntry[] {
           date: date.toISOString().slice(0, 10),
           hours,
           note: ["Design exploration", "Async review", "Pairing session", "Client call prep", "QA pass", "Implementation"][d % 6],
-          billable: Math.random() > 0.15,
+          billable,
         });
       }
     });
@@ -587,14 +778,7 @@ export const REQUEST_TYPE_META: Record<RequestType, { label: string; icon: strin
   question: { label: "Question", icon: "MessageCircleQuestion" },
 };
 
-export const DELIVERABLE_STATUS_META: Record<DeliverableStatus, { label: string; cls: string }> = {
-  draft: { label: "Draft", cls: "bg-muted text-muted-foreground" },
-  internal_review: { label: "Internal review", cls: "bg-amber-100 text-amber-700" },
-  client_review: { label: "Client review", cls: "bg-sky-100 text-sky-700" },
-  approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "Rejected", cls: "bg-rose-100 text-rose-700" },
-  revision_requested: { label: "Revision requested", cls: "bg-violet-100 text-violet-700" },
-};
+
 
 export const PROJECT_STATUS_META: Record<ProjectStatus, { label: string; cls: string }> = {
   planning: { label: "Planning", cls: "bg-todo text-todo-foreground" },

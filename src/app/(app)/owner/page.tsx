@@ -7,7 +7,6 @@ import {
   clients,
   projects,
   requests,
-  deliverables,
   users,
   tasks,
   REQUEST_STATUS_META,
@@ -17,7 +16,6 @@ import {
 import {
   TrendingUp,
   Inbox,
-  PackageCheck,
   Clock,
   ArrowUpRight,
   Plus,
@@ -27,13 +25,12 @@ import {
 export default function Dashboard() {
   const activeProjects = projects.filter((p) => p.status !== "completed").length;
   const openRequests = requests.filter((r) => !["approved", "rejected", "converted_task", "converted_project"].includes(r.status)).length;
-  const pendingReview = deliverables.filter((d) => d.status === "client_review" || d.status === "internal_review").length;
   const recentRequests = requests.slice(0, 5);
   const featured = projects.slice(0, 3);
 
   return (
     <AppShell
-      title="Good morning, Jordan"
+      title="Good morning, Carina"
       subtitle="Here's what's moving across the studio today"
       actions={
         <button className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
@@ -42,10 +39,9 @@ export default function Dashboard() {
       }
     >
       {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Kpi label="Active projects" value={activeProjects} delta="+2 this month" icon={TrendingUp} tone="bg-progress" />
         <Kpi label="Open requests" value={openRequests} delta="3 need review" icon={Inbox} tone="bg-todo" />
-        <Kpi label="In client review" value={pendingReview} delta="2 overdue" icon={PackageCheck} tone="bg-review" />
         <Kpi label="Hours this week" value="186" delta="+12% vs last" icon={Clock} tone="bg-done" />
       </div>
 

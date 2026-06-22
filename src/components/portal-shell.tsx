@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, FolderOpen, MessageSquare, PackageCheck, Send } from "lucide-react";
+import { Home, FolderOpen, MessageSquare, Send } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,7 @@ import type { ReactNode } from "react";
 const NAV = [
   { to: "/client", label: "Overview", icon: Home, exact: true },
   { to: "/client/projects", label: "Projects", icon: FolderOpen },
-  { to: "/client/deliverables", label: "Deliverables", icon: PackageCheck },
-  { to: "/client/messages", label: "Messages", icon: MessageSquare },
+  { to: "/client/messages", label: "Discussions", icon: MessageSquare },
   { to: "/client/requests", label: "Requests", icon: Send },
 ];
 
@@ -37,10 +36,10 @@ export function PortalShell({
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
-              M
+              C
             </div>
             <div>
-              <div className="text-sm font-semibold">MGL Portal</div>
+              <div className="text-sm font-semibold">Carina Portal</div>
               <div className="text-[11px] text-muted-foreground">Welcome back, {user.name.split(" ")[0]}</div>
             </div>
           </div>

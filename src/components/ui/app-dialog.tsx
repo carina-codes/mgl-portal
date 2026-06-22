@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
 
 /**
- * AppDialog — the unified modal primitive for the MGL Client Platform.
+ * AppDialog — the unified modal primitive for the Carina Client Platform.
  *
  * - Consistent spacing, typography, radius, and footer alignment
  * - Optional multi-step flow (steps with Back / Next)
@@ -81,11 +81,7 @@ export function AppDialog(props: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn(
-          "gap-0 overflow-hidden rounded-3xl border-border/60 bg-card p-0 shadow-2xl",
-          SIZE_CLS[size],
-          className,
-        )}
+        className={cn( "gap-0 overflow-hidden rounded-3xl border-border/60 bg-card p-0 ", SIZE_CLS[size], className, )}
       >
         <DialogHeader className="space-y-1.5 border-b border-border/60 bg-gradient-to-b from-background to-card px-6 pb-5 pt-6 text-left">
           <div className="flex items-start gap-3">
@@ -144,10 +140,7 @@ function WizardDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn(
-          "gap-0 overflow-hidden rounded-3xl border-border/60 bg-card p-0 shadow-2xl",
-          sizeCls,
-        )}
+        className={cn( "gap-0 overflow-hidden rounded-3xl border-border/60 bg-card p-0 ", sizeCls, )}
       >
         <DialogHeader className="space-y-3 border-b border-border/60 bg-gradient-to-b from-background to-card px-6 pb-5 pt-6 text-left">
           <div className="flex items-start gap-3">
@@ -171,10 +164,7 @@ function WizardDialog({
             {steps.map((s, i) => (
               <div
                 key={s.id}
-                className={cn(
-                  "h-1 flex-1 rounded-full transition-colors",
-                  i <= idx ? "bg-primary" : "bg-muted",
-                )}
+                className={cn( "h-1 flex-1 rounded-full transition-colors", i <= idx ? "bg-primary" : "bg-muted", )}
               />
             ))}
           </div>
@@ -201,7 +191,7 @@ function WizardDialog({
               type="button"
               onClick={goNext}
               disabled={step.canAdvance === false}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {step.primaryLabel ?? (isLast ? completeLabel : "Continue")}
             </button>
@@ -238,10 +228,7 @@ export function TextField({
       <FieldLabel hint={hint}>{label}</FieldLabel>
       <input
         {...rest}
-        className={cn(
-          "h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15",
-          className,
-        )}
+        className={cn( "h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15", className, )}
       />
     </div>
   );
@@ -259,10 +246,7 @@ export function SelectField({
       <FieldLabel hint={hint}>{label}</FieldLabel>
       <select
         {...rest}
-        className={cn(
-          "h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15",
-          className,
-        )}
+        className={cn( "h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15", className, )}
       >
         {children}
       </select>

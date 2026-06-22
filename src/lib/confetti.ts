@@ -1,7 +1,7 @@
 import confetti from "canvas-confetti";
 
 /**
- * MGL-branded celebratory confetti burst.
+ * Carina-branded celebratory confetti burst.
  * Uses brand blue + complementary accents and stays tasteful (short duration).
  */
 export function celebrate(originX = 0.5, originY = 0.6) {

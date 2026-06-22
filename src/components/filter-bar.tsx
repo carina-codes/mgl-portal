@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Unified Filter Bar — used across Projects, Requests, Deliverables,
+ * Unified Filter Bar — used across Projects, Requests,
  * Documents, Messages, Time, Team and Reporting.
  */
 
@@ -143,7 +143,7 @@ function FilterDropdown({
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1.5 w-56 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-xl">
+        <div className="absolute left-0 top-full z-40 mt-1.5 w-56 overflow-hidden rounded-2xl border border-border bg-card p-1.5">
           <div className="max-h-64 overflow-y-auto">
             {def.options.map((o) => {
               const active = selected.includes(o.value);
@@ -228,7 +228,7 @@ function DateRangeDropdown({
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1.5 w-72 overflow-hidden rounded-2xl border border-border bg-card p-3 shadow-xl">
+        <div className="absolute left-0 top-full z-40 mt-1.5 w-72 overflow-hidden rounded-2xl border border-border bg-card p-3">
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               From
@@ -284,9 +284,28 @@ function DateRangeDropdown({
 
 export function inRange(date: string | Date, range: { from?: string; to?: string }): boolean {
   if (!range.from && !range.to) return true;
-  const d = new Date(date).getTime();
-  if (isNaN(d)) return true;
-  if (range.from && d < new Date(range.from).getTime()) return false;
-  if (range.to && d > new Date(range.to).getTime() + 86400000) return false;
+
+  const parseDate = (dVal: string | Date) => {
+    if (dVal instanceof Date) return dVal;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dVal)) {
+      const [y, m, d] = dVal.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    const dObj = new Date(dVal);
+    dObj.setHours(0, 0, 0, 0);
+    return dObj;
+  };
+
+  const targetDate = parseDate(date);
+  if (isNaN(targetDate.getTime())) return true;
+
+  if (range.from) {
+    const fromDate = parseDate(range.from);
+    if (targetDate.getTime() < fromDate.getTime()) return false;
+  }
+  if (range.to) {
+    const toDate = parseDate(range.to);
+    if (targetDate.getTime() > toDate.getTime()) return false;
+  }
   return true;
 }

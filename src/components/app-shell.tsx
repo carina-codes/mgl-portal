@@ -7,7 +7,6 @@ import {
   Users,
   FolderKanban,
   Inbox,
-  PackageCheck,
   FileText,
   MessageSquare,
   UserCog,
@@ -18,6 +17,8 @@ import {
   Bell,
   ChevronDown,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
@@ -52,15 +53,15 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SearchDropdown } from "./search-dropdown";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 const NAV = [
   { to: "/owner", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/owner/clients", label: "Clients", icon: Users },
   { to: "/owner/projects", label: "Projects", icon: FolderKanban },
   { to: "/owner/requests", label: "Requests", icon: Inbox, badge: 4 },
-  { to: "/owner/deliverables", label: "Deliverables", icon: PackageCheck },
   { to: "/owner/documents", label: "Documents", icon: FileText },
-  { to: "/owner/messages", label: "Messages", icon: MessageSquare, badge: 6 },
+  { to: "/owner/messages", label: "Discussions", icon: MessageSquare, badge: 6 },
   { to: "/owner/time", label: "Time tracking", icon: Clock },
   { to: "/owner/reporting", label: "Reporting", icon: BarChart3 },
   { to: "/owner/team", label: "Team", icon: UserCog },
@@ -145,6 +146,10 @@ const getNotificationTypeConfig = (type: NotificationItem["type"]) => {
   }
 };
 
+let globalMounted = false;
+let globalCollapsed = false;
+let globalTheme: "light" | "dark" = "light";
+
 export function AppShell({
   children,
   title,
@@ -159,7 +164,7 @@ export function AppShell({
   const pathname = usePathname() || "";
   const { role, setRole } = useRole();
   const user = useCurrentUser();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">(globalMounted ? globalTheme : "light");
   const [status, setStatus] = useState<"online" | "away" | "dnd">("online");
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
@@ -178,110 +183,253 @@ export function AppShell({
     return true;
   });
 
+  const [isCollapsed, setIsCollapsed] = useState(globalMounted ? globalCollapsed : false);
+  const [mounted, setMounted] = useState(globalMounted);
+  const [isSidebarTransitioning, setIsSidebarTransitioning] = useState(false);
+  const [wasToggled, setWasToggled] = useState(false);
+
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
     const isDark = savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const resolvedTheme = isDark ? "dark" : "light";
     if (isDark) {
       document.documentElement.classList.add("dark");
-      setTheme("dark");
     } else {
       document.documentElement.classList.remove("dark");
-      setTheme("light");
     }
+    setTheme(resolvedTheme);
+    globalTheme = resolvedTheme;
+
+    const collapsed = localStorage.getItem("sidebar-collapsed") === "true";
+    setIsCollapsed(collapsed);
+    globalCollapsed = collapsed;
+    globalMounted = true;
+    setMounted(true);
   }, []);
+
+  const toggleSidebar = () => {
+    setIsSidebarTransitioning(true);
+    const nextVal = !isCollapsed;
+    setIsCollapsed(nextVal);
+    globalCollapsed = nextVal;
+    localStorage.setItem("sidebar-collapsed", String(nextVal));
+    setWasToggled(true);
+
+    setTimeout(() => {
+      setIsSidebarTransitioning(false);
+    }, 350);
+  };
 
   const toggleTheme = () => {
     if (theme === "light") {
       document.documentElement.classList.add("dark");
       localStorage.setItem("theme", "dark");
       setTheme("dark");
+      globalTheme = "dark";
     } else {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("theme", "light");
       setTheme("light");
+      globalTheme = "light";
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-border bg-card px-4 py-5 lg:flex">
-          <div className="flex items-center gap-2 px-2 pb-6">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
-              M
-            </div>
-            <div>
-              <div className="text-sm font-semibold tracking-tight">MGL</div>
-              <div className="text-[11px] text-muted-foreground">Client Platform</div>
-            </div>
-          </div>
-
-          <nav className="flex flex-1 flex-col gap-0.5">
-            {NAV.map((item) => {
-              const Icon = item.icon;
-              const active = item.exact
-                ? pathname === item.to
-                : pathname === item.to || pathname.startsWith(item.to + "/");
-              return (
-                <Link
-                  key={item.to}
-                  href={item.to}
+    <TooltipProvider delayDuration={150}>
+      <div className="min-h-screen bg-background">
+        <div className="flex">
+          {/* Sidebar */}
+          <aside
+            className={cn(
+              "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-card py-5 lg:flex",
+              isSidebarTransitioning && "transition-all duration-300 ease-in-out",
+              !mounted ? "w-[248px] px-4 opacity-0" : (isCollapsed ? "w-[72px] px-3" : "w-[248px] px-4"),
+              mounted && "opacity-100"
+            )}
+          >
+            <div className={cn("flex pb-6 items-center", isCollapsed ? "flex-col gap-3 justify-center" : "justify-between px-2")}>
+              <div className="flex items-center gap-2 overflow-hidden">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
+                  C
+                </div>
+                <div
                   className={cn(
-                    "group flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground/70 hover:bg-muted hover:text-foreground",
+                    isCollapsed ? "hidden" : (wasToggled ? "block sidebar-logo-fade" : "block")
                   )}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge ? (
-                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                      {item.badge}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="mt-4 space-y-2">
-            <Link
-              href="/owner/settings"
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-
-            {/* Role switcher */}
-            <div className="rounded-2xl border border-border bg-background p-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Previewing as
+                  <div className="text-sm font-semibold tracking-tight leading-none">Carina</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 leading-none">Client Platform</div>
+                </div>
               </div>
-              <div className="mt-1.5 flex gap-1 rounded-full bg-card p-0.5 text-[11px]">
-                {(["owner", "team", "client"] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => {
-                      setRole(r);
-                      window.location.href = `/${r}`;
-                    }}
+              <button
+                onClick={toggleSidebar}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0"
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </button>
+            </div>
+
+            <nav className="flex flex-1 flex-col gap-0.5">
+              {NAV.map((item) => {
+                const Icon = item.icon;
+                const active = item.exact
+                  ? pathname === item.to
+                  : pathname === item.to || pathname.startsWith(item.to + "/");
+                
+                const linkEl = (
+                  <Link
+                    key={item.to}
+                    href={item.to}
                     className={cn(
-                      "flex-1 rounded-full px-2 py-1 font-medium capitalize transition-colors",
-                      role === r
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground",
+                      "group flex items-center rounded-xl py-2 text-sm font-medium transition-colors relative",
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground/70 hover:bg-muted hover:text-foreground",
+                      isCollapsed ? "justify-center w-11 h-10 mx-auto px-0" : "gap-2.5 px-3"
                     )}
                   >
-                    {r}
-                  </button>
-                ))}
-              </div>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span
+                      className={cn(
+                        "flex-1 truncate",
+                        isCollapsed ? "hidden" : "block",
+                        isSidebarTransitioning && "animate-in fade-in duration-300"
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                    {item.badge ? (
+                      !isCollapsed ? (
+                        <span className={cn("rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground", isSidebarTransitioning && "animate-in fade-in duration-300")}>
+                          {item.badge}
+                        </span>
+                      ) : (
+                        <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
+                      )
+                    ) : null}
+                  </Link>
+                );
+
+                if (isCollapsed) {
+                  return (
+                    <Tooltip key={item.to}>
+                      <TooltipTrigger asChild>
+                        {linkEl}
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={12}>
+                        {item.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+
+                return linkEl;
+              })}
+            </nav>
+
+            <div className="mt-4 space-y-2">
+              {(() => {
+                const settingsEl = (
+                  <Link
+                    href="/owner/settings"
+                    className={cn(
+                      "flex items-center rounded-xl py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-muted hover:text-foreground",
+                      isCollapsed ? "justify-center w-11 h-10 mx-auto px-0" : "gap-2.5 px-3"
+                    )}
+                  >
+                    <Settings className="h-4 w-4 shrink-0" />
+                    <span
+                      className={cn(
+                        isCollapsed ? "hidden" : "block",
+                        isSidebarTransitioning && "animate-in fade-in duration-300"
+                      )}
+                    >
+                      Settings
+                    </span>
+                  </Link>
+                );
+
+                if (isCollapsed) {
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {settingsEl}
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={12}>
+                        Settings
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+                return settingsEl;
+              })()}
+
+              {/* Role switcher */}
+              {isCollapsed ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex h-11 w-11 mx-auto items-center justify-center rounded-xl border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
+                      title={`Previewing as: ${role}`}
+                    >
+                      {role === "owner" ? (
+                        <Shield className="h-4 w-4 text-primary" />
+                      ) : role === "team" ? (
+                        <Users className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <CircleUser className="h-4 w-4 text-emerald-600" />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="end" className="w-32 border border-border bg-card">
+                    <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Switch Role</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {(["owner", "team", "client"] as const).map((r) => (
+                      <DropdownMenuItem
+                        key={r}
+                        onClick={() => {
+                          setRole(r);
+                          window.location.href = `/${r}`;
+                        }}
+                        className={cn(
+                          "capitalize cursor-pointer",
+                          role === r && "font-bold text-primary"
+                        )}
+                      >
+                        {r}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className={cn("rounded-2xl border border-border bg-background p-3", isSidebarTransitioning && "animate-in fade-in duration-300")}>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Previewing as
+                  </div>
+                  <div className="mt-1.5 flex gap-1 rounded-full bg-card p-0.5 text-[11px]">
+                    {(["owner", "team", "client"] as const).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => {
+                          setRole(r);
+                          window.location.href = `/${r}`;
+                        }}
+                        className={cn(
+                          "flex-1 rounded-full px-2 py-1 font-medium capitalize transition-colors",
+                          role === r
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </aside>
+          </aside>
 
         {/* Main */}
         <div className="min-w-0 flex-1">
@@ -297,7 +445,7 @@ export function AppShell({
                   )}
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-96 p-0 rounded-2xl overflow-hidden shadow-2xl border border-border bg-card">
+              <PopoverContent align="end" className="w-96 p-0 rounded-2xl overflow-hidden border border-border bg-card">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-border px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -338,7 +486,7 @@ export function AppShell({
                       className={cn(
                         "rounded-md px-2.5 py-1 font-medium transition-colors cursor-pointer",
                         notifFilter === "all"
-                          ? "bg-background text-foreground shadow-sm"
+                          ? "bg-background text-foreground"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
@@ -349,7 +497,7 @@ export function AppShell({
                       className={cn(
                         "rounded-md px-2.5 py-1 font-medium transition-colors cursor-pointer ml-1",
                         notifFilter === "unread"
-                          ? "bg-background text-foreground shadow-sm"
+                          ? "bg-background text-foreground"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
@@ -488,7 +636,7 @@ export function AppShell({
                         className={cn(
                           "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-medium transition-all cursor-pointer",
                           status === s
-                            ? "bg-popover shadow-sm text-foreground"
+                            ? "bg-popover text-foreground"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
@@ -573,7 +721,7 @@ export function AppShell({
                 {/* Footer info */}
                 <DropdownMenuLabel className="font-normal px-3 py-2 rounded-b-md bg-muted/20">
                   <div className="text-[10px] text-muted-foreground">
-                    MGL Client Platform · v2.4.0
+                    Carina Client Platform · v2.4.0
                   </div>
                 </DropdownMenuLabel>
               </DropdownMenuContent>
@@ -600,6 +748,7 @@ export function AppShell({
         </div>
       </div>
     </div>
+  </TooltipProvider>
   );
 }
 

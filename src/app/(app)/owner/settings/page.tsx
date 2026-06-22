@@ -143,8 +143,8 @@ function confirmDanger(message: string, onYes: () => void) {
 /* ---------- Workspace ---------- */
 
 const DEFAULT_WORKSPACE = {
-  name: "MGL Agency",
-  subdomain: "mgl.clientplatform.app",
+  name: "Carina Studio",
+  subdomain: "carina.clientplatform.app",
   currency: "USD",
   timezone: "Europe / Berlin",
   hours: "Mon–Fri · 9am–6pm CET",
@@ -189,10 +189,10 @@ function WorkspaceSection() {
 type Member = { name: string; email: string; role: string; status: string };
 
 const INITIAL_TEAM: Member[] = [
-  { name: "Maya Larsson", email: "maya@mgl.studio", role: "Owner", status: "Active" },
-  { name: "Jonas Weber", email: "jonas@mgl.studio", role: "Admin", status: "Active" },
-  { name: "Priya Shah", email: "priya@mgl.studio", role: "Member", status: "Active" },
-  { name: "Alex Chen", email: "alex@mgl.studio", role: "Member", status: "Invited" },
+  { name: "Maya Larsson", email: "maya@carina.studio", role: "Owner", status: "Active" },
+  { name: "Jonas Weber", email: "jonas@carina.studio", role: "Admin", status: "Active" },
+  { name: "Priya Shah", email: "priya@carina.studio", role: "Member", status: "Active" },
+  { name: "Alex Chen", email: "alex@carina.studio", role: "Member", status: "Invited" },
 ];
 
 function TeamSection() {
@@ -268,7 +268,6 @@ function TeamSection() {
             { perm: "Create & edit projects", roles: "Owner, Admin" },
             { perm: "Manage billing", roles: "Owner" },
             { perm: "Invite team members", roles: "Owner, Admin" },
-            { perm: "Approve deliverables", roles: "Owner, Admin, Member" },
             { perm: "View time reports", roles: "Owner, Admin" },
           ].map((p) => (
             <Row key={p.perm} title={p.perm} description={p.roles}>
@@ -384,7 +383,6 @@ function NotificationsSection() {
       title: "Email notifications",
       items: [
         ["New client request", "When a client submits a request", true],
-        ["Deliverable approved", "When a client approves a deliverable", true],
         ["Comment mentions", "When a teammate @mentions you", true],
         ["Task assigned to me", "When someone assigns you a task", true],
         ["Weekly digest", "Summary of activity every Monday", false],
@@ -401,7 +399,6 @@ function NotificationsSection() {
     {
       title: "Client portal notifications",
       items: [
-        ["New deliverable ready", "Notify client when a deliverable is shared", true],
         ["Project milestone reached", "Notify client when milestones complete", true],
         ["Invoice issued", "Send notification when an invoice is issued", true],
       ],
@@ -429,7 +426,7 @@ function IntegrationsSection() {
     { name: "Slack", desc: "Post updates into channels", icon: Slack, connected: true },
     { name: "Google Calendar", desc: "Sync deadlines and meetings", icon: Calendar, connected: true },
     { name: "Gmail", desc: "Send client emails from the app", icon: Mail, connected: false },
-    { name: "Figma", desc: "Embed designs into deliverables", icon: Figma, connected: true },
+    { name: "Figma", desc: "Embed designs into workspace and client portal", icon: Figma, connected: true },
     { name: "GitHub", desc: "Link commits to tasks", icon: Github, connected: false },
     { name: "Linear", desc: "Sync engineering tickets", icon: MessageSquare, connected: false },
   ];
@@ -447,7 +444,7 @@ function IntegrationsSection() {
   };
 
   return (
-    <Section title="Integrations" description="Connect MGL to the tools your team already uses.">
+    <Section title="Integrations" description="Connect Carina to the tools your team already uses.">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {items.map((i) => (
           <div key={i.name} className="flex items-start gap-3 rounded-xl border border-border p-4">
@@ -490,13 +487,13 @@ function IntegrationsSection() {
 const ACCENTS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#0ea5e9", "#ef4444"];
 
 function BrandingSection() {
-  const [brand, setBrand] = useState({ name: "MGL Agency", tagline: "Studio for ambitious brands" });
+  const [brand, setBrand] = useState({ name: "Carina Studio", tagline: "Studio for ambitious brands" });
   const [accent, setAccent] = useState(ACCENTS[0]);
   return (
     <>
-      <Section title="Branding" description="Used across portal, magic-link emails and deliverable reviews.">
+      <Section title="Branding" description="Used across portal, magic-link emails and project reviews.">
         <div className="flex items-center gap-4">
-          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary text-primary-foreground font-bold text-2xl">M</div>
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary text-primary-foreground font-bold text-2xl">C</div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => toast.success("Logo uploaded")}>Upload logo</Button>
             <Button variant="ghost" size="sm" onClick={() => toast("Logo removed")}>Remove</Button>
@@ -528,7 +525,7 @@ function BrandingSection() {
 
       <Section title="Portal appearance">
         <div className="space-y-1">
-          <NotificationToggle title="Show MGL logo in portal" desc="Display your logo in the client portal header" defaultOn />
+          <NotificationToggle title="Show Carina logo in portal" desc="Display your logo in the client portal header" defaultOn />
           <NotificationToggle title="Custom login background" desc="Use a branded image on the login screen" defaultOn={false} />
           <NotificationToggle title="Dark mode for clients" desc="Allow clients to switch themes" defaultOn />
         </div>
@@ -598,20 +595,20 @@ type Hook = { url: string; events: number; status: "Active" | "Paused" };
 
 function ApiSection() {
   const [keys, setKeys] = useState<ApiKey[]>([
-    { name: "Production", key: "mgl_live_••••••••••••••8f2a", created: "Jan 14, 2026" },
-    { name: "Zapier integration", key: "mgl_live_••••••••••••••1d3b", created: "Mar 22, 2026" },
+    { name: "Production", key: "carina_live_••••••••••••••8f2a", created: "Jan 14, 2026" },
+    { name: "Zapier integration", key: "carina_live_••••••••••••••1d3b", created: "Mar 22, 2026" },
   ]);
   const [hooks, setHooks] = useState<Hook[]>([
-    { url: "https://hooks.mgl.studio/projects", events: 4, status: "Active" },
-    { url: "https://api.client.com/mgl/webhook", events: 2, status: "Active" },
-    { url: "https://staging.mgl.studio/test", events: 1, status: "Paused" },
+    { url: "https://hooks.carina.studio/projects", events: 4, status: "Active" },
+    { url: "https://api.client.com/carina/webhook", events: 2, status: "Active" },
+    { url: "https://staging.carina.studio/test", events: 1, status: "Paused" },
   ]);
 
   const newKey = () => {
     const name = typeof window !== "undefined" ? window.prompt("Name for the API key") : null;
     if (!name) return;
     const suffix = Math.random().toString(16).slice(2, 6);
-    setKeys((k) => [...k, { name, key: `mgl_live_••••••••••••••${suffix}`, created: "Today" }]);
+    setKeys((k) => [...k, { name, key: `carina_live_••••••••••••••${suffix}`, created: "Today" }]);
     toast.success(`API key "${name}" created`);
   };
 
@@ -651,7 +648,7 @@ function ApiSection() {
 
   return (
     <>
-      <Section title="API keys" description="Use API keys to access the MGL REST API." action={<Button onClick={newKey}><Plus className="h-4 w-4 mr-1.5" />New key</Button>}>
+      <Section title="API keys" description="Use API keys to access the Carina REST API." action={<Button onClick={newKey}><Plus className="h-4 w-4 mr-1.5" />New key</Button>}>
         <div className="space-y-2">
           {keys.map((k) => (
             <div key={k.name} className="flex items-center gap-3 rounded-xl border border-border p-3">
@@ -692,7 +689,6 @@ function ApiSection() {
           {[
             "project.created", "project.updated", "project.archived",
             "task.created", "task.completed", "task.assigned",
-            "deliverable.shared", "deliverable.approved",
             "request.submitted", "request.approved",
             "time.logged", "client.created",
           ].map((e) => (

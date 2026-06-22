@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { PortalShell } from "@/components/portal-shell";
-import { projects, deliverables, DELIVERABLE_STATUS_META, PROJECT_STATUS_META, tasksByProject, STAGE_META } from "@/lib/mock-data";
+import { projects, PROJECT_STATUS_META, tasksByProject, STAGE_META } from "@/lib/mock-data";
 import { ArrowLeft } from "lucide-react";
 
 
@@ -13,7 +13,6 @@ function PortalProjectDetail() {
   const projectId = params?.projectId as string;
   const project = projects.find((p) => p.id === projectId);
   if (!project) throw notFound();
-  const delivs = deliverables.filter((d) => d.projectId === projectId);
   const tlist = tasksByProject(projectId);
 
   return (
@@ -54,30 +53,6 @@ function PortalProjectDetail() {
             <div className="mt-1 text-2xl font-semibold">{tlist.filter((t) => t.stage === s).length}</div>
           </div>
         ))}
-      </div>
-
-      <div className="mt-6 panel p-6">
-        <h2 className="mb-4 text-lg font-semibold">Deliverables for review</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {delivs.map((d) => (
-            <div key={d.id} className="rounded-2xl border border-border bg-background overflow-hidden">
-              <div className={`h-28 bg-gradient-to-br ${d.thumbnail}`} />
-              <div className="p-4">
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${DELIVERABLE_STATUS_META[d.status].cls}`}>
-                    {DELIVERABLE_STATUS_META[d.status].label}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">{d.version}</span>
-                </div>
-                <div className="text-sm font-semibold">{d.title}</div>
-                <div className="mt-3 flex gap-2">
-                  <button className="rounded-full border border-border px-3 py-1 text-xs hover:bg-muted">Request revision</button>
-                  <button className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">Approve</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </PortalShell>
   );

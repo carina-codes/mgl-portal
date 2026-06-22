@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, LayoutDashboard, Users, MessageSquare } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "MGL Client Platform",
+  title: "Carina Client Platform",
   description: "The operating system for a high-end digital agency.",
 };
 
@@ -12,9 +12,9 @@ export default function Landing() {
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">M</div>
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">C</div>
           <div>
-            <div className="text-sm font-semibold">MGL</div>
+            <div className="text-sm font-semibold">Carina</div>
             <div className="text-[11px] text-muted-foreground -mt-0.5">Client Platform</div>
           </div>
         </div>
@@ -42,7 +42,7 @@ export default function Landing() {
           The operating system for a high-end digital agency.
         </h1>
         <p className="mt-4 max-w-2xl text-base text-muted-foreground lg:text-lg">
-          MGL Client Platform centralizes project execution, client requests, deliverables, time
+          Carina Client Platform centralizes project execution, client requests, time
           tracking and reporting — so the studio stops living in inboxes and starts shipping faster.
         </p>
 
@@ -65,12 +65,12 @@ export default function Landing() {
           <Feature
             icon={LayoutDashboard}
             title="One place to run the studio"
-            body="Dashboards, projects, Kanban, deliverables, time and reporting — built on a shared design language."
+            body="Dashboards, projects, Kanban, time and reporting — built on a shared design language."
           />
           <Feature
             icon={MessageSquare}
             title="Clients stay in the loop"
-            body="Magic-link portal with project visibility, request intake, deliverable review and conversation threads."
+            body="Magic-link portal with project visibility, request intake, and conversation threads."
           />
           <Feature
             icon={Sparkles}

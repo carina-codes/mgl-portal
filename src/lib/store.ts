@@ -1,5 +1,5 @@
 /**
- * Reactive in-memory store for the MGL Client Platform.
+ * Reactive in-memory store for the Carina Client Platform.
  *
  * Wraps the seed data from mock-data.ts in a Zustand store so modals,
  * filters, and pages can read and mutate the same source of truth.
@@ -10,7 +10,6 @@ import {
   projects as seedProjects,
   tasks as seedTasks,
   requests as seedRequests,
-  deliverables as seedDeliverables,
   documents as seedDocuments,
   channels as seedChannels,
   messages as seedMessages,
@@ -25,8 +24,6 @@ import {
   type ClientRequest,
   type RequestStatus,
   type RequestType,
-  type Deliverable,
-  type DeliverableStatus,
   type Document,
   type TimeEntry,
   type User,
@@ -48,13 +45,21 @@ export type StorageConnection = {
   email?: string;
 };
 
+export type ProjectStorageMapping = {
+  id: string;
+  projectId: string;
+  provider: "gdrive" | "dropbox" | "onedrive" | "box";
+  email: string;
+  folderName: string;
+  connectedAt: string;
+};
+
 type State = {
   users: User[];
   clients: Client[];
   projects: Project[];
   tasks: Task[];
   requests: ClientRequest[];
-  deliverables: Deliverable[];
   documents: Document[];
   channels: typeof seedChannels;
   messages: typeof seedMessages;
@@ -62,16 +67,20 @@ type State = {
   aiActions: AIActionLog[];
   comments: Comment[];
   storageConnections: StorageConnection[];
+  projectStorageMappings: ProjectStorageMapping[];
 
   /* Clients */
   createClient: (input: Partial<Client> & Pick<Client, "name" | "industry" | "contact" | "contactEmail">) => Client;
   updateClient: (id: string, patch: Partial<Client>) => void;
   archiveClient: (id: string) => void;
+  deleteClient: (id: string) => void;
 
   /* Projects */
   createProject: (input: Partial<Project> & Pick<Project, "name" | "clientId">) => Project;
   updateProject: (id: string, patch: Partial<Project>) => void;
   archiveProject: (id: string) => void;
+  deleteProject: (id: string) => void;
+  duplicateProject: (id: string) => Project;
   setProjectStatus: (id: string, status: ProjectStatus) => void;
 
   /* Tasks */
@@ -89,17 +98,15 @@ type State = {
   convertRequestToTask: (id: string, projectId: string) => Task | null;
   convertRequestToProject: (id: string, projectInput: Partial<Project>) => Project | null;
 
-  /* Deliverables */
-  createDeliverable: (input: Partial<Deliverable> & Pick<Deliverable, "projectId" | "title">) => Deliverable;
-  updateDeliverable: (id: string, patch: Partial<Deliverable>) => void;
-  setDeliverableStatus: (id: string, status: DeliverableStatus) => void;
-
   /* Documents */
   createFolder: (projectId: string, name: string) => void;
-  renameFolder: (projectId: string, oldName: string, newName: string) => void;
+  renameFolder: (projectId: string | undefined, oldName: string, newName: string) => void;
+  deleteFolder: (projectId: string | undefined, folderName: string) => void;
+  renameDocument: (id: string, name: string) => void;
   uploadDocument: (input: Partial<Document> & Pick<Document, "projectId" | "name" | "folder">) => Document;
   moveDocument: (id: string, folder: string) => void;
   deleteDocument: (id: string) => void;
+  toggleDocumentShared: (id: string) => void;
 
   /* Team */
   addTeamMember: (input: Partial<User> & Pick<User, "name" | "email" | "title">) => User;
@@ -109,13 +116,19 @@ type State = {
   /* Time */
   logTime: (input: Partial<TimeEntry> & Pick<TimeEntry, "userId" | "projectId" | "hours" | "date">) => TimeEntry;
   updateTimeEntry: (id: string, patch: Partial<TimeEntry>) => void;
+  deleteTimeEntry: (id: string) => void;
 
   /* Comments */
   createComment: (input: Partial<Comment> & Pick<Comment, "threadId" | "author" | "body" | "visibility">) => Comment;
 
+  /* Channels */
+  markChannelAsRead: (channelId: string) => void;
+
   /* Storage Connections */
   connectStorage: (provider: "gdrive" | "dropbox" | "onedrive" | "box", email: string) => void;
   disconnectStorage: (provider: "gdrive" | "dropbox" | "onedrive" | "box") => void;
+  mapProjectStorage: (projectId: string, provider: "gdrive" | "dropbox" | "onedrive" | "box", email: string, folderName: string) => void;
+  unmapProjectStorage: (id: string) => void;
 
   /* AI */
   logAIAction: (a: Omit<AIActionLog, "id" | "ts">) => void;
@@ -148,8 +161,29 @@ export const useStore = create<State>((set, get) => ({
   projects: [...seedProjects],
   tasks: [...seedTasks],
   requests: [...seedRequests],
-  deliverables: [...seedDeliverables],
-  documents: [...seedDocuments],
+  documents: [
+    ...seedDocuments,
+    {
+      id: "doc-ext-1",
+      projectId: "p1",
+      folder: "Marketing Assets",
+      name: "Social-Campaign-Brief.pdf",
+      size: "1.2 MB",
+      uploadedBy: "u2",
+      uploadedAt: "Yesterday · 10:20 AM",
+      shared: true
+    },
+    {
+      id: "doc-ext-2",
+      projectId: "p1",
+      folder: "Marketing Assets",
+      name: "Instagram-Story-Ad-Mockups.zip",
+      size: "14.5 MB",
+      uploadedBy: "u4",
+      uploadedAt: "Yesterday · 11:05 AM",
+      shared: false
+    }
+  ],
   channels: [...seedChannels],
   messages: [...seedMessages],
   timeEntries: [...seedTime],
@@ -166,24 +200,24 @@ export const useStore = create<State>((set, get) => ({
     { provider: "onedrive", connected: false },
     { provider: "box", connected: false },
   ],
+  projectStorageMappings: [
+    { id: "psm-1", projectId: "p1", provider: "gdrive", email: "marketing-ops@kristal.com", folderName: "Marketing Assets", connectedAt: "Yesterday · 10:15 AM" }
+  ],
 
   /* Clients */
   createClient: (input) => {
     const c: Client = {
       id: uid("c"),
-      name: input.name,
-      industry: input.industry,
-      contact: input.contact,
-      contactEmail: input.contactEmail,
-      logoColor: input.logoColor ?? "#0049FE",
-      status: input.status ?? "active",
-      retainer: input.retainer ?? "Project",
-      since: input.since ?? new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
+      logoColor: "#0049FE",
+      status: "active",
+      retainer: "Project",
+      since: new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
       projects: 0,
       openRequests: 0,
       hoursMonth: 0,
-      health: input.health ?? "healthy",
-    };
+      health: "healthy",
+      ...input,
+    } as Client;
     set((s) => ({ clients: [c, ...s.clients] }));
     return c;
   },
@@ -191,6 +225,12 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({ clients: s.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)) })),
   archiveClient: (id) =>
     set((s) => ({ clients: s.clients.map((c) => (c.id === id ? { ...c, status: "archived" } : c)) })),
+  deleteClient: (id) =>
+    set((s) => ({
+      clients: s.clients.filter((c) => c.id !== id),
+      projects: s.projects.filter((p) => p.clientId !== id),
+      requests: s.requests.filter((r) => r.clientId !== id),
+    })),
 
   /* Projects */
   createProject: (input) => {
@@ -221,11 +261,44 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({
       projects: s.projects.map((p) => (p.id === id ? { ...p, status: "on_hold" } : p)),
     })),
+  deleteProject: (id) =>
+    set((s) => ({
+      projects: s.projects.filter((p) => p.id !== id),
+      tasks: s.tasks.filter((t) => t.projectId !== id),
+      documents: s.documents.filter((doc) => doc.projectId !== id),
+    })),
+  duplicateProject: (id) => {
+    const s = get();
+    const original = s.projects.find((p) => p.id === id);
+    if (!original) throw new Error("Project not found");
+    const newProj: Project = {
+      ...original,
+      id: uid("p"),
+      name: `${original.name} (Copy)`,
+      status: "planning",
+      progress: 0,
+      spent: 0,
+      hoursLogged: 0,
+    };
+    set((state) => ({ projects: [newProj, ...state.projects] }));
+
+    // Duplicate all tasks belonging to this project
+    const originalTasks = s.tasks.filter((t) => t.projectId === id);
+    const newTasks = originalTasks.map((t) => ({
+      ...t,
+      id: uid("t"),
+      projectId: newProj.id,
+    }));
+    set((state) => ({ tasks: [...newTasks, ...state.tasks] }));
+
+    return newProj;
+  },
   setProjectStatus: (id, status) =>
     set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, status } : p)) })),
 
   /* Tasks */
   createTask: (input) => {
+    const now = new Date().toISOString();
     const t: Task = {
       id: uid("t"),
       projectId: input.projectId,
@@ -238,12 +311,23 @@ export const useStore = create<State>((set, get) => ({
       assignees: input.assignees ?? [],
       attachments: 0,
       comments: 0,
+      startDate: input.startDate ?? "",
+      tags: input.tags ?? [],
+      followers: input.followers ?? [],
+      estimatedHours: input.estimatedHours ?? 0,
+      customFields: input.customFields ?? {},
+      createdAt: now,
+      updatedAt: now,
     };
     set((s) => ({ tasks: [t, ...s.tasks] }));
     return t;
   },
   updateTask: (id, patch) =>
-    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
+    set((s) => ({
+      tasks: s.tasks.map((t) =>
+        t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t
+      ),
+    })),
   deleteTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
   setTaskStage: (id, stage) =>
     set((s) => ({
@@ -301,27 +385,7 @@ export const useStore = create<State>((set, get) => ({
     return project;
   },
 
-  /* Deliverables */
-  createDeliverable: (input) => {
-    const d: Deliverable = {
-      id: uid("d"),
-      projectId: input.projectId,
-      title: input.title,
-      description: input.description ?? "",
-      version: input.version ?? "v1",
-      status: input.status ?? "internal_review",
-      updatedAt: "Just now",
-      thumbnail: input.thumbnail ?? "from-[oklch(0.94_0.04_230)] to-[oklch(0.93_0.045_295)]",
-      fileCount: input.fileCount ?? 1,
-      feedback: 0,
-    };
-    set((s) => ({ deliverables: [d, ...s.deliverables] }));
-    return d;
-  },
-  updateDeliverable: (id, patch) =>
-    set((s) => ({ deliverables: s.deliverables.map((d) => (d.id === id ? { ...d, ...patch } : d)) })),
-  setDeliverableStatus: (id, status) =>
-    set((s) => ({ deliverables: s.deliverables.map((d) => (d.id === id ? { ...d, status } : d)) })),
+
 
   /* Documents */
   createFolder: (projectId, name) => {
@@ -345,8 +409,17 @@ export const useStore = create<State>((set, get) => ({
   renameFolder: (projectId, oldName, newName) =>
     set((s) => ({
       documents: s.documents.map((d) =>
-        d.projectId === projectId && d.folder === oldName ? { ...d, folder: newName } : d,
+        (!projectId || d.projectId === projectId) && d.folder === oldName ? { ...d, folder: newName } : d,
       ),
+    })),
+  deleteFolder: (projectId, folderName) =>
+    set((s) => ({
+      documents: s.documents.filter((d) => !((!projectId || d.projectId === projectId) && d.folder === folderName)),
+      projectStorageMappings: s.projectStorageMappings.filter((m) => !((!projectId || m.projectId === projectId) && m.folderName === folderName)),
+    })),
+  renameDocument: (id, name) =>
+    set((s) => ({
+      documents: s.documents.map((d) => (d.id === id ? { ...d, name } : d)),
     })),
   uploadDocument: (input) => {
     const d: Document = {
@@ -358,6 +431,7 @@ export const useStore = create<State>((set, get) => ({
       uploadedBy: input.uploadedBy ?? "u1",
       uploadedAt: "Just now",
       shared: input.shared ?? false,
+      previewUrl: input.previewUrl,
     };
     set((s) => ({ documents: [d, ...s.documents] }));
     return d;
@@ -365,6 +439,10 @@ export const useStore = create<State>((set, get) => ({
   moveDocument: (id, folder) =>
     set((s) => ({ documents: s.documents.map((d) => (d.id === id ? { ...d, folder } : d)) })),
   deleteDocument: (id) => set((s) => ({ documents: s.documents.filter((d) => d.id !== id) })),
+  toggleDocumentShared: (id) =>
+    set((s) => ({
+      documents: s.documents.map((d) => (d.id === id ? { ...d, shared: !d.shared } : d)),
+    })),
 
   /* Team */
   addTeamMember: (input) => {
@@ -402,6 +480,8 @@ export const useStore = create<State>((set, get) => ({
   },
   updateTimeEntry: (id, patch) =>
     set((s) => ({ timeEntries: s.timeEntries.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
+  deleteTimeEntry: (id) =>
+    set((s) => ({ timeEntries: s.timeEntries.filter((t) => t.id !== id) })),
 
   /* Comments */
   createComment: (input) => {
@@ -430,6 +510,13 @@ export const useStore = create<State>((set, get) => ({
     return c;
   },
 
+  /* Channels */
+  markChannelAsRead: (channelId) => {
+    set((s) => ({
+      channels: s.channels.map((c) => (c.id === channelId ? { ...c, unread: 0 } : c)),
+    }));
+  },
+
   /* Storage Connections */
   connectStorage: (provider, email) => {
     set((s) => ({
@@ -449,6 +536,53 @@ export const useStore = create<State>((set, get) => ({
       ),
     }));
   },
+  mapProjectStorage: (projectId, provider, email, folderName) => {
+    const id = uid("psm");
+    const newMapping: ProjectStorageMapping = {
+      id,
+      projectId,
+      provider,
+      email,
+      folderName,
+      connectedAt: "Just now",
+    };
+    const mockDoc1: Document = {
+      id: uid("doc"),
+      projectId,
+      folder: folderName,
+      name: `${folderName.replace(/[\s/]+/g, "-")}-Mock-Specs.pdf`,
+      size: "2.4 MB",
+      uploadedBy: "u1",
+      uploadedAt: "Just now",
+      shared: true
+    };
+    const mockDoc2: Document = {
+      id: uid("doc"),
+      projectId,
+      folder: folderName,
+      name: `${folderName.replace(/[\s/]+/g, "-")}-Mock-Assets.zip`,
+      size: "8.1 MB",
+      uploadedBy: "u1",
+      uploadedAt: "Just now",
+      shared: false
+    };
+    set((s) => ({
+      projectStorageMappings: [...s.projectStorageMappings, newMapping],
+      documents: [mockDoc1, mockDoc2, ...s.documents]
+    }));
+  },
+  unmapProjectStorage: (id) => {
+    set((s) => {
+      const mapping = s.projectStorageMappings.find((m) => m.id === id);
+      const docsToKeep = mapping
+        ? s.documents.filter((d) => !(d.projectId === mapping.projectId && d.folder === mapping.folderName))
+        : s.documents;
+      return {
+        projectStorageMappings: s.projectStorageMappings.filter((m) => m.id !== id),
+        documents: docsToKeep,
+      };
+    });
+  },
 
   /* AI */
   logAIAction: (a) =>
@@ -463,14 +597,10 @@ export function getProjectProgress(projectId: string) {
   const s = useStore.getState();
   const t = s.tasks.filter((x) => x.projectId === projectId);
   const completed = t.filter((x) => x.stage === "completed").length;
-  const d = s.deliverables.filter((x) => x.projectId === projectId);
-  const dApproved = d.filter((x) => x.status === "approved").length;
   const project = s.projects.find((p) => p.id === projectId);
   return {
     tasksTotal: t.length,
     tasksCompleted: completed,
-    deliverablesTotal: d.length,
-    deliverablesCompleted: dApproved,
     pctTasks: t.length ? Math.round((completed / t.length) * 100) : 0,
     pctOverall: project?.progress ?? 0,
     hoursLogged: project?.hoursLogged ?? 0,

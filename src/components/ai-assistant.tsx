@@ -31,7 +31,7 @@ const SEED_MSGS: Msg[] = [
   {
     id: "m1",
     role: "assistant",
-    body: "Hi Jordan — I'm watching the **NovaBoard Mobile App** project. Want me to summarize this week's progress or draft an update for Marcus?",
+    body: "Hi Carina — I'm watching the **NovaBoard Mobile App** project. Want me to summarize this week's progress or draft an update for Marcus?",
     ts: "Just now",
   },
 ];
@@ -99,7 +99,7 @@ export function AIAssistant() {
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "fixed bottom-6 right-6 z-50 grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground soft-shadow transition-transform hover:scale-105",
+          "fixed bottom-6 right-6 z-50 grid h-14 w-14 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 hidden",
           open && "rotate-90",
         )}
         aria-label="Open AI assistant"
@@ -113,7 +113,7 @@ export function AIAssistant() {
       {/* Panel */}
       <div
         className={cn(
-          "fixed bottom-24 right-6 z-50 flex h-[640px] w-[420px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-border bg-card transition-all soft-shadow",
+          "fixed bottom-24 right-6 z-50 flex h-[640px] w-[420px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-3xl border border-border bg-card transition-all",
           open ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0",
         )}
       >
@@ -124,7 +124,7 @@ export function AIAssistant() {
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-sm font-semibold">MGL Assistant</div>
+              <div className="text-sm font-semibold">Carina Assistant</div>
               <div className="text-[11px] text-muted-foreground">Aware of NovaBoard Mobile</div>
             </div>
           </div>
@@ -304,10 +304,10 @@ function truncate(s: string, n: number) {
 function composeReply(prompt: string) {
   const p = prompt.toLowerCase();
   if (p.includes("status") || p.includes("summary") || p.includes("summarize"))
-    return `Here's the **NovaBoard Mobile App** snapshot:\n- 64% complete, 312 of 480 estimated hours logged\n- 4 tasks in flight, 2 in review, 0 blocked\n- Latest deliverable: Onboarding v3 (with client for review)\n\nThe team is tracking ~5% above plan but well inside budget. Want me to draft a client update?`;
+    return `Here's the **NovaBoard Mobile App** snapshot:\n- 64% complete, 312 of 480 estimated hours logged\n- 4 tasks in flight, 2 in review, 0 blocked\n- Latest update: Onboarding UI is in final review\n\nThe team is tracking ~5% above plan but well inside budget. Want me to draft a client update?`;
   if (p.includes("draft") || p.includes("reply") || p.includes("response"))
     return `Drafted reply to Marcus:\n\n> Hey Marcus — thanks for the feedback on the hero. We're softening the gradient and reducing the saturation by ~15%. We'll repost v3.1 today for your review. Let us know if anything else stands out.\n\nWant me to send it on your behalf or save as draft?`;
   if (p.includes("task") || p.includes("create"))
-    return `Created 3 tasks under **Arcadia Q3 Campaign**:\n- Landing page wireframes — assigned to Ava\n- Paid creative concepts — assigned to Priya\n- Lifecycle email mapping — assigned to Jordan\n\nAll set to **Medium** priority and due in 10 days. You'll see them in the Q3 Kanban.`;
+    return `Created 3 tasks under **Arcadia Q3 Campaign**:\n- Landing page wireframes — assigned to Ava\n- Paid creative concepts — assigned to Priya\n- Lifecycle email mapping — assigned to Carina\n\nAll set to **Medium** priority and due in 10 days. You'll see them in the Q3 Kanban.`;
   return `Got it. I'll handle that. (This is a simulated response — in production I'd reach into your projects, tasks, and conversations to act on it.)`;
 }

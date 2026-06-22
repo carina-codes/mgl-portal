@@ -6,7 +6,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * MGL Client Platform — Design System
+ * Carina Client Platform — Design System
  *
  * Primary: #0049FE (Blue Ribbon)
  * Surface: #F2F2F2 (Concrete)
@@ -24,6 +24,14 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
+  --shadow-inner: none;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -59,7 +67,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* MGL Brand */
+  /* Carina Brand */
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-surface: var(--surface);
@@ -90,7 +98,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0 0);
 
-  /* MGL Blue primary */
+  /* Carina Blue primary */
   --primary: oklch(0.52 0.27 263); /* #0049FE-ish */
   --primary-foreground: oklch(0.99 0 0);
 
@@ -110,7 +118,7 @@
   --input: oklch(0.92 0 0);
   --ring: oklch(0.52 0.27 263);
 
-  /* MGL brand tokens */
+  /* Carina brand tokens */
   --brand: oklch(0.52 0.27 263);
   --brand-foreground: oklch(0.99 0 0);
   --surface: oklch(0.967 0 0);
@@ -188,15 +196,10 @@
 @utility panel {
   background-color: var(--color-panel);
   border-radius: 1.5rem;
-  box-shadow:
-    0 1px 2px 0 rgb(0 0 0 / 0.04),
-    0 8px 24px -12px rgb(0 0 0 / 0.06);
 }
 
 @utility soft-shadow {
-  box-shadow:
-    0 1px 2px 0 rgb(0 0 0 / 0.04),
-    0 8px 24px -12px rgb(0 0 0 / 0.06);
+  box-shadow: none;
 }
 
 /* Subtle scrollbars */
@@ -251,7 +254,7 @@
   height: 0;
   pointer-events: none;
 }
-.mgl-mention {
+.carina-mention {
   background-color: color-mix(in oklab, var(--color-primary) 12%, transparent);
   color: var(--color-primary);
   border-radius: 0.5rem;
@@ -260,3 +263,169 @@
   font-size: 0.9em;
 }
 .tippy-box { background: transparent; }
+
+/* ───── Tiptap Highlighting, Tables, Dividers & Code blocks ───── */
+
+:root {
+  --h-yellow: rgba(254, 240, 138, 0.65);
+  --h-blue: rgba(191, 219, 254, 0.65);
+  --h-green: rgba(187, 247, 208, 0.65);
+  --h-purple: rgba(233, 213, 255, 0.65);
+  --h-red: rgba(254, 202, 202, 0.65);
+}
+.dark {
+  --h-yellow: rgba(234, 179, 8, 0.25);
+  --h-blue: rgba(59, 130, 246, 0.25);
+  --h-green: rgba(34, 197, 94, 0.25);
+  --h-purple: rgba(168, 85, 247, 0.25);
+  --h-red: rgba(239, 68, 68, 0.25);
+}
+
+.tiptap table,
+.prose table {
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  width: 100% !important;
+  margin: 1.5rem 0 !important;
+  overflow: hidden !important;
+  border-radius: 0.5rem !important;
+  border: 1px solid var(--color-border) !important;
+}
+.tiptap th,
+.tiptap td,
+.prose th,
+.prose td {
+  min-width: 1.5rem !important;
+  border: 1px solid var(--color-border) !important;
+  padding: 0.5rem 0.75rem !important;
+  vertical-align: top !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+}
+.tiptap th,
+.prose th {
+  background-color: var(--color-muted) !important;
+  font-weight: 600 !important;
+  text-align: left !important;
+}
+.tiptap td,
+.prose td {
+  background-color: transparent !important;
+}
+.tiptap .selectedCell::after,
+.prose .selectedCell::after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(0, 73, 254, 0.08) !important;
+  pointer-events: none;
+}
+.tiptap .column-resize-handle,
+.prose .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: var(--color-primary) !important;
+  pointer-events: none;
+}
+
+.tiptap hr,
+.prose hr {
+  border: none !important;
+  border-top: 1px solid var(--color-border) !important;
+  margin: 1.5rem 0 !important;
+}
+
+.tiptap mark,
+mark {
+  color: inherit !important;
+  padding: 0.125em 0.25em !important;
+  border-radius: 0.25rem !important;
+}
+
+.tiptap .hljs-comment,
+.tiptap .hljs-quote {
+  color: var(--color-muted-foreground);
+  font-style: italic;
+}
+.tiptap .hljs-keyword,
+.tiptap .hljs-selector-tag,
+.tiptap .hljs-addition {
+  color: var(--color-primary);
+}
+.tiptap .hljs-number,
+.tiptap .hljs-string,
+.tiptap .hljs-meta,
+.tiptap .hljs-special {
+  color: #10b981;
+}
+.tiptap .hljs-title,
+.tiptap .hljs-section,
+.tiptap .hljs-name {
+  color: #8b5cf6;
+}
+.tiptap .hljs-variable,
+.tiptap .hljs-template-variable,
+.tiptap .hljs-type,
+.tiptap .hljs-attr,
+.tiptap .hljs-attribute,
+.tiptap .hljs-builtin,
+.tiptap .hljs-symbol,
+.tiptap .hljs-bullet,
+.tiptap .hljs-link {
+  color: #f97316;
+}
+
+/* Print layout styles for clean PDF export */
+@media print {
+  aside,
+  header,
+  .fixed,
+  button,
+  .no-print {
+    display: none !important;
+  }
+  
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .panel {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+}
+
+/* Disable all box shadows globally throughout the entire application */
+*, ::before, ::after {
+  box-shadow: none !important;
+}
+
+/* Sidebar logo fade in transition after 0.25s delay */
+.sidebar-logo-fade {
+  animation: logoFadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) 0.25s forwards;
+  opacity: 0;
+}
+
+@keyframes logoFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+

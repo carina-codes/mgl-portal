@@ -7,9 +7,15 @@ import { PROJECT_STATUS_META } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
-import { Plus, LayoutGrid, List as ListIcon, MoreHorizontal } from "lucide-react";
+import { Plus, LayoutGrid, List as ListIcon, MoreHorizontal, Archive, Trash2, UserPlus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 
 
@@ -27,7 +33,7 @@ function ProjectsPage() {
     { id: "status", label: "Status", multi: true, options: Object.entries(PROJECT_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
     { id: "client", label: "Client", multi: true, options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })) },
     { id: "team", label: "Team", multi: true, options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })) },
-    { id: "type", label: "Budget type", options: [{ value: "fixed", label: "Fixed bid" }, { value: "hourly", label: "Hourly" }] },
+    { id: "type", label: "Budget type", options: [{ value: "fixed", label: "Fixed bid" }, { value: "hourly", label: "Hourly" }, { value: "retainer", label: "Retainer" }] },
   ], [clients, users]);
 
   const filtered = projects.filter((p) => {
@@ -71,34 +77,150 @@ function ProjectsPage() {
         onDateRange={setDateRange}
       />
       {view === "grid" ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((p) => {
             const client = clients.find((c) => c.id === p.clientId)!;
+            const accentCls = {
+              todo: {
+                cardHover: "hover:border-rose-500/25",
+                glow: "bg-rose-500/5 group-hover:bg-rose-500/10",
+                badge: "bg-todo text-todo-foreground border-todo-foreground/20",
+                bar: "bg-rose-500",
+                textHover: "group-hover:text-rose-600 dark:group-hover:text-rose-400",
+              },
+              progress: {
+                cardHover: "hover:border-amber-500/25",
+                glow: "bg-amber-500/5 group-hover:bg-amber-500/10",
+                badge: "bg-progress text-progress-foreground border-progress-foreground/20",
+                bar: "bg-amber-500",
+                textHover: "group-hover:text-amber-600 dark:group-hover:text-amber-400",
+              },
+              review: {
+                cardHover: "hover:border-sky-500/25",
+                glow: "bg-sky-500/5 group-hover:bg-sky-500/10",
+                badge: "bg-review text-review-foreground border-review-foreground/20",
+                bar: "bg-sky-500",
+                textHover: "group-hover:text-sky-600 dark:group-hover:text-sky-400",
+              },
+              done: {
+                cardHover: "hover:border-emerald-500/25",
+                glow: "bg-emerald-500/5 group-hover:bg-emerald-500/10",
+                badge: "bg-done text-done-foreground border-done-foreground/20",
+                bar: "bg-emerald-500",
+                textHover: "group-hover:text-emerald-600 dark:group-hover:text-emerald-400",
+              },
+            }[p.accent] || {
+              cardHover: "hover:border-primary/25",
+              glow: "bg-primary/5 group-hover:bg-primary/10",
+              badge: "bg-muted text-muted-foreground border-muted-foreground/20",
+              bar: "bg-primary",
+              textHover: "group-hover:text-primary",
+            };
+
             return (
-              <div key={p.id} className="panel p-5 transition-transform hover:-translate-y-0.5">
-                <Link href={`/owner/projects/${p.id }`} className="block">
-                  <div className={`h-24 w-full rounded-2xl bg-${p.accent}`} />
-                  <div className="mt-4 flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${PROJECT_STATUS_META[p.status].cls}`}>
+              <div key={p.id} className={cn("group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-card/85", accentCls.cardHover)}>
+                <div className={cn("absolute right-0 top-0 -mt-8 -mr-8 h-24 w-24 rounded-full blur-xl transition-all duration-500 pointer-events-none", accentCls.glow)} />
+                
+                <Link href={`/owner/projects/${p.id}`} className="block space-y-4">
+                  {/* Top Header Row: Project Accent Square + Text Details */}
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-lg font-bold border transition-all duration-300",
+                      accentCls.badge
+                    )}>
+                      {p.name[0]}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight truncate", accentCls.textHover)}>
+                        {p.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">{client?.name}</p>
+                    </div>
+                  </div>
+
+                  {/* Status & Billing Type Row */}
+                  <div className="flex items-center justify-between text-xs border-b border-border/40 pb-3">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${PROJECT_STATUS_META[p.status].cls}`}>
                       {PROJECT_STATUS_META[p.status].label}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">{client?.name}</span>
+                    <span className="font-semibold text-muted-foreground capitalize bg-muted/45 px-2 py-0.5 rounded text-[10px]">
+                      {{
+                        fixed: "Fixed Price",
+                        hourly: "Hourly",
+                        retainer: "Retainer",
+                      }[p.type] ?? p.type}
+                    </span>
                   </div>
-                  <div className="mt-2 text-base font-semibold">{p.name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">Due {p.endDate}</div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-primary" style={{ width: `${p.progress}%` }} />
+
+                  {/* Progress & Target Launch */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="text-foreground">{p.progress}%</span>
                     </div>
-                    <span className="text-[11px] font-medium text-muted-foreground">{p.progress}%</span>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted/50">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          accentCls.bar
+                        )}
+                        style={{ width: `${p.progress}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      Target launch: <span className="text-foreground font-semibold">{p.endDate}</span>
+                    </p>
                   </div>
                 </Link>
-                <div className="mt-4 flex items-center justify-between">
-                  <AvatarStack userIds={p.team} users={users} max={4} size={24} />
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => open("project.status", { projectId: p.id })} className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted">Status</button>
-                    <button onClick={() => open("project.edit", { projectId: p.id })} className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted">Edit</button>
-                    <button onClick={() => open("project.archive", { projectId: p.id })} className="rounded-full p-1 text-muted-foreground hover:bg-muted"><MoreHorizontal className="h-3.5 w-3.5" /></button>
+
+                {/* Footer Section: Team & Buttons */}
+                <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4">
+                  <AvatarStack userIds={p.team} users={users} max={4} size={26} />
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => open("project.status", { projectId: p.id })}
+                      className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+                    >
+                      Status
+                    </button>
+                    <button
+                      onClick={() => open("project.edit", { projectId: p.id })}
+                      className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 transition-all cursor-pointer"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
+                        <DropdownMenuItem
+                          onClick={() => open("project.share", { projectId: p.id })}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                          <span>Invite team</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => open("project.archive", { projectId: p.id })}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                          <span>Archive project</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => open("project.delete", { projectId: p.id })}
+                          className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Delete project</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </div>
@@ -130,7 +252,20 @@ function ProjectsPage() {
                 return (
                   <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                     <td className="px-5 py-3 font-medium">
-                      <Link href={`/owner/projects/${p.id }`} className="hover:text-primary">{p.name}</Link>
+                      <div className="flex items-center gap-2.5">
+                        <span className={cn(
+                          "flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold border",
+                          {
+                            todo: "bg-todo text-todo-foreground border-todo-foreground/20",
+                            progress: "bg-progress text-progress-foreground border-progress-foreground/20",
+                            review: "bg-review text-review-foreground border-review-foreground/20",
+                            done: "bg-done text-done-foreground border-done-foreground/20",
+                          }[p.accent] || "bg-muted text-muted-foreground border-muted-foreground/20"
+                        )}>
+                          {p.name[0]}
+                        </span>
+                        <Link href={`/owner/projects/${p.id}`} className="hover:text-primary transition-colors">{p.name}</Link>
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{client?.name}</td>
                     <td className="px-5 py-3">
@@ -138,16 +273,56 @@ function ProjectsPage() {
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                          <div className="h-full bg-primary" style={{ width: `${p.progress}%` }} />
+                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted/60">
+                          <div className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            {
+                              todo: "bg-rose-500",
+                              progress: "bg-amber-500",
+                              review: "bg-sky-500",
+                              done: "bg-emerald-500",
+                            }[p.accent] || "bg-primary"
+                          )} style={{ width: `${p.progress}%` }} />
                         </div>
-                        <span className="text-xs text-muted-foreground">{p.progress}%</span>
+                        <span className="text-xs text-muted-foreground font-medium">{p.progress}%</span>
                       </div>
                     </td>
                     <td className="px-5 py-3"><AvatarStack userIds={p.team} users={users} max={3} size={22} /></td>
                     <td className="px-5 py-3 text-muted-foreground">{p.endDate}</td>
                     <td className="px-5 py-3 text-right">
-                      <button onClick={() => open("project.edit", { projectId: p.id })} className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted">Edit</button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => open("project.edit", { projectId: p.id })} className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all">Edit</button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="rounded-full p-1 text-muted-foreground hover:bg-muted cursor-pointer transition-all">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
+                            <DropdownMenuItem
+                              onClick={() => open("project.share", { projectId: p.id })}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <UserPlus className="h-3.5 w-3.5" />
+                              <span>Invite team</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => open("project.archive", { projectId: p.id })}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                              <span>Archive project</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => open("project.delete", { projectId: p.id })}
+                              className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Delete project</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react";
+import { useEditor, EditorContent, ReactRenderer, ReactNodeViewRenderer, NodeViewContent, NodeViewWrapper } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
@@ -7,6 +7,13 @@ import Image from "@tiptap/extension-image";
 import Mention from "@tiptap/extension-mention";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import { Highlight } from "@tiptap/extension-highlight";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { all, createLowlight } from "lowlight";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
@@ -23,26 +30,43 @@ import {
   Smile,
   AtSign,
   CheckSquare,
-  Heading2,
   Trash2,
+  Highlighter,
+  Table as TableIcon,
+  SeparatorHorizontal,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  MinusSquare,
+  Mic,
+  Lock,
+  Send,
+  File,
+  FileText,
+  FileImage,
+  FileVideo,
+  FileArchive,
+  Search,
+  FolderOpen,
 } from "lucide-react";
 import { users } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import { FileAttachmentCard } from "@/components/file-attachment-card";
+import { useParams } from "next/navigation";
+import { AppDialog } from "@/components/ui/app-dialog";
 
-/**
- * RichEditor — the unified Tiptap editor for the MGL Client Platform.
- *
- * Features:
- *  - Formatting (bold, italic, strike, headings, lists, quote, code, link)
- *  - @mentions of users (team members & clients)
- *  - #references to tasks and projects
- *  - Premium, inline Notion-style link editor popover
- *  - Emoji picker (emoji-mart)
- *  - File attachments rendered as chips
- *  - Polished, consistent toolbar matching the MGL design system
- */
+const lowlight = createLowlight(all);
+
+const HIGHLIGHT_COLORS = [
+  { name: "Yellow", value: "var(--h-yellow)", bg: "bg-[#fef08a] dark:bg-[#713f12]" },
+  { name: "Blue", value: "var(--h-blue)", bg: "bg-[#bfdbfe] dark:bg-[#1e3a8a]" },
+  { name: "Green", value: "var(--h-green)", bg: "bg-[#bbf7d0] dark:bg-[#14532d]" },
+  { name: "Purple", value: "var(--h-purple)", bg: "bg-[#e9d5ff] dark:bg-[#581c87]" },
+  { name: "Red", value: "var(--h-red)", bg: "bg-[#fecaca] dark:bg-[#7f1d1d]" },
+];
 
 export type RichAttachment = {
   id: string;
@@ -64,19 +88,119 @@ export interface RichEditorProps {
   footer?: React.ReactNode;
   /** Compact styling for comment/reply contexts. */
   compact?: boolean;
+  onSend?: () => void;
+  sendDisabled?: boolean;
+  showInternalOnly?: boolean;
+  isInternal?: boolean;
+  onInternalChange?: (val: boolean) => void;
+}
+
+function CodeBlockComponent({ node }: any) {
+  const [copied, setCopied] = React.useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(node.textContent);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <NodeViewWrapper className="relative group/code-block my-3">
+      <div className="absolute right-2 top-2 z-10 opacity-0 group-hover/code-block:opacity-100 transition-opacity">
+        <button
+          onClick={copy}
+          type="button"
+          className="rounded-md border border-border bg-popover px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer flex items-center gap-1"
+        >
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+      <pre className="!mt-0 !mb-0 rounded-xl bg-muted/40 p-4 font-mono text-xs leading-relaxed border border-border/80 overflow-x-auto text-foreground">
+        <code className="bg-transparent !p-0 !text-inherit !rounded-none">
+          <NodeViewContent />
+        </code>
+      </pre>
+    </NodeViewWrapper>
+  );
 }
 
 export function RichEditor({
   value = "",
   onChange,
-  placeholder = "Write something…",
+  placeholder = "Type your message...",
   minHeight = 160,
   attachments,
   onAttachmentsChange,
   className,
   footer,
   compact,
+  onSend,
+  sendDisabled,
+  showInternalOnly,
+  isInternal,
+  onInternalChange,
 }: RichEditorProps) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [2, 3] }, // keep heading extension for parsing, but remove toggle button
+        codeBlock: false, // disable default code block in starter kit
+      }),
+      Placeholder.configure({ placeholder }),
+      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline underline-offset-2 font-medium" } }),
+      Image.configure({ HTMLAttributes: { class: "rounded-xl my-2 max-h-80" } }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Mention.configure({
+        HTMLAttributes: { class: "carina-mention text-primary font-semibold hover:underline" },
+        suggestion: mentionSuggestion,
+      }),
+      Mention.extend({
+        name: "reference",
+      }).configure({
+        HTMLAttributes: { class: "carina-reference text-primary font-semibold hover:underline cursor-pointer" },
+        suggestion: referenceSuggestion,
+      }),
+      Highlight.configure({ multicolor: true }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      CodeBlockLowlight.configure({
+        lowlight,
+      }).extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(CodeBlockComponent);
+        },
+      }),
+    ],
+    content: value,
+    immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class: cn(
+          "tiptap prose prose-sm max-w-none focus:outline-none leading-relaxed text-foreground min-h-[120px]",
+          compact ? "min-h-[64px]" : "",
+        ),
+      },
+      handleDrop(view, event, slice, moved) {
+        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+          event.preventDefault();
+          pickFiles(event.dataTransfer.files);
+          return true;
+        }
+        return false;
+      },
+      handlePaste(view, event, slice) {
+        if (event.clipboardData && event.clipboardData.files && event.clipboardData.files.length > 0) {
+          event.preventDefault();
+          pickFiles(event.clipboardData.files);
+          return true;
+        }
+        return false;
+      },
+    },
+    onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
+  });
+
   const [internalAttachments, setInternalAttachments] = React.useState<RichAttachment[]>([]);
   const atts = attachments ?? internalAttachments;
   const setAtts = onAttachmentsChange ?? setInternalAttachments;
@@ -89,37 +213,153 @@ export function RichEditor({
   const [linkPopoverOpen, setLinkPopoverOpen] = React.useState(false);
   const [linkUrl, setLinkUrl] = React.useState("");
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: { levels: [2, 3] } }),
-      Placeholder.configure({ placeholder }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline underline-offset-2 font-medium" } }),
-      Image.configure({ HTMLAttributes: { class: "rounded-xl my-2 max-h-80" } }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Mention.configure({
-        HTMLAttributes: { class: "mgl-mention text-primary font-semibold hover:underline" },
-        suggestion: mentionSuggestion,
-      }),
-      Mention.extend({
-        name: "reference",
-      }).configure({
-        HTMLAttributes: { class: "mgl-reference text-primary font-semibold hover:underline cursor-pointer" },
-        suggestion: referenceSuggestion,
-      }),
-    ],
-    content: value,
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        class: cn(
-          "tiptap prose prose-sm max-w-none focus:outline-none leading-relaxed text-foreground min-h-[120px]",
-          compact ? "min-h-[64px]" : "",
-        ),
-      },
-    },
-    onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
-  });
+  // Highlight color picker state
+  const [highlightOpen, setHighlightOpen] = React.useState(false);
+  const highlightRef = React.useRef<HTMLDivElement>(null);
+
+  // Speech Recognition state
+  const [recognizing, setRecognizing] = React.useState(false);
+  const recognitionRef = React.useRef<any>(null);
+
+  // App Files Selector Modal State
+  const [isAppFileModalOpen, setIsAppFileModalOpen] = React.useState(false);
+  const [appFileSearch, setAppFileSearch] = React.useState("");
+  const [appFileFilter, setAppFileFilter] = React.useState<"project" | "all">("project");
+
+  const params = useParams();
+  const routeProjectId = params?.projectId as string | undefined;
+  const activeProjectId = routeProjectId;
+
+  const allDocuments = useStore((s) => s.documents);
+  const projects = useStore((s) => s.projects);
+
+  React.useEffect(() => {
+    if (!activeProjectId) {
+      setAppFileFilter("all");
+    } else {
+      setAppFileFilter("project");
+    }
+  }, [activeProjectId]);
+
+  const filteredDocuments = React.useMemo(() => {
+    let docs = allDocuments.filter((d) => d.name !== ".keep");
+    if (appFileFilter === "project" && activeProjectId) {
+      docs = docs.filter((d) => d.projectId === activeProjectId);
+    }
+    if (appFileSearch.trim() !== "") {
+      const q = appFileSearch.toLowerCase();
+      docs = docs.filter((d) => d.name.toLowerCase().includes(q));
+    }
+    return docs;
+  }, [allDocuments, appFileFilter, activeProjectId, appFileSearch]);
+
+  const getProjectName = (pId: string) => {
+    return projects.find((p) => p.id === pId)?.name || "General";
+  };
+
+  const getAppFileIcon = (fileName: string) => {
+    const ext = fileName.split(".").pop()?.toLowerCase() || "";
+    let IconComponent = File;
+    if (["png", "jpg", "jpeg", "gif", "webp", "svg", "fig"].includes(ext)) {
+      IconComponent = FileImage;
+    } else if (ext === "pdf" || ["doc", "docx"].includes(ext)) {
+      IconComponent = FileText;
+    } else if (["zip", "rar", "7z", "tar"].includes(ext)) {
+      IconComponent = FileArchive;
+    } else if (["mp4", "mov", "avi"].includes(ext)) {
+      IconComponent = FileVideo;
+    }
+    return <IconComponent className="h-4 w-4 text-foreground shrink-0" />;
+  };
+
+  const attachAppFile = (doc: any) => {
+    const match = doc.size.match(/^([\d.]+)\s*(KB|MB|GB|B)?$/i);
+    let sizeBytes = 1024;
+    if (match) {
+      const num = parseFloat(match[1]);
+      const unit = (match[2] || "").toUpperCase();
+      if (unit === "KB") sizeBytes = num * 1024;
+      else if (unit === "MB") sizeBytes = num * 1024 * 1024;
+      else if (unit === "GB") sizeBytes = num * 1024 * 1024 * 1024;
+      else sizeBytes = num;
+    }
+
+    const ext = doc.name.split(".").pop()?.toLowerCase() || "";
+    let type = "application/octet-stream";
+    if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
+      type = `image/${ext === "jpg" ? "jpeg" : ext}`;
+    } else if (ext === "pdf") {
+      type = "application/pdf";
+    }
+
+    const att: RichAttachment = {
+      id: doc.id,
+      name: doc.name,
+      size: sizeBytes,
+      type,
+      url: doc.previewUrl || "#",
+    };
+
+    setAtts([...atts, att]);
+
+    if (type.startsWith("image/") && doc.previewUrl) {
+      editor?.chain().focus().setImage({ src: doc.previewUrl, alt: doc.name }).run();
+    }
+
+    toast.success(`Attached ${doc.name} from app files`);
+    setIsAppFileModalOpen(false);
+  };
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = false;
+      rec.lang = "en-US";
+
+      rec.onresult = (event: any) => {
+        const resultIndex = event.resultIndex;
+        const transcript = event.results[resultIndex][0].transcript;
+        if (editor && transcript) {
+          editor.chain().focus().insertContent(transcript + " ").run();
+        }
+      };
+
+      rec.onerror = (e: any) => {
+        console.error("Speech recognition error:", e);
+        setRecognizing(false);
+      };
+
+      rec.onend = () => {
+        setRecognizing(false);
+      };
+
+      recognitionRef.current = rec;
+    }
+  }, [editor]);
+
+  const toggleSpeech = () => {
+    if (!recognitionRef.current) {
+      toast.error("Speech recognition is not supported in this browser.");
+      return;
+    }
+
+    if (recognizing) {
+      recognitionRef.current.stop();
+      setRecognizing(false);
+      toast.success("Voice input stopped");
+    } else {
+      try {
+        recognitionRef.current.start();
+        setRecognizing(true);
+        toast.success("Listening... Speak now");
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
 
   // Keep editor content in sync with external value resets
   React.useEffect(() => {
@@ -139,6 +379,16 @@ export function RichEditor({
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [emojiOpen]);
+
+  // Close highlight picker on outside click
+  React.useEffect(() => {
+    if (!highlightOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!highlightRef.current?.contains(e.target as Node)) setHighlightOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [highlightOpen]);
 
   function pickFiles(files: FileList | null) {
     if (!files || !editor) return;
@@ -215,20 +465,57 @@ export function RichEditor({
   return (
     <div
       className={cn(
-        "group rounded-2xl border border-border bg-background transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 flex flex-col justify-between overflow-hidden",
+        "group rounded-2xl border border-border bg-background transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10 flex flex-col justify-between relative",
         className,
       )}
     >
       <div className="flex flex-col">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-0.5 border-b border-border/60 bg-muted/5 px-2 py-1.5 select-none">
+        <div className="flex flex-wrap items-center gap-0.5 border-b border-border/60 bg-muted/5 px-2 py-1.5 select-none rounded-t-2xl">
           <ToolBtn active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} label="Bold"><Bold className="h-3.5 w-3.5" /></ToolBtn>
           <ToolBtn active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} label="Italic"><Italic className="h-3.5 w-3.5" /></ToolBtn>
           <ToolBtn active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} label="Strikethrough"><Strikethrough className="h-3.5 w-3.5" /></ToolBtn>
           <ToolDivider />
-          <ToolBtn active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} label="Heading"><Heading2 className="h-3.5 w-3.5" /></ToolBtn>
+          <div className="relative" ref={highlightRef}>
+            <ToolBtn onClick={() => setHighlightOpen((v) => !v)} active={editor.isActive("highlight") || highlightOpen} label="Highlight color"><Highlighter className="h-3.5 w-3.5" /></ToolBtn>
+            {highlightOpen && (
+              <div className="absolute left-0 top-full z-50 mt-1.5 flex items-center gap-1.5 rounded-xl border border-border bg-popover p-1.5">
+                {HIGHLIGHT_COLORS.map((c) => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().setHighlight({ color: c.value }).run();
+                      setHighlightOpen(false);
+                    }}
+                    className={cn(
+                      "h-5 w-5 rounded-full border border-border/50 cursor-pointer hover:scale-110 transition-transform",
+                      c.bg
+                    )}
+                    title={c.name}
+                  />
+                ))}
+                <span className="mx-0.5 h-4 w-px bg-border" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().unsetHighlight().run();
+                    setHighlightOpen(false);
+                  }}
+                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                  title="Clear Highlight"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
           <ToolBtn active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()} label="Quote"><Quote className="h-3.5 w-3.5" /></ToolBtn>
-          <ToolBtn active={editor.isActive("code")} onClick={() => editor.chain().focus().toggleCode().run()} label="Code"><Code className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive("code")} onClick={() => editor.chain().focus().toggleCode().run()} label="Inline Code"><Code className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn active={editor.isActive("codeBlock")} onClick={() => editor.chain().focus().toggleCodeBlock().run()} label="Code Block"><Code className="h-3.5 w-3.5 border-b border-primary/45" /></ToolBtn>
+          <ToolDivider />
+          <ToolBtn onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} label="Insert table"><TableIcon className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} label="Insert divider"><SeparatorHorizontal className="h-3.5 w-3.5" /></ToolBtn>
           <ToolDivider />
           <ToolBtn active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} label="Bulleted list"><List className="h-3.5 w-3.5" /></ToolBtn>
           <ToolBtn active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} label="Numbered list"><ListOrdered className="h-3.5 w-3.5" /></ToolBtn>
@@ -236,15 +523,17 @@ export function RichEditor({
           <ToolDivider />
           <ToolBtn active={editor.isActive("link")} onClick={handleLinkClick} label="Link"><LinkIcon className="h-3.5 w-3.5" /></ToolBtn>
           <ToolBtn onClick={insertMentionTrigger} label="Mention"><AtSign className="h-3.5 w-3.5" /></ToolBtn>
-          <div className="relative" ref={emojiRef}>
+          <div className="relative hidden" ref={emojiRef}>
             <ToolBtn onClick={() => setEmojiOpen((v) => !v)} active={emojiOpen} label="Emoji"><Smile className="h-3.5 w-3.5" /></ToolBtn>
             {emojiOpen && (
-              <div className="absolute left-0 top-full z-50 mt-1.5">
+              <div className="absolute right-0 bottom-full z-50 mb-1.5">
                 <Picker data={data} onEmojiSelect={insertEmoji} theme="light" previewPosition="none" skinTonePosition="none" />
               </div>
             )}
           </div>
-          <ToolBtn onClick={() => fileInputRef.current?.click()} label="Attach"><Paperclip className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn onClick={() => fileInputRef.current?.click()} label="Attach from Device"><Paperclip className="h-3.5 w-3.5" /></ToolBtn>
+          <ToolBtn onClick={() => setIsAppFileModalOpen(true)} label="Attach from Files"><FolderOpen className="h-3.5 w-3.5" /></ToolBtn>
+
           <input
             ref={fileInputRef}
             type="file"
@@ -255,6 +544,21 @@ export function RichEditor({
               e.target.value = "";
             }}
           />
+
+          {editor.isActive("table") && (
+            <>
+              <ToolDivider />
+              <ToolBtn onClick={() => editor.chain().focus().addRowBefore().run()} label="Add row before"><ChevronUp className="h-3.5 w-3.5" /></ToolBtn>
+              <ToolBtn onClick={() => editor.chain().focus().addRowAfter().run()} label="Add row after"><ChevronDown className="h-3.5 w-3.5" /></ToolBtn>
+              <ToolBtn onClick={() => editor.chain().focus().deleteRow().run()} label="Delete row"><MinusSquare className="h-3.5 w-3.5" /></ToolBtn>
+              <ToolDivider />
+              <ToolBtn onClick={() => editor.chain().focus().addColumnBefore().run()} label="Add col before"><ChevronLeft className="h-3.5 w-3.5" /></ToolBtn>
+              <ToolBtn onClick={() => editor.chain().focus().addColumnAfter().run()} label="Add col after"><ChevronRight className="h-3.5 w-3.5" /></ToolBtn>
+              <ToolBtn onClick={() => editor.chain().focus().deleteColumn().run()} label="Delete col"><MinusSquare className="h-3.5 w-3.5 rotate-90" /></ToolBtn>
+              <ToolDivider />
+              <ToolBtn onClick={() => editor.chain().focus().deleteTable().run()} label="Delete table" className="text-destructive hover:bg-destructive/10"><Trash2 className="h-3.5 w-3.5" /></ToolBtn>
+            </>
+          )}
         </div>
 
         {/* Premium Inline Link Popover / Form */}
@@ -309,28 +613,162 @@ export function RichEditor({
       </div>
 
       {atts.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t border-border/60 px-3 py-2 bg-muted/5">
+        <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-border/60 p-3 bg-muted/5 max-h-48 overflow-y-auto scrollbar-thin", !(footer || onSend) && "rounded-b-2xl")}>
           {atts.map((a) => (
-            <span
+            <FileAttachmentCard
               key={a.id}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-1 text-[11px]"
-            >
-              <Paperclip className="h-3 w-3 text-muted-foreground" />
-              <span className="max-w-[160px] truncate font-medium text-foreground">{a.name}</span>
-              <span className="text-muted-foreground">{formatBytes(a.size)}</span>
-              <button
-                onClick={() => setAtts(atts.filter((x) => x.id !== a.id))}
-                className="text-muted-foreground hover:text-destructive font-bold cursor-pointer ml-0.5"
-                aria-label="Remove attachment"
-              >
-                ×
-              </button>
-            </span>
+              id={a.id}
+              name={a.name}
+              size={formatBytes(a.size)}
+              url={a.url}
+              onRemove={() => setAtts(atts.filter((x) => x.id !== a.id))}
+            />
           ))}
         </div>
       )}
 
-      {footer && <div className="border-t border-border/60 px-3 py-2.5 bg-muted/5">{footer}</div>}
+      {onSend ? (
+        <div className="flex items-center justify-between border-t border-border/60 px-3 py-2 bg-muted/5 rounded-b-2xl select-none">
+          <div className="flex items-center gap-3">
+            {showInternalOnly && (
+              <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-muted-foreground select-none font-semibold">
+                <input
+                  type="checkbox"
+                  checked={isInternal}
+                  onChange={(e) => onInternalChange?.(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
+                />
+                <Lock className="h-3 w-3" /> Internal only
+              </label>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleSpeech}
+              title={recognizing ? "Stop listening" : "Voice input"}
+              aria-label={recognizing ? "Stop listening" : "Voice input"}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full transition-all duration-300 px-3.5 py-1.5 text-xs font-semibold border cursor-pointer select-none",
+                recognizing
+                  ? "border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 animate-pulse ring-2 ring-red-500/20"
+                  : "border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {recognizing ? (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                  <Mic className="h-3 w-3" />
+                  <span>Listening</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="h-3 w-3" />
+                  <span>Speak</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={sendDisabled}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/95 disabled:opacity-40 cursor-pointer transition-all"
+            >
+              <Send className="h-3 w-3" /> Send
+            </button>
+          </div>
+        </div>
+      ) : footer ? (
+        <div className="border-t border-border/60 px-3 py-2.5 bg-muted/5 rounded-b-2xl">{footer}</div>
+      ) : null}
+
+      <AppDialog
+        open={isAppFileModalOpen}
+        onOpenChange={setIsAppFileModalOpen}
+        title="Attach from Files"
+        description="Choose a file uploaded within the workspace to attach to your message."
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search files..."
+                value={appFileSearch}
+                onChange={(e) => setAppFileSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 text-sm border rounded-xl bg-background outline-none border-border focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            
+            {activeProjectId && (
+              <select
+                value={appFileFilter}
+                onChange={(e) => setAppFileFilter(e.target.value as any)}
+                className="px-3 py-2 text-sm border rounded-xl bg-background outline-none border-border focus:ring-1 focus:ring-primary"
+              >
+                <option value="project">This Project Files</option>
+                <option value="all">All Workspace Files</option>
+              </select>
+            )}
+          </div>
+
+          <div className="border border-border/60 rounded-2xl overflow-hidden max-h-[300px] overflow-y-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-muted/30 text-muted-foreground border-b border-border/60">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Name</th>
+                  <th className="px-4 py-2 font-medium">Folder</th>
+                  {appFileFilter === "all" && <th className="px-4 py-2 font-medium">Project</th>}
+                  <th className="px-4 py-2 font-medium">Size</th>
+                  <th className="px-4 py-2 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDocuments.length === 0 ? (
+                  <tr>
+                    <td colSpan={appFileFilter === "all" ? 5 : 4} className="px-4 py-8 text-center text-muted-foreground">
+                      No files found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredDocuments.map((doc) => (
+                    <tr key={doc.id} className="border-b border-border/40 last:border-0 hover:bg-muted/40 transition-colors">
+                      <td className="px-4 py-2.5 font-medium text-foreground max-w-[240px]">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          {getAppFileIcon(doc.name)}
+                          <span className="truncate" title={doc.name}>{doc.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{doc.folder}</td>
+                      {appFileFilter === "all" && (
+                        <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[120px]" title={getProjectName(doc.projectId)}>
+                          {getProjectName(doc.projectId)}
+                        </td>
+                      )}
+                      <td className="px-4 py-2.5 text-muted-foreground">{doc.size}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => attachAppFile(doc)}
+                          className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary hover:bg-primary/20 transition-all cursor-pointer"
+                        >
+                          Select
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </AppDialog>
     </div>
   );
 }
@@ -340,11 +778,13 @@ function ToolBtn({
   active,
   onClick,
   label,
+  className,
 }: {
   children: React.ReactNode;
   active?: boolean;
   onClick?: () => void;
   label: string;
+  className?: string;
 }) {
   return (
     <button
@@ -355,6 +795,7 @@ function ToolBtn({
       className={cn(
         "inline-flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer",
         active && "bg-primary/10 text-primary hover:bg-primary/15",
+        className
       )}
     >
       {children}
@@ -366,7 +807,7 @@ function ToolDivider() {
   return <span className="mx-1 h-4 w-px bg-border" />;
 }
 
-function formatBytes(n: number) {
+export function formatBytes(n: number) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
@@ -413,11 +854,11 @@ const MentionList = React.forwardRef<
   }));
 
   if (props.items.length === 0) {
-    return <div className="rounded-xl border border-border bg-popover p-2 text-xs text-muted-foreground shadow-lg">No matches</div>;
+    return <div className="rounded-xl border border-border bg-popover p-2 text-xs text-muted-foreground">No matches</div>;
   }
 
   return (
-    <div className="min-w-[220px] rounded-xl border border-border bg-popover p-1 shadow-xl z-[9999]">
+    <div className="min-w-[220px] rounded-xl border border-border bg-popover p-1 z-[9999]">
       {props.items.map((item, i) => (
         <button
           key={item.id}
@@ -553,11 +994,11 @@ const ReferenceList = React.forwardRef<
   }));
 
   if (props.items.length === 0) {
-    return <div className="rounded-xl border border-border bg-popover p-2 text-xs text-muted-foreground shadow-lg">No matches</div>;
+    return <div className="rounded-xl border border-border bg-popover p-2 text-xs text-muted-foreground">No matches</div>;
   }
 
   return (
-    <div className="min-w-[240px] rounded-xl border border-border bg-popover p-1 shadow-xl z-[9999] max-h-[260px] overflow-y-auto">
+    <div className="min-w-[240px] rounded-xl border border-border bg-popover p-1 z-[9999] max-h-[260px] overflow-y-auto">
       {props.items.map((item, i) => (
         <button
           key={`${item.type}-${item.id}`}

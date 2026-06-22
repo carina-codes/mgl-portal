@@ -78,7 +78,9 @@ function ReportingPage() {
       const hours = entriesScoped
         .filter((t) => cprojects.some((p) => p.id === t.projectId))
         .reduce((s, t) => s + t.hours, 0);
-      const prev = Math.max(1, hours * (0.7 + Math.random() * 0.4));
+      // Use deterministic calculation based on client ID hash to avoid hydration mismatch
+      const hash = c.id.charCodeAt(c.id.length - 1) || 0;
+      const prev = Math.max(1, hours * (0.7 + (hash % 5) * 0.1));
       return {
         name: c.name.split(" ")[0],
         hours: Math.round(hours),
@@ -96,8 +98,8 @@ function ReportingPage() {
 
   const trend = Array.from({ length: 12 }).map((_, i) => ({
     week: `W${i + 1}`,
-    current: Math.round(120 + Math.random() * 80),
-    previous: Math.round(110 + Math.random() * 70),
+    current: Math.round(120 + ((i * 17) % 80)),
+    previous: Math.round(110 + ((i * 23) % 70)),
   }));
 
   return (

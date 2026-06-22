@@ -90,7 +90,7 @@ export function SearchDropdown() {
         </div>
 
         {open && (
-          <CommandList className="absolute top-[calc(100%+6px)] left-0 z-50 w-full max-h-[380px] overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xl animate-in fade-in-50 slide-in-from-top-2 duration-200 divide-y divide-border/40">
+          <CommandList className="absolute top-[calc(100%+6px)] left-0 z-50 w-full max-h-[380px] overflow-y-auto rounded-2xl border border-border bg-card p-1.5 animate-in fade-in-50 slide-in-from-top-2 duration-200 divide-y divide-border/40">
             <CommandEmpty className="py-8 text-center text-xs text-muted-foreground flex flex-col items-center justify-center">
               <Sparkles className="h-5 w-5 text-muted-foreground/30 mb-1.5 animate-pulse" />
               <span>No results found.</span>
