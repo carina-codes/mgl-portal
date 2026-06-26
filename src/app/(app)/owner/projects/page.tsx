@@ -30,10 +30,10 @@ function ProjectsPage() {
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 
   const filterDefs = useMemo(() => [
-    { id: "status", label: "Status", multi: true, options: Object.entries(PROJECT_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
     { id: "client", label: "Client", multi: true, options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })) },
+    { id: "status", label: "Status", multi: true, options: Object.entries(PROJECT_STATUS_META).map(([v, m]) => ({ value: v, label: m.label })) },
     { id: "team", label: "Team", multi: true, options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })) },
-    { id: "type", label: "Budget type", options: [{ value: "fixed", label: "Fixed bid" }, { value: "hourly", label: "Hourly" }, { value: "retainer", label: "Retainer" }] },
+    { id: "type", label: "Type", options: [{ value: "fixed", label: "Fixed bid" }, { value: "hourly", label: "Hourly" }, { value: "retainer", label: "Retainer" }] },
   ], [clients, users]);
 
   const filtered = projects.filter((p) => {
@@ -168,7 +168,7 @@ function ProjectsPage() {
                       />
                     </div>
                     <p className="text-[11px] text-muted-foreground font-medium">
-                      Target launch: <span className="text-foreground font-semibold">{p.endDate}</span>
+                      {p.type === "retainer" ? "End date" : "Target launch"}: <span className="text-foreground font-semibold">{p.endDate}</span>
                     </p>
                   </div>
                 </Link>

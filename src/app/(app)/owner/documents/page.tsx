@@ -27,6 +27,7 @@ function DocumentsPage() {
   const documents = useStore((s) => s.documents);
   const projects = useStore((s) => s.projects);
   const users = useStore((s) => s.users);
+  const clients = useStore((s) => s.clients);
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
@@ -39,6 +40,12 @@ function DocumentsPage() {
 
   const filterDefs = useMemo(
     () => [
+      {
+        id: "client",
+        label: "Client",
+        multi: true,
+        options: clients.map((c) => ({ value: c.id, label: c.name })),
+      },
       {
         id: "project",
         label: "Project",
@@ -55,13 +62,15 @@ function DocumentsPage() {
         ],
       },
     ],
-    [projects, folders],
+    [projects, folders, clients],
   );
 
   const filtered = documents
     .filter((d) => d.name !== ".keep")
     .filter((d) => {
       if (search && !d.name.toLowerCase().includes(search.toLowerCase())) return false;
+      const project = projects.find(p => p.id === d.projectId);
+      if (filters.client?.length && (!project || !filters.client.includes(project.clientId))) return false;
       if (filters.project?.length && !filters.project.includes(d.projectId)) return false;
       if (filters.folder?.length && !filters.folder.includes(d.folder)) return false;
       if (filters.visibility?.length) {

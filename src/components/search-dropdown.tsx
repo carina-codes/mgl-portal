@@ -144,7 +144,7 @@ export function SearchDropdown() {
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-semibold truncate">{client.name}</div>
                         <div className="text-[10px] text-muted-foreground truncate">
-                          {client.industry} · Contact: {client.contact}
+                          {client.industry}{client.subIndustry ? ` · ${client.subIndustry}` : ""} · Contact: {client.contact}
                         </div>
                       </div>
                     </CommandItem>

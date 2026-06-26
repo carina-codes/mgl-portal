@@ -19,6 +19,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  CreditCard,
 } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
@@ -61,10 +63,12 @@ const NAV = [
   { to: "/owner/projects", label: "Projects", icon: FolderKanban },
   { to: "/owner/requests", label: "Requests", icon: Inbox, badge: 4 },
   { to: "/owner/documents", label: "Documents", icon: FileText },
-  { to: "/owner/messages", label: "Discussions", icon: MessageSquare, badge: 6 },
+  { to: "/owner/messages", label: "Inbox", icon: MessageSquare, badge: 6 },
   { to: "/owner/time", label: "Time tracking", icon: Clock },
-  { to: "/owner/reporting", label: "Reporting", icon: BarChart3 },
+  { to: "/owner/calendar", label: "Calendar", icon: Calendar },
   { to: "/owner/team", label: "Team", icon: UserCog },
+  { to: "/owner/finance", label: "Finance", icon: CreditCard },
+  { to: "/owner/reporting", label: "Reports", icon: BarChart3 },
 ];
 
 const statusConfig = {

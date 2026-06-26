@@ -22,6 +22,7 @@ export type Client = {
   id: string;
   name: string;
   industry: string;
+  subIndustry?: string;
   logoColor: string;
   contact: string;
   contactEmail: string;
@@ -70,7 +71,7 @@ export type Client = {
   shareLinks?: ProjectShareLink[];
 };
 
-export type ProjectStatus = "planning" | "in_progress" | "review" | "completed" | "on_hold";
+export type ProjectStatus = "planning" | "in_progress" | "ongoing" | "review" | "completed" | "on_hold";
 
 export type ProjectShareLink = {
   id: string;
@@ -258,7 +259,8 @@ export const clients: Client[] = [
   {
     id: "c1",
     name: "Arcadia Solutions",
-    industry: "SaaS · Project tooling",
+    industry: "Technology",
+    subIndustry: "SaaS Project Management",
     logoColor: "#0049FE",
     contact: "Marcus Hale",
     contactEmail: "marcus@arcadia.com",
@@ -300,7 +302,8 @@ export const clients: Client[] = [
   {
     id: "c2",
     name: "Northwind Studio",
-    industry: "DTC · Skincare",
+    industry: "Beauty",
+    subIndustry: "Organic Skincare",
     logoColor: "#FF7A59",
     contact: "Elena Brooks",
     contactEmail: "elena@northwind.io",
@@ -340,7 +343,8 @@ export const clients: Client[] = [
   {
     id: "c3",
     name: "Lumen & Co.",
-    industry: "Hospitality · Branding",
+    industry: "Hospitality",
+    subIndustry: "Boutique Hotels",
     logoColor: "#A855F7",
     contact: "Sofia Romero",
     contactEmail: "sofia@lumenco.com",
@@ -380,7 +384,8 @@ export const clients: Client[] = [
   {
     id: "c4",
     name: "Field & Form",
-    industry: "Architecture · Marketing site",
+    industry: "Architecture",
+    subIndustry: "Sustainable Residential",
     logoColor: "#10B981",
     contact: "Olivia Park",
     contactEmail: "olivia@fieldform.co",
@@ -417,14 +422,15 @@ export const clients: Client[] = [
   {
     id: "c5",
     name: "Halcyon Health",
-    industry: "Healthtech · Product design",
+    industry: "Healthcare",
+    subIndustry: "HealthTech",
     logoColor: "#EC4899",
     contact: "Daniel Chen",
     contactEmail: "daniel@halcyon.health",
     status: "paused",
     retainer: "$22k / mo",
     since: "Oct 2023",
-    projects: 0,
+    projects: 1,
     openRequests: 0,
     hoursMonth: 0,
     health: "watch",
@@ -582,6 +588,24 @@ export const projects: Project[] = [
     lead: "u3",
     description: "Editorial marketing site for a boutique architecture firm — portfolio, journal, contact flow.",
     accent: "progress",
+  },
+  {
+    id: "p8",
+    name: "Halcyon CarePortal Support",
+    clientId: "c5",
+    status: "ongoing",
+    type: "retainer",
+    budget: 22000,
+    spent: 8500,
+    hoursEstimate: 160,
+    hoursLogged: 62,
+    startDate: "Jun 23, 2026",
+    endDate: "Dec 23, 2026",
+    progress: 38,
+    team: ["u1", "u2", "u6"],
+    lead: "u2",
+    description: "Ongoing Patient Portal retainer for maintenance, security patches, telemedicine SLA, and feature iterations.",
+    accent: "done",
   },
 ];
 
@@ -783,6 +807,7 @@ export const REQUEST_TYPE_META: Record<RequestType, { label: string; icon: strin
 export const PROJECT_STATUS_META: Record<ProjectStatus, { label: string; cls: string }> = {
   planning: { label: "Planning", cls: "bg-todo text-todo-foreground" },
   in_progress: { label: "In progress", cls: "bg-progress text-progress-foreground" },
+  ongoing: { label: "Ongoing", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   review: { label: "In review", cls: "bg-review text-review-foreground" },
   completed: { label: "Completed", cls: "bg-done text-done-foreground" },
   on_hold: { label: "On hold", cls: "bg-muted text-muted-foreground" },

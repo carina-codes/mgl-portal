@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 const NAV = [
   { to: "/client", label: "Overview", icon: Home, exact: true },
   { to: "/client/projects", label: "Projects", icon: FolderOpen },
-  { to: "/client/messages", label: "Discussions", icon: MessageSquare },
+  { to: "/client/messages", label: "Messages", icon: MessageSquare },
   { to: "/client/requests", label: "Requests", icon: Send },
 ];
 

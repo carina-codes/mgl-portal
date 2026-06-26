@@ -1713,6 +1713,90 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
   });
   const valid = form.title.trim().length > 1 && !!form.projectId;
 
+  const [customTemplates, setCustomTemplates] = useState<Array<{
+    label: string;
+    title: string;
+    note: string;
+    estimatedHours: number;
+    priority: Priority;
+    tagsInput: string;
+  }>>([]);
+
+  const [templateName, setTemplateName] = useState("");
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [hiddenTemplates, setHiddenTemplates] = useState<string[]>([]);
+
+  const currentProject = projects.find((p) => p.id === form.projectId);
+  const isRetainer = currentProject?.type === "retainer";
+
+  const staticTemplates = isRetainer
+    ? [
+        {
+          label: "Monthly Maintenance",
+          title: "Monthly Maintenance Support",
+          note: "<p>Perform monthly system maintenance: update dependencies, check error logs, run backups, and verify server health metrics.</p>",
+          estimatedHours: 10,
+          priority: "medium" as Priority,
+          tagsInput: "Maintenance, Retainer",
+        },
+        {
+          label: "Security Audit",
+          title: "Monthly Security & Dependency Audit",
+          note: "<p>Perform security sweep, run audit on dependencies, and check for vulnerability disclosures.</p>",
+          estimatedHours: 8,
+          priority: "high" as Priority,
+          tagsInput: "Security, Audit",
+        },
+        {
+          label: "Performance Optimization",
+          title: "Performance & Database Optimization",
+          note: "<p>Analyze database query speeds, clean index fragmentation, and review cache hit ratios.</p>",
+          estimatedHours: 12,
+          priority: "medium" as Priority,
+          tagsInput: "Performance, Database",
+        },
+        {
+          label: "SLA Reporting",
+          title: "Monthly Retainer SLA Reporting",
+          note: "<p>Generate monthly SLA performance report, compile response/resolution times, and send report to client.</p>",
+          estimatedHours: 4,
+          priority: "low" as Priority,
+          tagsInput: "Report, SLA",
+        },
+      ]
+    : [
+        {
+          label: "Design Review",
+          title: "Design Review & Critique Sprint",
+          note: "<p>Review current UI/UX layout sprints, collect team feedback, and document action items.</p>",
+          estimatedHours: 4,
+          priority: "medium" as Priority,
+          tagsInput: "Design, Review",
+        },
+        {
+          label: "Bug Sweep",
+          title: "Weekly Bug Sweep & Fixes",
+          note: "<p>Audit open issues, prioritize critical bugs, and patch them on local & staging environments.</p>",
+          estimatedHours: 6,
+          priority: "high" as Priority,
+          tagsInput: "Bug, Patch",
+        },
+        {
+          label: "Staging Deploy",
+          title: "Prepare Release & Deploy to Staging",
+          note: "<p>Merge latest release branches, run integration tests, and deploy builds to staging.</p>",
+          estimatedHours: 2,
+          priority: "medium" as Priority,
+          tagsInput: "Release, Deploy",
+        },
+      ];
+
+  const templates = [
+    ...staticTemplates.filter((st) => !customTemplates.some((ct) => ct.label === st.label)),
+    ...customTemplates
+  ].filter((t) => !hiddenTemplates.includes(t.label));
+
   const handleSubmit = async () => {
     if (!valid) return;
     const tags = form.tagsInput
@@ -1760,6 +1844,160 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
       }
     >
       <FieldGroup>
+        <div className="space-y-3">
+          <SelectField
+            label="Template"
+            value={selectedTemplate}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedTemplate(val);
+              if (!val) return;
+              if (val === "__create_template__") {
+                setIsCreatingTemplate(true);
+                setSelectedTemplate("");
+                return;
+              }
+              const tpl = templates.find((t) => t.label === val);
+              if (tpl) {
+                setForm((f) => ({
+                  ...f,
+                  title: tpl.title,
+                  note: tpl.note,
+                  estimatedHours: tpl.estimatedHours,
+                  priority: tpl.priority,
+                  tagsInput: tpl.tagsInput,
+                }));
+                toast.success(`Applied template: ${tpl.label}`);
+              }
+            }}
+          >
+            <option value="">Select a template...</option>
+            {templates.map((tpl) => (
+              <option key={tpl.label} value={tpl.label}>
+                {tpl.label}
+              </option>
+            ))}
+            <option value="__create_template__" className="text-primary font-semibold">+ Create a template</option>
+          </SelectField>
+
+          {selectedTemplate && (
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 border border-border/40 p-2 text-xs animate-in fade-in slide-in-from-top-1 duration-200">
+              <span className="text-muted-foreground font-medium pl-1">
+                Active template: <strong className="text-foreground">{selectedTemplate}</strong>
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const name = selectedTemplate;
+                    const isCustom = customTemplates.some((t) => t.label === name);
+                    if (isCustom) {
+                      setCustomTemplates((prev) =>
+                        prev.map((t) =>
+                          t.label === name
+                            ? {
+                                ...t,
+                                title: form.title,
+                                note: form.note,
+                                estimatedHours: form.estimatedHours,
+                                priority: form.priority,
+                                tagsInput: form.tagsInput,
+                              }
+                            : t
+                        )
+                      );
+                    } else {
+                      const newTpl = {
+                        label: name,
+                        title: form.title,
+                        note: form.note,
+                        estimatedHours: form.estimatedHours,
+                        priority: form.priority,
+                        tagsInput: form.tagsInput,
+                      };
+                      setCustomTemplates((prev) => [...prev, newTpl]);
+                    }
+                    toast.success(`Template "${name}" updated!`);
+                  }}
+                  className="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-muted transition-all cursor-pointer"
+                  title="Overwrite this template with current form inputs"
+                >
+                  Save changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const name = selectedTemplate;
+                    const isCustom = customTemplates.some((t) => t.label === name);
+                    const isStatic = staticTemplates.some((t) => t.label === name);
+                    if (isCustom) {
+                      setCustomTemplates((prev) => prev.filter((t) => t.label !== name));
+                    }
+                    if (isStatic) {
+                      setHiddenTemplates((prev) => [...prev, name]);
+                    }
+                    toast.success(`Template "${name}" deleted!`);
+                    setSelectedTemplate("");
+                  }}
+                  className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 text-[11px] font-semibold text-rose-600 transition-all cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isCreatingTemplate && (
+            <div className="flex items-end gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex-1">
+                <TextField
+                  label="New Template Name"
+                  placeholder="e.g. QA Check"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-1.5 h-10 items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!templateName.trim()) {
+                      toast.error("Please enter a template name");
+                      return;
+                    }
+                    const newTpl = {
+                      label: templateName.trim(),
+                      title: form.title,
+                      note: form.note,
+                      estimatedHours: form.estimatedHours,
+                      priority: form.priority,
+                      tagsInput: form.tagsInput,
+                    };
+                    setCustomTemplates((prev) => [...prev, newTpl]);
+                    toast.success(`Template "${templateName}" saved!`);
+                    setTemplateName("");
+                    setIsCreatingTemplate(false);
+                  }}
+                  className="rounded-xl bg-primary px-3 h-9 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTemplateName("");
+                    setIsCreatingTemplate(false);
+                  }}
+                  className="rounded-xl border border-border bg-background px-3 h-9 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <TextField
           label="Title"
           placeholder="e.g. Polish hero animation"

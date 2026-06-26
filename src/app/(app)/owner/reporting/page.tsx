@@ -16,7 +16,8 @@ import {
   CartesianGrid,
 } from "recharts";
 import { useState, useMemo } from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, RefreshCw, FileDown } from "lucide-react";
+import { toast } from "sonner";
 
 
 
@@ -103,7 +104,32 @@ function ReportingPage() {
   }));
 
   return (
-    <AppShell title="Reporting" subtitle="Profitability, capacity and budget health">
+    <AppShell
+      title="Reporting"
+      subtitle="Profitability, capacity and budget health"
+      actions={
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              toast.success("Reporting data refreshed");
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-all cursor-pointer"
+          >
+            <RefreshCw className="h-4 w-4 text-muted-foreground" /> Refresh
+          </button>
+          <button
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.print();
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
+          >
+            <FileDown className="h-4 w-4" /> Export to PDF
+          </button>
+        </div>
+      }
+    >
       <FilterBar
         search={search}
         onSearch={setSearch}

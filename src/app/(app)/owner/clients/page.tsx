@@ -45,24 +45,61 @@ const STATUS_TONE: Record<string, { label: string; cls: string }> = {
 
 type SortKey = "name" | "projects" | "requests" | "hours" | "lastActivity" | "since";
 
-const getClientUserIds = (c: any, projects: any[], users: any[]) => {
+const getExtendedUsers = (client: any, users: any[]) => {
+  const list = [...users];
+  if (!client) return list;
+  
+  if (client.contactEmail && !list.some((u) => u.email === client.contactEmail)) {
+    list.push({
+      id: client.contactEmail,
+      name: client.contact,
+      email: client.contactEmail,
+      role: "client",
+      title: client.contactRole || "Primary Contact",
+      avatar: client.contact.split(" ").map((n: string) => n[0]).join(""),
+      color: client.logoColor || "#0049FE",
+    });
+  }
+  
+  client.additionalContacts?.forEach((contact: any) => {
+    if (contact.email && !list.some((u) => u.email === contact.email)) {
+      list.push({
+        id: contact.email,
+        name: contact.name,
+        email: contact.email,
+        role: "client",
+        title: contact.title || "Contact",
+        avatar: contact.name.split(" ").map((n: string) => n[0]).join(""),
+        color: client.logoColor || "#0049FE",
+      });
+    }
+  });
+  
+  return list;
+};
+
+const getClientUserIds = (c: any, users: any[]) => {
   const ids = new Set<string>();
   
   const primaryUser = users.find((u) => u.email === c.contactEmail);
-  if (primaryUser) {
-    ids.add(primaryUser.id);
-  }
+  ids.add(primaryUser ? primaryUser.id : c.contactEmail);
   
+  c.additionalContacts?.forEach((contact: any) => {
+    const u = users.find((usr) => usr.email === contact.email);
+    ids.add(u ? u.id : contact.email);
+  });
+
   c.shareLinks?.forEach((link: any) => {
     const u = users.find((usr) => usr.id === link.userId || usr.email === link.userId);
     if (u) {
-      ids.add(u.id);
+      if (u.role === "client") {
+        ids.add(u.id);
+      }
+    } else {
+      if (link.userId.includes("@") && !link.userId.endsWith("@carina.studio")) {
+        ids.add(link.userId);
+      }
     }
-  });
-
-  const clientProjects = projects.filter((p) => p.clientId === c.id);
-  clientProjects.forEach((p) => {
-    p.team.forEach((teamId: string) => ids.add(teamId));
   });
 
   return Array.from(ids);
@@ -126,7 +163,10 @@ function ClientsPage() {
         search &&
         !c.name.toLowerCase().includes(search.toLowerCase()) &&
         !c.contact.toLowerCase().includes(search.toLowerCase()) &&
-        !(c.industry && c.industry.toLowerCase().includes(search.toLowerCase()))
+        !(
+          (c.industry && c.industry.toLowerCase().includes(search.toLowerCase())) ||
+          (c.subIndustry && c.subIndustry.toLowerCase().includes(search.toLowerCase()))
+        )
       )
         return false;
       if (filters.status?.length && !filters.status.includes(c.status)) return false;
@@ -241,7 +281,9 @@ function ClientsPage() {
                             {c.name}
                           </h3>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">{c.industry}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">
+                          {c.industry}{c.subIndustry ? ` · ${c.subIndustry}` : ""}
+                        </p>
                       </div>
                     </div>
 
@@ -254,7 +296,7 @@ function ClientsPage() {
                         {STATUS_TONE[c.status]?.label || c.status}
                       </span>
                       {c.retainer && (
-                        <span className="font-semibold text-muted-foreground bg-muted/45 px-2 py-0.5 rounded text-[10px]">
+                        <span className="ml-auto font-semibold text-muted-foreground bg-muted/45 px-2 py-0.5 rounded text-[10px]">
                           {c.retainer}
                         </span>
                       )}
@@ -284,7 +326,7 @@ function ClientsPage() {
 
                   {/* Footer actions */}
                   <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4 text-xs text-muted-foreground">
-                    <AvatarStack userIds={getClientUserIds(c, projects, users)} users={users} max={4} size={26} />
+                    <AvatarStack userIds={getClientUserIds(c, users)} users={getExtendedUsers(c, users)} max={4} size={26} />
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => open("client.status", { clientId: c.id })}
@@ -342,105 +384,66 @@ function ClientsPage() {
             )}
           </div>
         ) : (
-          <div className="panel overflow-hidden border-border/60 bg-card/50 backdrop-blur-sm">
+          <div className="panel overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground uppercase tracking-wider border-b border-border/60">
-                  <tr>
-                    <th className="px-5 py-3.5 font-bold">
-                      <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-foreground cursor-pointer">
-                        <span>Client Name</span>
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </th>
-                    <th className="px-5 py-3.5 font-bold">Primary Contact</th>
-                    <th className="px-5 py-3.5 font-bold">Status</th>
-                    <th className="px-5 py-3.5 font-bold text-center">
-                      <button onClick={() => handleSort("projects")} className="inline-flex items-center gap-1 hover:text-foreground cursor-pointer">
-                        <span>Projects</span>
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </th>
-                    <th className="px-5 py-3.5 font-bold text-center">
-                      <button onClick={() => handleSort("requests")} className="inline-flex items-center gap-1 hover:text-foreground cursor-pointer">
-                        <span>Requests</span>
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </th>
-                    <th className="px-5 py-3.5 font-bold text-center">
-                      <button onClick={() => handleSort("hours")} className="inline-flex items-center gap-1 hover:text-foreground cursor-pointer">
-                        <span>Hours / mo</span>
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </th>
-                    <th className="px-5 py-3.5 font-bold">
-                      <button onClick={() => handleSort("lastActivity")} className="flex items-center gap-1 hover:text-foreground cursor-pointer">
-                        <span>Last Activity</span>
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </th>
-                    <th className="px-5 py-3.5 font-bold">
-                      <button onClick={() => handleSort("since")} className="flex items-center gap-1 hover:text-foreground cursor-pointer">
-                        <span>Created Date</span>
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </th>
-                    <th className="px-5 py-3.5"></th>
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border">
+                    <th className="px-5 py-3 font-medium">Client</th>
+                    <th className="px-5 py-3 font-medium">Contact</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium">Health</th>
+                    <th className="px-5 py-3 font-medium">Projects</th>
+                    <th className="px-5 py-3 font-medium">Requests</th>
+                    <th className="px-5 py-3 font-medium">Hours</th>
+                    <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/40">
+                <tbody>
                   {filteredAndSorted.map((c) => {
                     const clientProjects = projects.filter((p) => p.clientId === c.id);
                     return (
-                      <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-5 py-3 font-semibold">
-                          <div className="flex items-center gap-3">
+                      <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                        <td className="px-5 py-3 font-medium">
+                          <div className="flex items-center gap-2.5">
                             <span
-                              className="flex h-8 w-8 items-center justify-center rounded-xl text-xs font-bold text-white shrink-0 shadow-sm"
+                              className="flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold text-white border border-black/10"
                               style={{ backgroundColor: c.logoColor }}
                             >
                               {c.name[0]}
                             </span>
-                            <Link href={`/owner/clients/${c.id}`} className="hover:text-primary transition-colors truncate max-w-[180px] block">
+                            <Link href={`/owner/clients/${c.id}`} className="hover:text-primary transition-colors">
                               {c.name}
                             </Link>
                           </div>
                         </td>
-                        <td className="px-5 py-3">
-                          <div className="font-semibold text-foreground">{c.contact}</div>
-                          <div className="text-[11px] text-muted-foreground truncate max-w-[160px]">{c.contactEmail}</div>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          <div className="flex flex-col">
+                            <span className="text-foreground">{c.contact}</span>
+                            <span className="text-[11px]">{c.contactEmail}</span>
+                          </div>
                         </td>
                         <td className="px-5 py-3">
                           <button
                             onClick={() => open("client.status", { clientId: c.id })}
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold transition-all cursor-pointer",
-                              STATUS_TONE[c.status]?.cls
-                            )}
+                            className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_TONE[c.status]?.cls)}
                           >
                             {STATUS_TONE[c.status]?.label || c.status}
                           </button>
                         </td>
-                        <td className="px-5 py-3 text-center font-bold text-foreground">
-                          {clientProjects.length}
+                        <td className="px-5 py-3">
+                          <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", HEALTH_TONE[c.health]?.cls)}>
+                            {HEALTH_TONE[c.health]?.label || c.health}
+                          </span>
                         </td>
-                        <td className="px-5 py-3 text-center font-bold text-foreground">
-                          {c.openRequests}
-                        </td>
-                        <td className="px-5 py-3 text-center font-bold text-foreground">
-                          {c.hoursMonth}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground text-xs font-medium">
-                          {c.lastActivity || "N/A"}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground text-xs font-medium">
-                          {c.since}
-                        </td>
+                        <td className="px-5 py-3 text-muted-foreground">{clientProjects.length}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{c.openRequests}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{c.hoursMonth}</td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => open("client.edit", { clientId: c.id })}
-                              className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-all cursor-pointer"
+                              className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
                             >
                               Edit
                             </button>
@@ -451,31 +454,19 @@ function ClientsPage() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
-                                <DropdownMenuItem
-                                  onClick={() => open("client.share", { clientId: c.id })}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
+                                <DropdownMenuItem onClick={() => open("client.share", { clientId: c.id })} className="flex items-center gap-2 cursor-pointer">
                                   <Share2 className="h-3.5 w-3.5" />
                                   <span>Share Workspace</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => open("client.settings", { clientId: c.id })}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
+                                <DropdownMenuItem onClick={() => open("client.settings", { clientId: c.id })} className="flex items-center gap-2 cursor-pointer">
                                   <Settings className="h-3.5 w-3.5" />
                                   <span>Settings</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => open("client.archive", { clientId: c.id })}
-                                  className="flex items-center gap-2 cursor-pointer"
-                                >
+                                <DropdownMenuItem onClick={() => open("client.archive", { clientId: c.id })} className="flex items-center gap-2 cursor-pointer">
                                   <Archive className="h-3.5 w-3.5" />
                                   <span>Archive</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => open("client.delete", { clientId: c.id })}
-                                  className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
-                                >
+                                <DropdownMenuItem onClick={() => open("client.delete", { clientId: c.id })} className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer">
                                   <Trash2 className="h-3.5 w-3.5" />
                                   <span>Delete</span>
                                 </DropdownMenuItem>
@@ -488,7 +479,7 @@ function ClientsPage() {
                   })}
                   {filteredAndSorted.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="px-5 py-12 text-center text-sm text-muted-foreground bg-transparent">
+                      <td colSpan={8} className="px-5 py-12 text-center text-sm text-muted-foreground bg-transparent">
                         No clients match your filters.
                       </td>
                     </tr>
@@ -505,9 +496,9 @@ function ClientsPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-muted/40 border border-border/20 px-3 py-2 text-center hover:bg-muted/65 transition-colors">
-      <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/90">{label}</div>
-      <div className="text-base font-bold mt-0.5 text-foreground leading-none">{value}</div>
+    <div className="group flex flex-col items-center justify-center rounded-xl bg-background/40 border border-border/40 py-1.5 px-2 hover:bg-background/80 hover:border-primary/30 transition-all hover:-translate-y-0.5 duration-300">
+      <div className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-none">{value}</div>
+      <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
     </div>
   );
 }

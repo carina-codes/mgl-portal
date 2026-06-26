@@ -361,11 +361,11 @@ export function RichEditor({
     }
   };
 
-  // Keep editor content in sync with external value resets
+  // Keep editor content in sync with external value changes
   React.useEffect(() => {
     if (editor && editor.getHTML() !== value) {
-      if (value === "") {
-        editor.commands.setContent("");
+      if (!editor.isFocused || value === "") {
+        editor.commands.setContent(value);
       }
     }
   }, [value, editor]);

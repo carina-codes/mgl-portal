@@ -19,8 +19,6 @@ import {
   ArrowLeft,
   Mail,
   Plus,
-  Share2,
-  Settings as SettingsIcon,
   UserPlus,
   Search,
   MoreHorizontal,
@@ -55,6 +53,39 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 
+const getExtendedUsers = (client: any, users: any[]) => {
+  const list = [...users];
+  if (!client) return list;
+  
+  if (client.contactEmail && !list.some((u) => u.email === client.contactEmail)) {
+    list.push({
+      id: client.contactEmail,
+      name: client.contact,
+      email: client.contactEmail,
+      role: "client",
+      title: client.contactRole || "Primary Contact",
+      avatar: client.contact.split(" ").map((n: string) => n[0]).join(""),
+      color: client.logoColor || "#0049FE",
+    });
+  }
+  
+  client.additionalContacts?.forEach((contact: any) => {
+    if (contact.email && !list.some((u) => u.email === contact.email)) {
+      list.push({
+        id: contact.email,
+        name: contact.name,
+        email: contact.email,
+        role: "client",
+        title: contact.title || "Contact",
+        avatar: contact.name.split(" ").map((n: string) => n[0]).join(""),
+        color: client.logoColor || "#0049FE",
+      });
+    }
+  });
+  
+  return list;
+};
+
 const TABS = [
   { id: "overview", label: "Overview", icon: Info },
   { id: "projects", label: "Projects", icon: Building2 },
@@ -75,9 +106,40 @@ function ClientDetail() {
   const requests = useStore((s) => s.requests);
 
   const client = useMemo(() => clients.find((c) => c.id === clientId), [clients, clientId]);
-
   const clientProjects = useMemo(() => projects.filter((p) => p.clientId === clientId), [projects, clientId]);
   const clientRequests = useMemo(() => requests.filter((r) => r.clientId === clientId), [requests, clientId]);
+
+  const clientUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!client) return [];
+
+    const primaryUser = users.find((u) => u.email === client.contactEmail);
+    ids.add(primaryUser ? primaryUser.id : client.contactEmail);
+
+    client.additionalContacts?.forEach((contact: any) => {
+      const u = users.find((usr) => usr.email === contact.email);
+      ids.add(u ? u.id : contact.email);
+    });
+
+    client.shareLinks?.forEach((link: any) => {
+      const u = users.find((usr) => usr.id === link.userId || usr.email === link.userId);
+      if (u) {
+        if (u.role === "client") {
+          ids.add(u.id);
+        }
+      } else {
+        if (link.userId.includes("@") && !link.userId.endsWith("@carina.studio")) {
+          ids.add(link.userId);
+        }
+      }
+    });
+
+    return Array.from(ids);
+  }, [client, users]);
+
+  const extendedUsers = useMemo(() => {
+    return getExtendedUsers(client, users);
+  }, [client, users]);
 
   const [tab, setTab] = useState<TabId>("overview");
 
@@ -109,7 +171,7 @@ function ClientDetail() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
               <div className="mt-1 text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-                <span>{client.industry}</span>
+                <span>{client.industry}{client.subIndustry ? ` · ${client.subIndustry}` : ""}</span>
                 <span className="text-muted-foreground/45">•</span>
                 <span>Since {client.since}</span>
                 <span className="text-muted-foreground/45">•</span>
@@ -123,6 +185,7 @@ function ClientDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <AvatarStack userIds={clientUserIds} users={extendedUsers} max={4} size={32} />
             <button
               onClick={() => open("client.edit", { clientId: client.id })}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-sm font-medium hover:bg-muted transition-colors cursor-pointer text-foreground"
@@ -131,21 +194,9 @@ function ClientDetail() {
             </button>
             <button
               onClick={() => open("client.share", { clientId: client.id })}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-sm font-medium hover:bg-muted transition-colors cursor-pointer text-foreground"
-            >
-              <Share2 className="h-3.5 w-3.5" /> Share
-            </button>
-            <button
-              onClick={() => open("client.invite", { clientId: client.id })}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-sm font-medium hover:bg-muted transition-colors cursor-pointer text-foreground"
-            >
-              <UserPlus className="h-3.5 w-3.5" /> Invite
-            </button>
-            <button
-              onClick={() => open("client.settings", { clientId: client.id })}
               className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
             >
-              <SettingsIcon className="h-3.5 w-3.5" /> Settings
+              <UserPlus className="h-3.5 w-3.5" /> Invite
             </button>
           </div>
         </div>
@@ -294,7 +345,9 @@ function OverviewTab({ client }: { client: Client }) {
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Industry</span>
-              <span className="text-foreground font-semibold mt-1 block">{client.industry}</span>
+              <span className="text-foreground font-semibold mt-1 block">
+                {client.industry}{client.subIndustry ? ` · ${client.subIndustry}` : ""}
+              </span>
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Billing Structure</span>

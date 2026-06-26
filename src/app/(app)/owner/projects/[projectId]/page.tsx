@@ -1,4 +1,5 @@
 import { projects } from "@/lib/mock-data";
+import { Suspense } from "react";
 import View from "./view";
 
 export function generateStaticParams() {
@@ -6,5 +7,9 @@ export function generateStaticParams() {
 }
 
 export default function Page() {
-  return <View />;
+  return (
+    <Suspense fallback={null}>
+      <View />
+    </Suspense>
+  );
 }

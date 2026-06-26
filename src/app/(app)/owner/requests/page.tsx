@@ -19,11 +19,23 @@ import {
   HelpCircle,
   Clock,
   LayoutGrid,
-  List as ListIcon
+  List as ListIcon,
+  Inbox,
+  ArrowRightLeft
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { RichEditor } from "@/components/rich-editor";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 const TYPE_ICONS: Record<string, any> = {
   RefreshCw,
@@ -33,18 +45,48 @@ const TYPE_ICONS: Record<string, any> = {
   MessageCircleQuestion,
 };
 
-function RequestsPage() {
+function RequestsView() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const requests = useStore((s) => s.requests);
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const { open } = useModals();
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
+
+  const searchParams = useSearchParams();
+  const clientParam = searchParams.get("client");
+
+  const [filters, setFilters] = useState<Record<string, string[]>>(() => {
+    const initial: Record<string, string[]> = {};
+    if (clientParam) {
+      initial.client = [clientParam];
+    }
+    return initial;
+  });
+
+  useEffect(() => {
+    if (clientParam) {
+      setFilters((prev) => ({ ...prev, client: [clientParam] }));
+    }
+  }, [clientParam]);
+
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   const filterDefs = useMemo(
     () => [
+      {
+        id: "client",
+        label: "Client",
+        multi: true,
+        options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
+      },
+      {
+        id: "priority",
+        label: "Priority",
+        multi: true,
+        options: Object.entries(PRIORITY_META).map(([v, m]) => ({ value: v, label: m.label })),
+      },
       {
         id: "status",
         label: "Status",
@@ -56,18 +98,6 @@ function RequestsPage() {
         label: "Type",
         multi: true,
         options: Object.entries(REQUEST_TYPE_META).map(([v, m]) => ({ value: v, label: m.label })),
-      },
-      {
-        id: "priority",
-        label: "Priority",
-        multi: true,
-        options: Object.entries(PRIORITY_META).map(([v, m]) => ({ value: v, label: m.label })),
-      },
-      {
-        id: "client",
-        label: "Client",
-        multi: true,
-        options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
       },
     ],
     [clients],
@@ -192,7 +222,7 @@ function RequestsPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <button
-                        onClick={() => open("request.review", { requestId: r.id })}
+                        onClick={() => setSelectedRequestId(r.id)}
                         className="text-left block w-full group/title cursor-pointer"
                       >
                         <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight line-clamp-2 hover:underline decoration-1", accentCls.textHover)}>
@@ -207,7 +237,7 @@ function RequestsPage() {
                   <div className="flex items-center justify-between text-xs border-b border-border/40 pb-3">
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => open("request.review", { requestId: r.id })}
+                        onClick={() => setSelectedRequestId(r.id)}
                         className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-90", sm.cls)}
                       >
                         {sm.label}
@@ -249,7 +279,7 @@ function RequestsPage() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => open("request.review", { requestId: r.id })}
+                      onClick={() => setSelectedRequestId(r.id)}
                       className="rounded-full border border-border/50 bg-background/30 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
                     >
                       Review
@@ -291,7 +321,7 @@ function RequestsPage() {
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                     <td className="px-5 py-3 font-medium">
                       <button
-                        onClick={() => open("request.review", { requestId: r.id })}
+                        onClick={() => setSelectedRequestId(r.id)}
                         className="hover:text-primary transition-colors text-left font-semibold cursor-pointer"
                       >
                         {r.title}
@@ -313,7 +343,7 @@ function RequestsPage() {
                     <td className="px-5 py-3 text-muted-foreground">{r.submittedAt}</td>
                     <td className="px-5 py-3 text-right">
                       <button
-                        onClick={() => open("request.review", { requestId: r.id })}
+                        onClick={() => setSelectedRequestId(r.id)}
                         className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
                       >
                         Review
@@ -336,7 +366,139 @@ function RequestsPage() {
           </table>
         </div>
       )}
+
+      {/* Hoisted Request Details Drawer */}
+      <RequestDetailsDrawer requestId={selectedRequestId} onClose={() => setSelectedRequestId(null)} />
     </AppShell>
+  );
+}
+
+function RequestDetailsDrawer({
+  requestId,
+  onClose,
+}: {
+  requestId: string | null;
+  onClose: () => void;
+}) {
+  const requests = useStore((s) => s.requests);
+  const req = useMemo(() => requests.find((r) => r.id === requestId), [requests, requestId]);
+  const clients = useStore((s) => s.clients);
+  const client = useMemo(() => req ? clients.find((c) => c.id === req.clientId) : null, [req, clients]);
+  const setStatus = useStore((s) => s.setRequestStatus);
+  const { open } = useModals();
+  const [busy, setBusy] = useState(false);
+  const [internalNote, setInternalNote] = useState("");
+
+  if (!req || !client) return null;
+
+  const tm = REQUEST_TYPE_META[req.type];
+  const pm = PRIORITY_META[req.priority];
+  const sm = REQUEST_STATUS_META[req.status];
+
+  const handleApprove = async () => {
+    setBusy(true);
+    try {
+      await setStatus(req.id, "approved");
+      toast.success("Request approved");
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet open={!!requestId} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="sm:max-w-[40rem] overflow-y-auto w-full p-6 bg-card border-l border-border/80 flex flex-col justify-between h-full">
+        <div className="space-y-6">
+          <SheetHeader className="text-left">
+            <SheetTitle className="sr-only">Request Details: {req.title}</SheetTitle>
+            <SheetDescription className="sr-only">View and review details for request {req.title}</SheetDescription>
+            
+            <div className="flex flex-wrap gap-2 mb-2">
+              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", sm.cls)}>{sm.label}</span>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{tm.label}</span>
+              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", pm.cls)}>{pm.label}</span>
+              {req.estimatedHours && (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">~{req.estimatedHours}h estimate</span>
+              )}
+            </div>
+
+            <h3 className="text-lg font-semibold text-foreground leading-snug">{req.title}</h3>
+            <p className="text-xs text-muted-foreground mt-1">From {client.name} · {req.submittedAt}</p>
+          </SheetHeader>
+
+          {/* Description */}
+          <div className="rounded-2xl border border-border/50 bg-muted/30 p-5 text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">
+            {req.description}
+          </div>
+
+          {/* Internal Note */}
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Internal note</label>
+            <RichEditor
+              value={internalNote}
+              onChange={setInternalNote}
+              placeholder="Add context for the team before deciding…"
+              minHeight={100}
+            />
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-border/40 pt-4 mt-6">
+          <button
+            onClick={onClose}
+            className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted cursor-pointer transition-all"
+          >
+            Close
+          </button>
+          <button
+            onClick={() => {
+              open("request.convertTask", { requestId: req.id });
+              onClose();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted cursor-pointer transition-all text-foreground"
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" /> Convert to task
+          </button>
+          <button
+            onClick={() => {
+              open("request.convertProject", { requestId: req.id });
+              onClose();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted cursor-pointer transition-all text-foreground"
+          >
+            <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" /> Convert to project
+          </button>
+          <button
+            onClick={() => {
+              open("request.reject", { requestId: req.id });
+              onClose();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 cursor-pointer transition-all"
+          >
+            <XCircle className="h-3.5 w-3.5" /> Reject
+          </button>
+          <button
+            disabled={busy}
+            onClick={handleApprove}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer transition-all"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function RequestsPage() {
+  return (
+    <Suspense fallback={null}>
+      <RequestsView />
+    </Suspense>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
 import { useStore, type StorageConnection } from "@/lib/store";
@@ -125,6 +125,7 @@ type TabId = (typeof TABS)[number]["id"];
 function ProjectDetail() {
   const params = useParams();
   const projectId = params?.projectId as string;
+  const router = useRouter();
   const { open } = useModals();
   
   const projects = useStore((s) => s.projects);
@@ -211,7 +212,13 @@ function ProjectDetail() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                if (t.id === "requests") {
+                  router.push(`/owner/requests?client=${project.clientId}`);
+                } else {
+                  setTab(t.id);
+                }
+              }}
               className={cn( "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all cursor-pointer", active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50", )}
             >
               <div className="relative shrink-0">

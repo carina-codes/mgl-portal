@@ -2,7 +2,7 @@
 
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
-import { FilterBar, inRange } from "@/components/filter-bar";
+import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
 import { Plus, Pencil, Clock, Coins, TrendingUp, Search, Trash2, FileDown } from "lucide-react";
@@ -18,41 +18,72 @@ function TimePage() {
   const users = useStore((s) => s.users);
   const projects = useStore((s) => s.projects);
   const clients = useStore((s) => s.clients);
+  const tasks = useStore((s) => s.tasks);
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 
+  useEffect(() => {
+    if (!filters.project || filters.project.length === 0) {
+      if (filters.task && filters.task.length > 0) {
+        setFilters((prev) => {
+          const next = { ...prev };
+          delete next.task;
+          return next;
+        });
+      }
+    }
+  }, [filters.project, filters.task]);
+
   const filterDefs = useMemo(
-    () => [
-      {
-        id: "member",
-        label: "Member",
-        multi: true,
-        options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
-      },
-      {
-        id: "project",
-        label: "Project",
-        multi: true,
-        options: projects.map((p) => ({ value: p.id, label: p.name })),
-      },
-      {
-        id: "client",
-        label: "Client",
-        multi: true,
-        options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
-      },
-      {
-        id: "billable",
-        label: "Billable",
-        options: [
-          { value: "yes", label: "Billable", color: "#10B981" },
-          { value: "no", label: "Non-billable" },
-        ],
-      },
-    ],
-    [users, projects, clients],
+    () => {
+      const defs: FilterDef[] = [
+        {
+          id: "member",
+          label: "Member",
+          multi: true,
+          options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
+        },
+        {
+          id: "project",
+          label: "Project",
+          multi: true,
+          options: projects.map((p) => ({ value: p.id, label: p.name })),
+        },
+      ];
+
+      if (filters.project && filters.project.length > 0) {
+        const selectedProjectIds = filters.project;
+        const projectTasks = tasks.filter((t) => selectedProjectIds.includes(t.projectId));
+        defs.push({
+          id: "task",
+          label: "Task",
+          multi: true,
+          options: projectTasks.map((t) => ({ value: t.id, label: t.title })),
+        });
+      }
+
+      defs.push(
+        {
+          id: "client",
+          label: "Client",
+          multi: true,
+          options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
+        },
+        {
+          id: "billable",
+          label: "Billable",
+          options: [
+            { value: "yes", label: "Billable", color: "#10B981" },
+            { value: "no", label: "Non-billable" },
+          ] as FilterOption[],
+        }
+      );
+
+      return defs;
+    },
+    [users, projects, clients, tasks, filters.project],
   );
 
   const filtered = allEntries.filter((e) => {
@@ -60,6 +91,7 @@ function TimePage() {
     if (search && !e.note?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filters.member?.length && !filters.member.includes(e.userId)) return false;
     if (filters.project?.length && !filters.project.includes(e.projectId)) return false;
+    if (filters.task?.length && (!e.taskId || !filters.task.includes(e.taskId))) return false;
     if (filters.client?.length && (!project || !filters.client.includes(project.clientId))) return false;
     if (filters.billable?.length) {
       const v = filters.billable[0];
@@ -92,15 +124,15 @@ function TimePage() {
                 window.print();
               }
             }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card text-foreground px-4 py-2 text-xs font-bold hover:bg-muted hover:text-foreground transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-all cursor-pointer"
           >
-            <FileDown className="h-3.5 w-3.5 text-muted-foreground" /> Export to PDF
+            <FileDown className="h-4 w-4 text-muted-foreground" /> Export to PDF
           </button>
           <button
             onClick={() => open("time.log")}
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:bg-primary/95 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
           >
-            <Plus className="h-3.5 w-3.5" /> Log time
+            <Plus className="h-4 w-4" /> Log time
           </button>
         </div>
       }
@@ -155,28 +187,28 @@ function TimePage() {
           onDateRange={setDateRange}
         />
 
-        <div className="panel overflow-hidden bg-card border-border/60">
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/20 border-b border-border/60">
-                  <th className="px-4 py-3 font-semibold">Date</th>
-                  <th className="px-4 py-3 font-semibold">Member</th>
-                  <th className="px-4 py-3 font-semibold">Project</th>
-                  <th className="px-4 py-3 font-semibold">Note / Work Done</th>
-                  <th className="px-4 py-3 font-semibold text-right">Hours</th>
-                  <th className="px-4 py-3 font-semibold">Status</th>
-                  <th className="px-4 py-3 text-right"></th>
+        <div className="panel overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="px-5 py-3 font-medium">Date</th>
+                  <th className="px-5 py-3 font-medium">Member</th>
+                  <th className="px-5 py-3 font-medium">Project</th>
+                  <th className="px-5 py-3 font-medium">Note / Work Done</th>
+                  <th className="px-5 py-3 font-medium text-right">Hours</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/40">
+              <tbody>
                 {mounted && filtered.slice(0, 80).map((e) => {
                   const u = users.find((x) => x.id === e.userId);
                   const p = projects.find((x) => x.id === e.projectId);
                   return (
-                    <tr key={e.id} className="hover:bg-muted/10 transition-colors group">
-                      <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">{e.date}</td>
-                      <td className="px-4 py-3.5">
+                    <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                      <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{e.date}</td>
+                      <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
                           {u && <UserAvatar user={u} size={22} />}
                           <span className="font-semibold text-foreground/90 text-xs whitespace-nowrap">
@@ -184,22 +216,22 @@ function TimePage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3">
                         <span className="inline-flex items-center justify-center font-medium px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px] whitespace-nowrap">
                           {p?.name || "General"}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-5 py-3">
                         <div className="text-xs text-foreground/80 max-w-[200px] md:max-w-[300px] truncate" title={e.note}>
                           {e.note || <span className="italic text-muted-foreground/30">No note provided</span>}
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-right">
+                      <td className="px-5 py-3 text-right">
                         <span className="inline-flex items-center justify-center font-bold px-2 py-0.5 rounded-lg text-xs bg-muted text-foreground/80 font-mono">
                           {e.hours.toFixed(1)}h
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
+                      <td className="px-5 py-3 whitespace-nowrap">
                         {e.billable ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                             <span className="h-1 w-1 rounded-full bg-emerald-500" />
@@ -212,21 +244,19 @@ function TimePage() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => open("time.edit", { timeId: e.id })}
-                            className="p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                            aria-label="Edit time log"
+                            className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
                           </button>
                           <button
                             onClick={() => open("time.delete", { timeId: e.id })}
-                            className="p-1 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-all cursor-pointer"
-                            aria-label="Delete time log"
+                            className="rounded-full px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-500/10 cursor-pointer transition-all"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -235,7 +265,7 @@ function TimePage() {
                 })}
                 {(!mounted || filtered.length === 0) && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center">
+                    <td colSpan={7} className="px-5 py-12 text-center">
                       {mounted ? (
                         <div className="flex flex-col items-center justify-center">
                           <div className="h-10 w-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">
