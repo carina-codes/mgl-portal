@@ -1,18 +1,18 @@
 "use client";
 
-
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
 import { totalHoursByUser } from "@/lib/mock-data";
-import { UserPlus, Pencil, Trash2 } from "lucide-react";
+import { UserPlus, Pencil, Trash2, LayoutGrid, List as ListIcon, Mail } from "lucide-react";
 import { useState, useMemo } from "react";
-
-
+import { cn } from "@/lib/utils";
 
 function TeamPage() {
+  const [view, setView] = useState<"grid" | "list">("grid");
   const allUsers = useStore((s) => s.users);
   const projects = useStore((s) => s.projects);
   const { open } = useModals();
@@ -69,12 +69,34 @@ function TeamPage() {
       title="Team"
       subtitle={`${team.length} members across the studio`}
       actions={
-        <button
-          onClick={() => open("team.add")}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <UserPlus className="h-4 w-4" /> Invite member
-        </button>
+        <>
+          <div className="flex rounded-full border border-border bg-card p-0.5">
+            <button
+              onClick={() => setView("grid")}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium cursor-pointer transition-all",
+                view === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Grid
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium cursor-pointer transition-all",
+                view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <ListIcon className="h-3.5 w-3.5" /> List
+            </button>
+          </div>
+          <button
+            onClick={() => open("team.add")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer"
+          >
+            <UserPlus className="h-4 w-4" /> Invite member
+          </button>
+        </>
       }
     >
       <FilterBar
@@ -85,54 +107,186 @@ function TeamPage() {
         values={filters}
         onChange={setFilters}
       />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((u) => {
-          const assignedProjects = projects.filter((p) => p.team.includes(u.id));
-          const hours = totalHoursByUser(u.id);
-          return (
-            <div key={u.id} className="panel p-5">
-              <div className="flex items-center gap-3">
-                <UserAvatar user={u} size={48} />
-                <div className="flex-1">
-                  <div className="text-base font-semibold">{u.name}</div>
-                  <div className="text-xs text-muted-foreground">{u.title}</div>
-                </div>
-                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium capitalize">{u.role}</span>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-xl bg-muted px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Projects</div>
-                  <div className="text-sm font-semibold">{assignedProjects.length}</div>
-                </div>
-                <div className="rounded-xl bg-muted px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Hours (6d)</div>
-                  <div className="text-sm font-semibold">{hours.toFixed(1)}h</div>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-end gap-1 border-t border-border pt-3">
-                <button
-                  onClick={() => open("team.edit", { userId: u.id })}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+      <div>
+        {view === "grid" ? (
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((u) => {
+              const assignedProjects = projects.filter((p) => p.team.includes(u.id));
+              const hours = totalHoursByUser(u.id);
+              const isBusy = assignedProjects.length > 2;
+
+              return (
+                <div
+                  key={u.id}
+                  className="group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-card/85 hover:border-primary/25"
                 >
-                  <Pencil className="h-3 w-3" /> Edit
-                </button>
-                <button
-                  onClick={() => open("team.remove", { userId: u.id })}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
-                >
-                  <Trash2 className="h-3 w-3" /> Remove
-                </button>
+                  <div
+                    className="absolute right-0 top-0 -mt-8 -mr-8 h-24 w-24 rounded-full blur-xl transition-all duration-500 pointer-events-none bg-primary/5 group-hover:bg-primary/10"
+                    style={{ backgroundColor: `${u.color}10` }}
+                  />
+
+                  <Link href={`/owner/team/${u.id}`} className="block space-y-4 cursor-pointer">
+                    {/* Top row: Avatar + Name/Role */}
+                    <div className="flex items-center gap-3">
+                      <UserAvatar user={u} size={44} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-bold tracking-tight text-foreground truncate leading-tight">
+                          {u.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">
+                          {u.title}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Metadata Badges */}
+                    <div className="flex gap-2 border-b border-border/40 pb-3 flex-wrap">
+                      <span className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                        isBusy
+                          ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-500/20"
+                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20"
+                      )}>
+                        {isBusy ? "Busy" : "Available"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border/60 capitalize">
+                        {u.role}
+                      </span>
+                    </div>
+
+                    {/* Email Contact */}
+                    <div className="text-xs space-y-1.5 text-muted-foreground font-medium border-b border-border/40 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
+                        <span className="truncate">{u.email}</span>
+                      </div>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2.5 text-xs pt-1">
+                      <Stat label="Projects" value={assignedProjects.length.toString()} />
+                      <Stat label="Hours (6d)" value={hours.toFixed(1) + "h"} />
+                    </div>
+                  </Link>
+
+                  {/* Footer actions */}
+                  <div className="mt-5 flex items-center justify-end border-t border-border/40 pt-4 text-xs text-muted-foreground gap-1.5">
+                    <button
+                      onClick={() => open("team.edit", { userId: u.id })}
+                      className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => open("team.remove", { userId: u.id })}
+                      className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 transition-all cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="col-span-full panel grid place-items-center gap-2 p-12 text-center text-sm text-muted-foreground">
+                No team members match your filters.
               </div>
+            )}
+          </div>
+        ) : (
+          <div className="panel overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border">
+                    <th className="px-5 py-3 font-medium">Member</th>
+                    <th className="px-5 py-3 font-medium">Email</th>
+                    <th className="px-5 py-3 font-medium">Role</th>
+                    <th className="px-5 py-3 font-medium">Availability</th>
+                    <th className="px-5 py-3 font-medium">Active Projects</th>
+                    <th className="px-5 py-3 font-medium">Hours (6d)</th>
+                    <th className="px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((u) => {
+                    const assignedProjects = projects.filter((p) => p.team.includes(u.id));
+                    const hours = totalHoursByUser(u.id);
+                    const isBusy = assignedProjects.length > 2;
+
+                    return (
+                      <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                        <td className="px-5 py-3 font-medium">
+                          <div className="flex items-center gap-2.5">
+                            <UserAvatar user={u} size={28} />
+                            <div className="flex flex-col">
+                              <Link href={`/owner/team/${u.id}`} className="text-foreground font-bold hover:text-primary transition-colors cursor-pointer">
+                                {u.name}
+                              </Link>
+                              <span className="text-[11px] text-muted-foreground mt-0.5">{u.title}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-muted-foreground">{u.email}</td>
+                        <td className="px-5 py-3 capitalize text-muted-foreground">
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-border/60">
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={cn(
+                            "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            isBusy
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-500/20"
+                              : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20"
+                          )}>
+                            {isBusy ? "Busy" : "Available"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-muted-foreground">{assignedProjects.length}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{hours.toFixed(1)}h</td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => open("team.edit", { userId: u.id })}
+                              className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => open("team.remove", { userId: u.id })}
+                              className="rounded-full px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-500/5 cursor-pointer transition-all"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground bg-transparent">
+                        No team members match your filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="col-span-full panel grid place-items-center gap-2 p-12 text-center text-sm text-muted-foreground">
-            No team members match your filters.
           </div>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="group flex flex-col items-center justify-center rounded-xl bg-background/40 border border-border/40 py-1.5 px-2 hover:bg-background/80 hover:border-primary/30 transition-all hover:-translate-y-0.5 duration-300">
+      <div className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-none">{value}</div>
+      <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
+    </div>
   );
 }
 

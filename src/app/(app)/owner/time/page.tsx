@@ -6,7 +6,8 @@ import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/compone
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
 import { Plus, Pencil, Clock, Coins, TrendingUp, Search, Trash2, FileDown } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 function TimePage() {
   const [mounted, setMounted] = useState(false);
@@ -21,7 +22,26 @@ function TimePage() {
   const tasks = useStore((s) => s.tasks);
   const { open } = useModals();
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const searchParams = useSearchParams();
+  const memberParam = searchParams.get("member");
+  const projectParam = searchParams.get("project");
+
+  const [filters, setFilters] = useState<Record<string, string[]>>(() => {
+    const initial: Record<string, string[]> = {};
+    if (memberParam) initial.member = [memberParam];
+    if (projectParam) initial.project = [projectParam];
+    return initial;
+  });
+
+  useEffect(() => {
+    if (memberParam) {
+      setFilters((prev) => ({ ...prev, member: [memberParam] }));
+    }
+    if (projectParam) {
+      setFilters((prev) => ({ ...prev, project: [projectParam] }));
+    }
+  }, [memberParam, projectParam]);
+
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 
   useEffect(() => {
@@ -293,4 +313,12 @@ function TimePage() {
   );
 }
 
-export default TimePage;
+function TimePageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <TimePage />
+    </Suspense>
+  );
+}
+
+export default TimePageWrapper;

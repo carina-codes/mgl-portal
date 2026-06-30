@@ -2686,7 +2686,7 @@ function UploadDocumentModal({ close, payload }: { close: () => void; payload?: 
     <AppDialog
       open
       onOpenChange={(v) => !v && close()}
-      title="Upload document"
+      title="Upload file"
       icon={<Upload className="h-5 w-5" />}
       footer={
         <div className="flex w-full justify-end gap-2">
@@ -2694,7 +2694,7 @@ function UploadDocumentModal({ close, payload }: { close: () => void; payload?: 
           <PrimaryButton
             loading={busy}
             disabled={!form.name.trim()}
-            onClick={async () => { await run(() => upload(form), "Document uploaded"); close(); }}
+            onClick={async () => { await run(() => upload(form), "File uploaded"); close(); }}
           >
             Upload
           </PrimaryButton>

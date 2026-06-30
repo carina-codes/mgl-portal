@@ -93,6 +93,8 @@ export interface RichEditorProps {
   showInternalOnly?: boolean;
   isInternal?: boolean;
   onInternalChange?: (val: boolean) => void;
+  projectId?: string;
+  clientId?: string;
 }
 
 function CodeBlockComponent({ node }: any) {
@@ -137,6 +139,8 @@ export function RichEditor({
   showInternalOnly,
   isInternal,
   onInternalChange,
+  projectId,
+  clientId,
 }: RichEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -232,6 +236,9 @@ export function RichEditor({
 
   const allDocuments = useStore((s) => s.documents);
   const projects = useStore((s) => s.projects);
+  const clients = useStore((s) => s.clients);
+  const storageConnections = useStore((s) => s.storageConnections);
+  const uploadDocument = useStore((s) => s.uploadDocument);
 
   React.useEffect(() => {
     if (!activeProjectId) {
@@ -393,6 +400,27 @@ export function RichEditor({
   function pickFiles(files: FileList | null) {
     if (!files || !editor) return;
     const newAtts: RichAttachment[] = [];
+    
+    const activeConn = storageConnections.find((c) => c.connected);
+    let folderPath = "client-portal";
+    if (activeConn) {
+      let targetClientName = "";
+      if (projectId) {
+        const proj = projects.find((p) => p.id === projectId);
+        if (proj) {
+          const cli = clients.find((c) => c.id === proj.clientId);
+          if (cli) targetClientName = cli.name;
+        }
+      } else if (clientId) {
+        const cli = clients.find((c) => c.id === clientId);
+        if (cli) targetClientName = cli.name;
+      }
+      
+      if (targetClientName) {
+        folderPath = `client-portal/${targetClientName}`;
+      }
+    }
+
     Array.from(files).forEach((file) => {
       const url = URL.createObjectURL(file);
       const att: RichAttachment = {
@@ -405,6 +433,16 @@ export function RichEditor({
       newAtts.push(att);
       if (file.type.startsWith("image/")) {
         editor.chain().focus().setImage({ src: url, alt: file.name }).run();
+      }
+      
+      if (activeConn) {
+        uploadDocument({
+          projectId: projectId || "",
+          name: file.name,
+          folder: folderPath,
+          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+          shared: true,
+        });
       }
     });
     setAtts([...atts, ...newAtts]);

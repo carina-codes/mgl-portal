@@ -8,7 +8,8 @@ import { useStore } from "@/lib/store";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { Plus, LayoutGrid, List as ListIcon, MoreHorizontal, Archive, Trash2, UserPlus } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -19,14 +20,30 @@ import {
 
 
 
-function ProjectsPage() {
+function ProjectsView() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const projects = useStore((s) => s.projects);
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const { open } = useModals();
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const searchParams = useSearchParams();
+  const clientParam = searchParams.get("client");
+
+  const [filters, setFilters] = useState<Record<string, string[]>>(() => {
+    const initial: Record<string, string[]> = {};
+    if (clientParam) {
+      initial.client = [clientParam];
+    }
+    return initial;
+  });
+
+  useEffect(() => {
+    if (clientParam) {
+      setFilters((prev) => ({ ...prev, client: [clientParam] }));
+    }
+  }, [clientParam]);
+
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 
   const filterDefs = useMemo(() => [
@@ -332,6 +349,14 @@ function ProjectsPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+function ProjectsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectsView />
+    </Suspense>
   );
 }
 

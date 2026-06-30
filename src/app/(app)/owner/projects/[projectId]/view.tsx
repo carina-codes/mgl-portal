@@ -29,6 +29,7 @@ import {
   MessageCircle,
   Calendar as CalendarIcon,
   FolderOpen,
+  Folder,
   Clock,
   Coins,
   Briefcase,
@@ -115,7 +116,7 @@ const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "tasks", label: "Tasks", icon: ListTodo },
   { id: "requests", label: "Requests", icon: Inbox },
-  { id: "files", label: "Documents", icon: FileText },
+  { id: "files", label: "Files", icon: Folder },
   { id: "chat", label: "Chat", icon: MessageCircle },
   { id: "time", label: "Time", icon: Clock },
 ] as const;
@@ -1954,6 +1955,8 @@ function TaskDetailsDrawer({
 }) {
   const tasks = useStore((s) => s.tasks);
   const task = useMemo(() => tasks.find((t) => t.id === taskId), [tasks, taskId]);
+  const projects = useStore((s) => s.projects);
+  const project = useMemo(() => projects.find((p) => p.id === task?.projectId), [projects, task?.projectId]);
   const updateTask = useStore((s) => s.updateTask);
   const users = useStore((s) => s.users);
   const allComments = useStore((s) => s.comments);
@@ -2007,6 +2010,11 @@ function TaskDetailsDrawer({
               {STAGE_META[task.stage].label}
             </span>
           </div>
+          {project && (
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 px-1">
+              {project.name}
+            </div>
+          )}
           <input
             type="text"
             value={task.title}

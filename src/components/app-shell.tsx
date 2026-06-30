@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
   FolderKanban,
   Inbox,
   FileText,
+  MessageCircle,
   MessageSquare,
   UserCog,
   Clock,
@@ -21,6 +22,7 @@ import {
   ChevronRight,
   Calendar,
   CreditCard,
+  Folder,
 } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
@@ -54,6 +56,8 @@ import {
   FileCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useModals } from "@/components/modals";
+import { AppDialog } from "@/components/ui/app-dialog";
 import { SearchDropdown } from "./search-dropdown";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -62,9 +66,9 @@ const NAV = [
   { to: "/owner/clients", label: "Clients", icon: Users },
   { to: "/owner/projects", label: "Projects", icon: FolderKanban },
   { to: "/owner/requests", label: "Requests", icon: Inbox, badge: 4 },
-  { to: "/owner/documents", label: "Documents", icon: FileText },
-  { to: "/owner/messages", label: "Inbox", icon: MessageSquare, badge: 6 },
-  { to: "/owner/time", label: "Time tracking", icon: Clock },
+  { to: "/owner/files", label: "Files", icon: Folder },
+  { to: "/owner/messages", label: "Discussions", icon: MessageCircle, badge: 6 },
+  { to: "/owner/time", label: "Time", icon: Clock },
   { to: "/owner/calendar", label: "Calendar", icon: Calendar },
   { to: "/owner/team", label: "Team", icon: UserCog },
   { to: "/owner/finance", label: "Finance", icon: CreditCard },
@@ -168,10 +172,96 @@ export function AppShell({
   const pathname = usePathname() || "";
   const { role, setRole } = useRole();
   const user = useCurrentUser();
+  const router = useRouter();
+  const { open } = useModals();
   const [theme, setTheme] = useState<"light" | "dark">(globalMounted ? globalTheme : "light");
   const [status, setStatus] = useState<"online" | "away" | "dnd">("online");
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  useEffect(() => {
+    let lastKey = "";
+    let keyTimeout: NodeJS.Timeout;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl &&
+        (["INPUT", "TEXTAREA", "SELECT"].includes(activeEl.tagName) ||
+          activeEl.hasAttribute("contenteditable") ||
+          activeEl.getAttribute("role") === "textbox");
+
+      if (isInput) return;
+
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const key = e.key.toLowerCase();
+
+      if (e.key === "?") {
+        e.preventDefault();
+        setIsShortcutsOpen((o) => !o);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setIsShortcutsOpen(false);
+        return;
+      }
+
+      if (key === "n") {
+        e.preventDefault();
+        open("project.new");
+        return;
+      }
+      if (key === "c") {
+        e.preventDefault();
+        open("time.log");
+        return;
+      }
+
+      if (lastKey === "g") {
+        lastKey = "";
+        if (key === "d") {
+          e.preventDefault();
+          router.push("/owner");
+        } else if (key === "p") {
+          e.preventDefault();
+          router.push("/owner/projects");
+        } else if (key === "c") {
+          e.preventDefault();
+          router.push("/owner/clients");
+        } else if (key === "t") {
+          e.preventDefault();
+          router.push("/owner/team");
+        } else if (key === "f") {
+          e.preventDefault();
+          router.push("/owner/files");
+        } else if (key === "r") {
+          e.preventDefault();
+          router.push("/owner/requests");
+        } else if (key === "s") {
+          e.preventDefault();
+          router.push("/owner/settings");
+        }
+        return;
+      }
+
+      if (key === "g") {
+        lastKey = "g";
+        clearTimeout(keyTimeout);
+        keyTimeout = setTimeout(() => {
+          lastKey = "";
+        }, 1000);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(keyTimeout);
+    };
+  }, [router, open]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -565,7 +655,7 @@ export function AppShell({
                 {/* Footer */}
                 <div className="border-t border-border bg-muted/10 px-4 py-2.5 text-center">
                   <Link
-                    href="/owner/settings"
+                    href="/owner/settings?section=notifications"
                     className="inline-block text-[11px] font-medium text-primary hover:underline"
                   >
                     View all notification settings
@@ -694,7 +784,7 @@ export function AppShell({
                       {theme === "light" ? "Light" : "Dark"}
                     </span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer flex items-center px-3 py-2">
+                  <DropdownMenuItem onClick={() => setIsShortcutsOpen(true)} className="cursor-pointer flex items-center px-3 py-2">
                     <Keyboard className="mr-2 h-4 w-4 text-muted-foreground" />
                     <span className="flex-1">Keyboard shortcuts</span>
                     <DropdownMenuShortcut className="text-[10px]">?</DropdownMenuShortcut>
@@ -710,9 +800,11 @@ export function AppShell({
 
                 {/* Workspace & Sign out */}
                 <DropdownMenuGroup>
-                  <DropdownMenuItem className="cursor-pointer flex items-center px-3 py-2">
-                    <Shield className="mr-2 h-4 w-4 text-muted-foreground" />
-                    <span>Admin console</span>
+                  <DropdownMenuItem asChild>
+                    <Link href="/owner/admin" className="cursor-pointer flex items-center w-full px-3 py-2">
+                      <Shield className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>Admin console</span>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer flex items-center px-3 py-2">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -752,7 +844,66 @@ export function AppShell({
         </div>
       </div>
     </div>
+    
+    <AppDialog
+      open={isShortcutsOpen}
+      onOpenChange={setIsShortcutsOpen}
+      title="Keyboard Shortcuts"
+      description="Navigate and execute global actions instantly across the workspace."
+      size="lg"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 text-sm">
+        {/* Navigation Category */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+            <Keyboard className="h-4 w-4 text-primary" />
+            <h4 className="font-bold text-foreground">Navigation</h4>
+          </div>
+          <div className="space-y-3">
+            <ShortcutRow keys={["g", "d"]} label="Go to Dashboard" />
+            <ShortcutRow keys={["g", "p"]} label="Go to Projects" />
+            <ShortcutRow keys={["g", "c"]} label="Go to Clients" />
+            <ShortcutRow keys={["g", "t"]} label="Go to Team" />
+            <ShortcutRow keys={["g", "f"]} label="Go to Files" />
+            <ShortcutRow keys={["g", "r"]} label="Go to Requests" />
+            <ShortcutRow keys={["g", "s"]} label="Go to Settings" />
+          </div>
+        </div>
+
+        {/* Actions Category */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h4 className="font-bold text-foreground">Global Actions</h4>
+          </div>
+          <div className="space-y-3">
+            <ShortcutRow keys={["n"]} label="Create New Project" />
+            <ShortcutRow keys={["c"]} label="Log Work Time" />
+            <ShortcutRow keys={["?"]} label="Show Keyboard Shortcuts Help" />
+            <ShortcutRow keys={["Esc"]} label="Close Active Modals / Drawers" />
+          </div>
+        </div>
+      </div>
+    </AppDialog>
   </TooltipProvider>
+  );
+}
+
+function ShortcutRow({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <div className="flex items-center justify-between text-xs py-1.5 border-b border-border/30 last:border-0">
+      <span className="text-muted-foreground font-medium">{label}</span>
+      <div className="flex items-center gap-1.5">
+        {keys.map((k, idx) => (
+          <span key={k} className="flex items-center gap-1.5">
+            {idx > 0 && <span className="text-[10px] text-muted-foreground/30">+</span>}
+            <kbd className="inline-flex h-5 items-center justify-center rounded bg-muted px-1.5 font-mono text-[9px] font-bold text-foreground border border-border shadow-sm">
+              {k}
+            </kbd>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 

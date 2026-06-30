@@ -16,6 +16,19 @@ export type User = {
   title: string;
   avatar: string; // initials-based avatar color seed
   color: string;
+  bio?: string;
+  phone?: string;
+  timezone?: string;
+  workingHours?: string;
+  address?: string;
+  linkedin?: string;
+  github?: string;
+  notes?: string;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
 };
 
 export type Client = {
@@ -52,6 +65,7 @@ export type Client = {
   notes?: string;
   internalNotes?: string;
   lastActivity?: string;
+  currency?: string;
   tags?: string[];
   additionalContacts?: Array<{
     name: string;
@@ -288,6 +302,7 @@ export const clients: Client[] = [
     notes: "<h3>Arcadia Solutions Partnership</h3><p>Arcadia Solutions designs next-generation project collaboration tools for creators and engineers. Under active growth with a focus on web and mobile workflows. Key retainer client with highly technical specifications.</p>",
     internalNotes: "Keep design components strictly compliant with their brand guidelines. Marcus is detail-oriented and reviews Figma prototypes exhaustively.",
     lastActivity: "1 hour ago",
+    currency: "USD",
     tags: ["Enterprise", "Retainer", "Tech"],
     additionalContacts: [
       { name: "Sarah Jenkins", title: "Product Manager", email: "sarah.j@arcadia.com", phone: "+1 (555) 019-2841", department: "Product" },
@@ -331,6 +346,7 @@ export const clients: Client[] = [
     notes: "<h3>Northwind Skincare Launch</h3><p>Northwind Studio is a direct-to-consumer organic skincare brand expanding its online platform with customized subscription plans and clean editorial visual assets.</p>",
     internalNotes: "Marketing timelines are tight. Watch the skincare campaign milestones carefully.",
     lastActivity: "2 hours ago",
+    currency: "USD",
     tags: ["DTC", "Skincare", "E-commerce"],
     additionalContacts: [
       { name: "Oliver Sterling", title: "Creative Lead", email: "oliver@northwind.io", phone: "+1 (555) 831-2943", department: "Design" }
@@ -650,16 +666,19 @@ function buildTasks(): Task[] {
       const idx = (i + shift) % taskSeeds.length;
       const t = taskSeeds[idx];
       
-      // Seed realistic dates in June 2026
-      const day = 1 + (i % 28);
-      const createdAt = `2026-06-${day.toString().padStart(2, "0")}T09:30:00Z`;
-      const updatedAt = `2026-06-${day.toString().padStart(2, "0")}T15:45:00Z`;
+      // Seed realistic dates in June 2026 staggered by project index
+      const startDay = 1 + ((idx + pIdx * 2) % 20);
+      const dueDay = startDay + 1 + (idx % 6);
+      const dueDate = `Jun ${dueDay.toString().padStart(2, "0")}`;
+      const createdAt = `2026-06-${startDay.toString().padStart(2, "0")}T09:30:00Z`;
+      const updatedAt = `2026-06-${startDay.toString().padStart(2, "0")}T15:45:00Z`;
       
       out.push({
         id: `${p.id}-t${i + 1}`,
         projectId: p.id,
         ...t,
-        startDate: `2026-06-${day.toString().padStart(2, "0")}`,
+        dueDate,
+        startDate: `2026-06-${startDay.toString().padStart(2, "0")}`,
         tags: ["Design", "Dev", "Client Feedback"].slice(0, (i % 3) + 1),
         followers: ["u1", "u2", "u3"].slice(0, (i % 2) + 1),
         estimatedHours: 4 + (i % 5) * 4,

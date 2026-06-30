@@ -1,7 +1,8 @@
 "use client";
 
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Switch } from "@/components/ui/switch";
@@ -26,17 +27,19 @@ import {
   Github,
   Slack,
   Figma,
+  User,
+  Accessibility,
 } from "lucide-react";
 
-
-
 const SECTIONS = [
+  { id: "profile", label: "My profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Building2 },
   { id: "team", label: "Team & roles", icon: Users },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "integrations", label: "Integrations", icon: Plug },
   { id: "branding", label: "Branding", icon: Palette },
+  { id: "accessibility", label: "Accessibility", icon: Accessibility },
   { id: "magic", label: "Magic link policy", icon: Link2 },
   { id: "api", label: "API & webhooks", icon: Webhook },
 ] as const;
@@ -44,7 +47,21 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 function SettingsPage() {
-  const [active, setActive] = useState<SectionId>("workspace");
+  const searchParams = useSearchParams();
+  const sectionParam = searchParams.get("section") as SectionId | null;
+
+  const [active, setActive] = useState<SectionId>(() => {
+    if (sectionParam && SECTIONS.some((s) => s.id === sectionParam)) {
+      return sectionParam;
+    }
+    return "profile";
+  });
+
+  useEffect(() => {
+    if (sectionParam && SECTIONS.some((s) => s.id === sectionParam)) {
+      setActive(sectionParam);
+    }
+  }, [sectionParam]);
 
   return (
     <AppShell title="Settings" subtitle="Workspace, billing, integrations and access">
@@ -54,7 +71,7 @@ function SettingsPage() {
             <button
               key={id}
               onClick={() => setActive(id)}
-              className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors ${
+              className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors cursor-pointer ${
                 active === id
                   ? "bg-primary/10 text-primary font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -66,12 +83,14 @@ function SettingsPage() {
           ))}
         </nav>
         <div className="space-y-6 min-w-0">
+          {active === "profile" && <ProfileSection />}
           {active === "workspace" && <WorkspaceSection />}
           {active === "team" && <TeamSection />}
           {active === "billing" && <BillingSection />}
           {active === "notifications" && <NotificationsSection />}
           {active === "integrations" && <IntegrationsSection />}
           {active === "branding" && <BrandingSection />}
+          {active === "accessibility" && <AccessibilitySection />}
           {active === "magic" && <MagicLinkSection />}
           {active === "api" && <ApiSection />}
         </div>
@@ -713,4 +732,170 @@ function ApiSection() {
   );
 }
 
-export default SettingsPage;
+function SettingsPageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsPage />
+    </Suspense>
+  );
+}
+
+export default SettingsPageWrapper;
+
+/* ---------- My Profile ---------- */
+
+function ProfileSection() {
+  const [profile, setProfile] = useState({
+    name: "Maya Larsson",
+    email: "maya@carina.studio",
+    title: "Creative Director & Owner",
+    phone: "+1 (555) 019-2834",
+    language: "en-US",
+  });
+
+  const set = (k: keyof typeof profile) => (v: string) => setProfile((p) => ({ ...p, [k]: v }));
+
+  return (
+    <>
+      <Section title="My profile" description="Manage your personal profile details and contact information.">
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+          <div className="relative group">
+            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary text-primary-foreground font-bold text-2xl">
+              ML
+            </div>
+            <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-[10px] text-white font-semibold">
+              Change
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-sm font-semibold text-foreground">Profile photo</div>
+            <p className="text-xs text-muted-foreground">PNG, JPG or GIF up to 5MB. Recommended square dimensions.</p>
+            <div className="flex gap-2 mt-1">
+              <Button variant="outline" size="sm" onClick={() => toast.success("Photo uploaded successfully")}>Upload photo</Button>
+              <Button variant="ghost" size="sm" onClick={() => toast("Photo removed")}>Remove</Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Full name" value={profile.name} onChange={set("name")} />
+            <Field label="Job title" value={profile.title} onChange={set("title")} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Email address" type="email" value={profile.email} onChange={set("email")} />
+            <Field label="Phone number" type="tel" value={profile.phone} onChange={set("phone")} />
+          </div>
+          <div>
+            <div className="text-xs font-medium text-muted-foreground">Interface language</div>
+            <select
+              value={profile.language}
+              onChange={(e) => { set("language")(e.target.value); toast(`Language set to ${e.target.value}`); }}
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="en-US">English (United States)</option>
+              <option value="de-DE">Deutsch (German)</option>
+              <option value="fr-FR">Français (French)</option>
+              <option value="es-ES">Español (Spanish)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => toast("Changes discarded")}>Cancel</Button>
+          <Button onClick={() => toast.success("Profile saved successfully")}>Save changes</Button>
+        </div>
+      </Section>
+
+      <Section title="Security settings" description="Keep your personal workspace account secure.">
+        <Row title="Change password" description="Update the password used to access your workspace.">
+          <Button variant="outline" onClick={() => toast("Password reset flow initiated")}>Change password</Button>
+        </Row>
+        <Row title="Two-factor authentication (2FA)" description="Add an extra layer of security to your account.">
+          <Button variant="outline" onClick={() => toast("2FA setup wizard opened")}>Enable 2FA</Button>
+        </Row>
+      </Section>
+    </>
+  );
+}
+
+/* ---------- Accessibility ---------- */
+
+function AccessibilitySection() {
+  const [contrast, setContrast] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [screenReader, setScreenReader] = useState(false);
+  const [keyboardShortcuts, setKeyboardShortcuts] = useState(true);
+  const [fontSize, setFontSize] = useState("default");
+
+  return (
+    <>
+      <Section title="Display accessibility" description="Customize visual options to improve visibility and focus.">
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Row title="High contrast mode" description="Increase contrast across lines, badges, inputs and buttons for better readability.">
+              <Switch
+                checked={contrast}
+                onCheckedChange={(v) => {
+                  setContrast(v);
+                  toast(`High contrast: ${v ? "Enabled" : "Disabled"}`);
+                }}
+              />
+            </Row>
+            <Row title="Reduce motion" description="Minimize animations, transitions, card scale-ups and layout sliding effects.">
+              <Switch
+                checked={reduceMotion}
+                onCheckedChange={(v) => {
+                  setReduceMotion(v);
+                  toast(`Reduce motion: ${v ? "Enabled" : "Disabled"}`);
+                }}
+              />
+            </Row>
+          </div>
+          <div>
+            <div className="text-xs font-medium text-muted-foreground mb-1.5">Font scaling</div>
+            <select
+              value={fontSize}
+              onChange={(e) => {
+                setFontSize(e.target.value);
+                toast(`Font scale updated to ${e.target.value}`);
+              }}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="default">Default (14px baseline)</option>
+              <option value="large">Large (16px baseline)</option>
+              <option value="xlarge">Extra Large (18px baseline)</option>
+            </select>
+            <p className="mt-1.5 text-xs text-muted-foreground">Adjust text baseline scaling universally across panels and inputs.</p>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button onClick={() => toast.success("Accessibility settings saved")}>Save preferences</Button>
+        </div>
+      </Section>
+
+      <Section title="Interaction & assistive technologies" description="Configure screen reader, shortcut maps, and focus behaviors.">
+        <div className="space-y-1">
+          <Row title="Keyboard shortcuts" description="Enable keyboard mappings to quickly trigger actions (e.g. '/' to search, 'n' for new task).">
+            <Switch
+              checked={keyboardShortcuts}
+              onCheckedChange={(v) => {
+                setKeyboardShortcuts(v);
+                toast(`Keyboard shortcuts: ${v ? "Enabled" : "Disabled"}`);
+              }}
+            />
+          </Row>
+          <Row title="Optimize for screen readers" description="Enable explicit ARIA labelling and aria-live announcements for real-time background actions.">
+            <Switch
+              checked={screenReader}
+              onCheckedChange={(v) => {
+                setScreenReader(v);
+                toast(`Screen reader optimization: ${v ? "Enabled" : "Disabled"}`);
+              }}
+            />
+          </Row>
+        </div>
+      </Section>
+    </>
+  );
+}
