@@ -778,40 +778,8 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
       }
     >
       <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
-        {/* Access link section */}
-        <div className="space-y-4">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Portal Access Link</h4>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                readOnly
-                value={accessLink}
-                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
-              >
-                {copied ? "Copied!" : "Copy Link"}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={regenerateToken}
-              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerate
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            Anyone with this link will be able to access the client portal view without logging in.
-          </p>
-        </div>
-
         {/* Brand Identity Section */}
-        <div className="space-y-4 border-t border-border/50 pt-5">
+        <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand Identity</h4>
           <div className="grid grid-cols-2 gap-3 items-end">
             <div>
