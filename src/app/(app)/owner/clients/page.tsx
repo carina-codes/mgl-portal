@@ -120,7 +120,12 @@ function ClientsPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const industries = useMemo(
-    () => Array.from(new Set(clients.map((c) => c.industry))).map((i) => ({ value: i, label: i })),
+    () => Array.from(new Set(clients.map((c) => c.industry).filter(Boolean))).map((i) => ({ value: i, label: i })),
+    [clients],
+  );
+
+  const subIndustries = useMemo(
+    () => Array.from(new Set(clients.map((c) => c.subIndustry).filter(Boolean))).map((si) => ({ value: si, label: si })),
     [clients],
   );
 
@@ -136,8 +141,9 @@ function ClientsPage() {
         ],
       },
       { id: "industry", label: "Industry", multi: true, options: industries },
+      { id: "subIndustry", label: "Sub Industry", multi: true, options: subIndustries },
     ],
-    [industries],
+    [industries, subIndustries],
   );
 
   const handleSort = (key: SortKey) => {
@@ -163,6 +169,7 @@ function ClientsPage() {
         return false;
       if (filters.status?.length && !filters.status.includes(c.status)) return false;
       if (filters.industry?.length && !filters.industry.includes(c.industry)) return false;
+      if (filters.subIndustry?.length && !filters.subIndustry.includes(c.subIndustry)) return false;
       return true;
     });
 
