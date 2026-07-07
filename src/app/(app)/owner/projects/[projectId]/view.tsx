@@ -154,11 +154,13 @@ const formatSubmissionTime = (submittedAt: string) => {
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const dateFormatted = `${months[dateVal.getMonth()]} ${dateVal.getDate()}, ${dateVal.getFullYear()}`;
   
-  const hours = String(dateVal.getHours()).padStart(2, "0");
+  const hours24 = dateVal.getHours();
+  const ampm = hours24 >= 12 ? "pm" : "am";
+  const hours12 = hours24 % 12 || 12;
   const mins = String(dateVal.getMinutes()).padStart(2, "0");
-  const timeFormatted = `${hours}:${mins}`;
+  const timeFormatted = `${hours12}:${mins}${ampm}`;
   
-  return `Submitted on ${dateFormatted} ${timeFormatted}`;
+  return `Submitted on ${dateFormatted} at ${timeFormatted}`;
 };
 
 function ProjectDetail() {
