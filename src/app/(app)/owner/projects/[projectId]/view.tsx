@@ -82,6 +82,7 @@ import { AppDialog, TextField, SelectField, FieldGroup, FieldLabel } from "@/com
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { celebrateFromElement } from "@/lib/confetti";
+import { RequestDetailsDrawer } from "../../requests/page";
 import {
   Sheet,
   SheetContent,
@@ -192,6 +193,7 @@ function ProjectDetail() {
   
   const [tab, setTab] = useState<TabId>("tasks");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   if (!project) throw notFound();
   if (!client) throw notFound();
@@ -280,7 +282,7 @@ function ProjectDetail() {
       <div className="transition-all duration-300">
         {tab === "overview" && <Overview projectId={project.id} />}
         {tab === "tasks" && <TasksTab projectId={project.id} selectedTaskId={selectedTaskId} setSelectedTaskId={setSelectedTaskId} />}
-        {tab === "requests" && <RequestsTab projectId={project.id} />}
+        {tab === "requests" && <RequestsTab projectId={project.id} onSelectRequest={setSelectedRequestId} />}
         {tab === "files" && <DocumentsTab projectId={project.id} />}
         {tab === "chat" && <ChatTab projectId={project.id} onOpenTask={setSelectedTaskId} />}
         {tab === "time" && <TimeTab projectId={project.id} onTaskClick={setSelectedTaskId} />}
@@ -288,6 +290,9 @@ function ProjectDetail() {
 
       {/* Hoisted Task Details Drawer */}
       <TaskDetailsDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} hideDiscussion={tab === "chat"} />
+      
+      {/* Hoisted Request Details Drawer */}
+      <RequestDetailsDrawer requestId={selectedRequestId} onClose={() => setSelectedRequestId(null)} />
     </AppShell>
   );
 }
@@ -2438,10 +2443,9 @@ const TYPE_ICONS: Record<string, any> = {
   MessageCircleQuestion,
 };
 
-function RequestsTab({ projectId }: { projectId: string }) {
+function RequestsTab({ projectId, onSelectRequest }: { projectId: string; onSelectRequest: (id: string) => void }) {
   const allRequests = useStore((s) => s.requests);
   const users = useStore((s) => s.users);
-  const { open } = useModals();
   const requests = useMemo(() => allRequests.filter((r) => r.projectId === projectId), [allRequests, projectId]);
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -2506,7 +2510,7 @@ function RequestsTab({ projectId }: { projectId: string }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <button
-                    onClick={() => open("request.review", { requestId: r.id })}
+                    onClick={() => onSelectRequest(r.id)}
                     className="text-left block w-full group/title cursor-pointer"
                   >
                     <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight line-clamp-2 decoration-1", accentCls.textHover)}>
@@ -2520,7 +2524,7 @@ function RequestsTab({ projectId }: { projectId: string }) {
               <div className="flex items-center justify-between text-xs border-b border-border/40 pb-3">
                 <div className="flex items-center gap-1.5">
                   <button
-                    onClick={() => open("request.review", { requestId: r.id })}
+                    onClick={() => onSelectRequest(r.id)}
                     className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-90", sm.cls)}
                   >
                     {sm.label}
@@ -2556,7 +2560,7 @@ function RequestsTab({ projectId }: { projectId: string }) {
               </div>
               <div className="flex items-center gap-1.5">
                 <button
-                  onClick={() => open("request.review", { requestId: r.id })}
+                  onClick={() => onSelectRequest(r.id)}
                   className="rounded-full border border-border/50 bg-background/30 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
                 >
                   Review

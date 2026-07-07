@@ -22,14 +22,16 @@ import {
   List as ListIcon,
   Inbox,
   ArrowRightLeft,
-  Calendar
+  Calendar,
+  Lock
 } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { RichEditor } from "@/components/rich-editor";
+import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
+import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 
 const formatSubmissionTime = (submittedAt: string) => {
   if (!submittedAt) return "";
@@ -395,7 +397,61 @@ function RequestsView() {
   );
 }
 
-function RequestDetailsDrawer({
+function NewCommentForm({ threadId }: { threadId: string }) {
+  const [commentText, setCommentText] = useState("");
+  const [isInternal, setIsInternal] = useState(false);
+  const [attachments, setAttachments] = useState<RichAttachment[]>([]);
+  const createComment = useStore((s) => s.createComment);
+  const uploadDocument = useStore((s) => s.uploadDocument);
+  const projectId = useStore((s) => s.requests.find((r) => r.id === threadId)?.projectId || "p1");
+
+  const handleSubmit = () => {
+    if (!commentText.trim() && attachments.length === 0) return;
+
+    const docIds = attachments.map((att) => {
+      const doc = uploadDocument({
+        projectId,
+        name: att.name,
+        folder: "Attachments",
+        size: formatBytes(att.size),
+        shared: !isInternal,
+      });
+      return doc.id;
+    });
+
+    createComment({
+      threadId,
+      author: "u1", // Owner: Carina Rivera
+      body: commentText.trim(),
+      visibility: isInternal ? "internal" : "client",
+      attachments: docIds,
+    });
+    setCommentText("");
+    setAttachments([]);
+    toast.success("Comment posted successfully");
+  };
+
+  const isEnabled = commentText.replace(/<[^>]+>/g, "").trim().length > 0 || attachments.length > 0;
+
+  return (
+    <RichEditor
+      value={commentText}
+      onChange={setCommentText}
+      attachments={attachments}
+      onAttachmentsChange={setAttachments}
+      placeholder="Post a reply..."
+      minHeight={80}
+      compact
+      onSend={handleSubmit}
+      sendDisabled={!isEnabled}
+      showInternalOnly
+      isInternal={isInternal}
+      onInternalChange={setIsInternal}
+    />
+  );
+}
+
+export function RequestDetailsDrawer({
   requestId,
   onClose,
 }: {
@@ -406,10 +462,13 @@ function RequestDetailsDrawer({
   const req = useMemo(() => requests.find((r) => r.id === requestId), [requests, requestId]);
   const clients = useStore((s) => s.clients);
   const client = useMemo(() => req ? clients.find((c) => c.id === req.clientId) : null, [req, clients]);
+  const projects = useStore((s) => s.projects);
+  const users = useStore((s) => s.users);
+  const allComments = useStore((s) => s.comments);
+  const comments = useMemo(() => allComments.filter((c) => c.threadId === requestId), [allComments, requestId]);
   const setStatus = useStore((s) => s.setRequestStatus);
   const { open } = useModals();
   const [busy, setBusy] = useState(false);
-  const [internalNote, setInternalNote] = useState("");
 
   if (!req || !client) return null;
 
@@ -434,37 +493,152 @@ function RequestDetailsDrawer({
     <Sheet open={!!requestId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="sm:max-w-[40rem] overflow-y-auto w-full p-6 bg-card border-l border-border/80 flex flex-col justify-between h-full">
         <div className="space-y-6">
-          <SheetHeader className="text-left">
+          <SheetHeader className="text-left mb-6">
             <SheetTitle className="sr-only">Request Details: {req.title}</SheetTitle>
-            <SheetDescription className="sr-only">View and review details for request {req.title}</SheetDescription>
-            
-            <div className="flex flex-wrap gap-2 mb-2">
-              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", sm.cls)}>{sm.label}</span>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{tm.label}</span>
-              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", pm.cls)}>{pm.label}</span>
-              {req.estimatedHours && (
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">~{req.estimatedHours}h estimate</span>
+            <SheetDescription className="sr-only">View and edit details for request {req.title}</SheetDescription>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={cn("inline-block rounded-full px-2 py-0.5 text-[10px] font-medium", sm.cls)}>
+                {sm.label}
+              </span>
+              <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground">
+                {tm.label}
+              </span>
+              <span className={cn("inline-block rounded-full px-2 py-0.5 text-[10px] font-medium", pm.cls)}>
+                {pm.label}
+              </span>
+            </div>
+            {client && (
+              <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 px-1">
+                {client.name}
+              </div>
+            )}
+            <input
+              type="text"
+              value={req.title}
+              onChange={(e) => useStore.getState().updateRequest(req.id, { title: e.target.value })}
+              className="text-lg font-semibold bg-transparent border-0 outline-none w-full focus:ring-1 focus:ring-primary rounded-xl px-1 text-foreground"
+            />
+            {req.submittedAt && (
+              <div className="text-xs text-muted-foreground mt-1.5 px-1 font-medium">
+                {formatSubmissionTime(req.submittedAt)}
+              </div>
+            )}
+          </SheetHeader>
+
+          {/* Form fields */}
+          <div className="space-y-4 text-sm border-b border-border pb-6 mb-6">
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-muted-foreground font-medium">Status:</span>
+              <select
+                value={req.status}
+                onChange={(e) => setStatus(req.id, e.target.value as RequestStatus)}
+                className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
+              >
+                {(["submitted", "under_review", "closed", "approved", "convert"] as RequestStatus[]).map((s) => (
+                  <option key={s} value={s}>{REQUEST_STATUS_META[s].label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-muted-foreground font-medium">Priority:</span>
+              <select
+                value={req.priority}
+                onChange={(e) => useStore.getState().updateRequest(req.id, { priority: e.target.value as Priority })}
+                className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
+              >
+                {(["low", "medium", "high", "urgent"] as Priority[]).map((p) => (
+                  <option key={p} value={p}>{PRIORITY_META[p].label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-muted-foreground font-medium">Type:</span>
+              <select
+                value={req.type}
+                onChange={(e) => useStore.getState().updateRequest(req.id, { type: e.target.value as RequestType })}
+                className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
+              >
+                {(["revision", "new_task", "new_project", "meeting", "question"] as RequestType[]).map((t) => (
+                  <option key={t} value={t}>{REQUEST_TYPE_META[t].label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-muted-foreground font-medium">Client:</span>
+              <div className="col-span-2 text-xs font-semibold px-2.5 py-1.5 text-foreground bg-muted/30 rounded-xl border border-border/40">
+                {client.name}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 items-center">
+              <span className="text-muted-foreground font-medium">Project:</span>
+              <select
+                value={req.projectId ?? ""}
+                onChange={(e) => useStore.getState().updateRequest(req.id, { projectId: e.target.value || undefined })}
+                className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
+              >
+                <option value="">— None —</option>
+                {projects.filter((p) => p.clientId === req.clientId).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Description</label>
+            <RichEditor
+              value={req.description}
+              onChange={(v) => useStore.getState().updateRequest(req.id, { description: v })}
+              placeholder="Add detailed description notes here..."
+              minHeight={120}
+            />
+          </div>
+
+          {/* Discussion Feed */}
+          <div className="border-t border-border/80 pt-6">
+            <h4 className="text-sm font-semibold mb-4 text-foreground flex items-center justify-between">
+              <span>Thread Discussion</span>
+              <span className="text-xs text-muted-foreground font-normal">{comments.length} comments</span>
+            </h4>
+            <div className="space-y-3 mb-4 max-h-[260px] overflow-y-auto pr-1.5 scrollbar-thin">
+              {comments.length === 0 ? (
+                <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-xl">
+                  No discussion comments yet. Write one below!
+                </div>
+              ) : (
+                comments.map((c) => {
+                  const u = users.find((x) => x.id === c.author);
+                  const isInternal = c.visibility === "internal";
+                  if (!u) return null;
+                  return (
+                    <div key={c.id} className="flex gap-2.5 text-xs">
+                      <UserAvatar user={u} size={24} />
+                      <div className={cn("flex-1 rounded-2xl px-3.5 py-2.5", isInternal ? "bg-amber-500/10 border border-amber-500/25" : "bg-muted")}>
+                        <div className="flex justify-between items-center mb-1 text-[10px] text-muted-foreground">
+                          <span className="font-bold text-foreground">{u.name}</span>
+                          <span>{c.createdAt}</span>
+                        </div>
+                        <FormattedBody html={c.body} />
+                        <CommentAttachmentsList attachmentIds={c.attachments} />
+                        {isInternal && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 mt-1">
+                            <Lock className="h-2 w-2" /> Internal note
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
 
-            <h3 className="text-lg font-semibold text-foreground leading-snug">{req.title}</h3>
-            <p className="text-xs text-muted-foreground mt-1">From {client.name} · {req.submittedAt}</p>
-          </SheetHeader>
-
-          {/* Description */}
-          <div className="rounded-2xl border border-border/50 bg-muted/30 p-5 text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">
-            {req.description}
-          </div>
-
-          {/* Internal Note */}
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Internal note</label>
-            <RichEditor
-              value={internalNote}
-              onChange={setInternalNote}
-              placeholder="Add context for the team before deciding…"
-              minHeight={100}
-            />
+            {/* Form */}
+            <NewCommentForm threadId={req.id} />
           </div>
         </div>
 
@@ -472,9 +646,9 @@ function RequestDetailsDrawer({
         <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-border/40 pt-4 mt-6">
           <button
             onClick={onClose}
-            className="rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted cursor-pointer transition-all"
+            className="mr-auto rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted cursor-pointer transition-all"
           >
-            Close
+            Cancel
           </button>
           <button
             onClick={() => {
