@@ -19,14 +19,25 @@ interface DateInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement
 
 export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
   ({ value, onChange, className, inputClassName, size = "md", ...rest }, ref) => {
+    const innerRef = React.useRef<HTMLInputElement>(null);
+    React.useImperativeHandle(ref, () => innerRef.current!);
+
+    const handleClick = () => {
+      try {
+        innerRef.current?.showPicker();
+      } catch (err) {
+        innerRef.current?.click();
+      }
+    };
+
     return (
-      <div className={cn("relative w-full", className)}>
+      <div className={cn("relative w-full cursor-pointer", className)} onClick={handleClick}>
         <input
           type="text"
           readOnly
           value={formatDate(value)}
           className={cn(
-            "w-full border border-border bg-background text-foreground outline-none transition-all",
+            "w-full border border-border bg-background text-foreground outline-none transition-all cursor-pointer",
             size === "sm" 
               ? "h-8 rounded-xl px-2.5 py-1.5 text-xs" 
               : "h-11 rounded-2xl px-4 text-sm font-medium",
@@ -35,11 +46,11 @@ export const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
         />
         <input
           {...rest}
-          ref={ref}
+          ref={innerRef}
           type="date"
           value={value ?? ""}
           onChange={onChange}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          className="absolute inset-0 h-full w-full pointer-events-none opacity-0"
         />
       </div>
     );

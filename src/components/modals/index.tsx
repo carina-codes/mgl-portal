@@ -3573,16 +3573,16 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
       }
     >
       <FieldGroup>
+        <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
+          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </SelectField>
         <div className="grid grid-cols-2 gap-3">
-          <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </SelectField>
-          <SelectField label="Member" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
+          <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <SelectField label="Team" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
             {team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </SelectField>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        <div className="grid grid-cols-2 gap-3">
           <TextField label="Hours" type="number" step="0.25" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} />
           <SelectField label="Billable" value={form.billable ? "y" : "n"} onChange={(e) => setForm({ ...form, billable: e.target.value === "y" })}>
             <option value="y">Billable</option>
@@ -3626,8 +3626,8 @@ function EditTimeModal({ close, payload }: { close: () => void; payload?: ModalP
         <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </SelectField>
-        <div className="grid grid-cols-3 gap-3">
-          <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        <div className="grid grid-cols-2 gap-3">
           <TextField label="Hours" type="number" step="0.25" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} />
           <SelectField label="Billable" value={form.billable ? "y" : "n"} onChange={(e) => setForm({ ...form, billable: e.target.value === "y" })}>
             <option value="y">Billable</option>
