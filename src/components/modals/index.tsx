@@ -630,6 +630,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
     industry: "",
     subIndustry: "",
     logoColor: "#0049FE",
+    logoUrl: "",
     contact: "",
     contactEmail: "",
     contactPhone: "",
@@ -663,6 +664,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
   const [additionalContacts, setAdditionalContacts] = useState<any[]>([]);
   const [clientShareToken, setClientShareToken] = useState(() => Math.random().toString(36).substring(2, 10));
   const [copied, setCopied] = useState(false);
+  const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string; displayInDropdown: boolean }>>([]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const accessLink = `${origin}/client?token=${clientShareToken}`;
@@ -682,6 +684,20 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
 
   const removeContact = (index: number) => {
     setAdditionalContacts(additionalContacts.filter((_, i) => i !== index));
+  };
+
+  const addShortcut = () => {
+    setShortcuts([...shortcuts, { name: "", link: "", displayInDropdown: false }]);
+  };
+
+  const updateShortcut = (index: number, key: string, val: any) => {
+    const next = [...shortcuts];
+    next[index] = { ...next[index], [key]: val };
+    setShortcuts(next);
+  };
+
+  const removeShortcut = (index: number) => {
+    setShortcuts(shortcuts.filter((_, i) => i !== index));
   };
 
   const regenerateToken = () => {
@@ -712,6 +728,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
       socialLinks,
       additionalContacts,
       clientShareToken,
+      shortcuts,
     }), "Client added");
     close();
   };
@@ -747,8 +764,62 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
       }
     >
       <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
-        {/* Industry section */}
+        {/* Brand Identity Section */}
         <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand Identity</h4>
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div>
+              <FieldLabel>Workspace Color</FieldLabel>
+              <div className="flex items-center gap-2">
+                <div className="relative h-11 w-11 rounded-full border border-border overflow-hidden cursor-pointer shadow-sm shrink-0">
+                  <input
+                    type="color"
+                    value={form.logoColor}
+                    onChange={(e) => setForm({ ...form, logoColor: e.target.value })}
+                    className="absolute inset-0 h-[200%] w-[200%] -translate-x-[25%] -translate-y-[25%] cursor-pointer border-0 p-0 rounded-full"
+                  />
+                </div>
+                <input
+                  value={form.logoColor}
+                  onChange={(e) => setForm({ ...form, logoColor: e.target.value })}
+                  className="h-11 flex-1 rounded-2xl border border-border bg-background px-3 text-sm uppercase text-foreground focus:outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <FieldLabel>Workspace Logo</FieldLabel>
+              <div
+                onClick={() => {
+                  const mockUrls = [
+                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop&q=60",
+                    "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=80&auto=format&fit=crop&q=60",
+                    "https://images.unsplash.com/photo-1618005198143-d3667434a9e3?w=80&auto=format&fit=crop&q=60"
+                  ];
+                  const randomLogo = mockUrls[Math.floor(Math.random() * mockUrls.length)];
+                  setForm({ ...form, logoUrl: randomLogo });
+                  toast.success("Logo uploaded successfully");
+                }}
+                className="h-11 rounded-2xl border border-dashed border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20 flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 px-3 overflow-hidden text-xs text-muted-foreground"
+              >
+                {form.logoUrl ? (
+                  <div className="flex items-center gap-2 w-full">
+                    <img src={form.logoUrl} alt="Logo" className="h-6 w-6 rounded-lg object-cover border border-border shrink-0" />
+                    <span className="truncate text-foreground font-medium flex-1 text-left">Logo uploaded</span>
+                    <span className="text-[10px] text-primary font-bold">Replace</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-3.5 w-3.5 text-muted-foreground/75" />
+                    <span>Drag or click to upload</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Industry section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Core Industry</h4>
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Industry" placeholder="SaaS · DTC · Brand" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
@@ -866,6 +937,65 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
           </div>
         </div>
 
+        {/* Internal Notes Section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Internal Notes</h4>
+          <div>
+            <RichEditor value={form.internalNotes} onChange={(v) => setForm({ ...form, internalNotes: v })} minHeight={120} />
+          </div>
+        </div>
+
+        {/* Shortcuts Section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Shortcuts</h4>
+            <button
+              type="button"
+              onClick={addShortcut}
+              className="text-xs font-bold text-primary hover:underline cursor-pointer"
+            >
+              + Add Shortcut
+            </button>
+          </div>
+          {shortcuts.map((sh, idx) => (
+            <div key={idx} className="flex flex-col gap-3 p-4 rounded-2xl border border-border/50 bg-muted/10 relative">
+              <button
+                type="button"
+                onClick={() => removeShortcut(idx)}
+                className="absolute top-2 right-2 text-muted-foreground hover:text-rose-500 text-xs font-medium cursor-pointer"
+              >
+                Remove
+              </button>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <TextField
+                  label="Shortcut Name"
+                  placeholder="e.g. Google Drive"
+                  value={sh.name}
+                  onChange={(e) => updateShortcut(idx, "name", e.target.value)}
+                />
+                <TextField
+                  label="Shortcut Link"
+                  placeholder="https://..."
+                  value={sh.link}
+                  onChange={(e) => updateShortcut(idx, "link", e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="checkbox"
+                  id={`sh-dropdown-${idx}`}
+                  checked={sh.displayInDropdown}
+                  onChange={(e) => updateShortcut(idx, "displayInDropdown", e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <label htmlFor={`sh-dropdown-${idx}`} className="text-xs text-muted-foreground font-medium cursor-pointer">
+                  Display in 3-dots dropdown menu
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Access link section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Portal Access Link</h4>
@@ -915,6 +1045,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
     industry: client?.industry ?? "",
     subIndustry: client?.subIndustry ?? "",
     logoColor: client?.logoColor ?? "#0049FE",
+    logoUrl: client?.logoUrl ?? "",
     contact: client?.contact ?? "",
     contactEmail: client?.contactEmail ?? "",
     contactPhone: client?.contactPhone ?? "",
@@ -948,6 +1079,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
   const [additionalContacts, setAdditionalContacts] = useState(() => client?.additionalContacts || []);
   const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
   const [copied, setCopied] = useState(false);
+  const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string; displayInDropdown: boolean }>>(() => client?.shortcuts || []);
 
   if (!client) return null;
 
@@ -969,6 +1101,20 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
 
   const removeContact = (index: number) => {
     setAdditionalContacts(additionalContacts.filter((_, i) => i !== index));
+  };
+
+  const addShortcut = () => {
+    setShortcuts([...shortcuts, { name: "", link: "", displayInDropdown: false }]);
+  };
+
+  const updateShortcut = (index: number, key: string, val: any) => {
+    const next = [...shortcuts];
+    next[index] = { ...next[index], [key]: val };
+    setShortcuts(next);
+  };
+
+  const removeShortcut = (index: number) => {
+    setShortcuts(shortcuts.filter((_, i) => i !== index));
   };
 
   const regenerateToken = () => {
@@ -997,6 +1143,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
       socialLinks,
       additionalContacts,
       clientShareToken,
+      shortcuts,
     }), "Client updated");
     close();
   };
@@ -1044,8 +1191,62 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
       }
     >
       <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
-        {/* Industry section */}
+        {/* Brand Identity Section */}
         <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand Identity</h4>
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div>
+              <FieldLabel>Workspace Color</FieldLabel>
+              <div className="flex items-center gap-2">
+                <div className="relative h-11 w-11 rounded-full border border-border overflow-hidden cursor-pointer shadow-sm shrink-0">
+                  <input
+                    type="color"
+                    value={form.logoColor}
+                    onChange={(e) => setForm({ ...form, logoColor: e.target.value })}
+                    className="absolute inset-0 h-[200%] w-[200%] -translate-x-[25%] -translate-y-[25%] cursor-pointer border-0 p-0 rounded-full"
+                  />
+                </div>
+                <input
+                  value={form.logoColor}
+                  onChange={(e) => setForm({ ...form, logoColor: e.target.value })}
+                  className="h-11 flex-1 rounded-2xl border border-border bg-background px-3 text-sm uppercase text-foreground focus:outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <FieldLabel>Workspace Logo</FieldLabel>
+              <div
+                onClick={() => {
+                  const mockUrls = [
+                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop&q=60",
+                    "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=80&auto=format&fit=crop&q=60",
+                    "https://images.unsplash.com/photo-1618005198143-d3667434a9e3?w=80&auto=format&fit=crop&q=60"
+                  ];
+                  const randomLogo = mockUrls[Math.floor(Math.random() * mockUrls.length)];
+                  setForm({ ...form, logoUrl: randomLogo });
+                  toast.success("Logo uploaded successfully");
+                }}
+                className="h-11 rounded-2xl border border-dashed border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20 flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 px-3 overflow-hidden text-xs text-muted-foreground"
+              >
+                {form.logoUrl ? (
+                  <div className="flex items-center gap-2 w-full">
+                    <img src={form.logoUrl} alt="Logo" className="h-6 w-6 rounded-lg object-cover border border-border shrink-0" />
+                    <span className="truncate text-foreground font-medium flex-1 text-left">Logo uploaded</span>
+                    <span className="text-[10px] text-primary font-bold">Replace</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Upload className="h-3.5 w-3.5 text-muted-foreground/75" />
+                    <span>Drag or click to upload</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Industry section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Core Industry</h4>
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Industry" placeholder="SaaS · DTC · Brand" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
@@ -1161,6 +1362,65 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
             <TextField label="Twitter / X URL" placeholder="https://x.com/..." value={form.twitter} onChange={(e) => setForm({ ...form, twitter: e.target.value })} />
             <TextField label="Facebook URL" placeholder="https://facebook.com/..." value={form.facebook} onChange={(e) => setForm({ ...form, facebook: e.target.value })} />
           </div>
+        </div>
+
+        {/* Internal Notes Section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Internal Notes</h4>
+          <div>
+            <RichEditor value={form.internalNotes} onChange={(v) => setForm({ ...form, internalNotes: v })} minHeight={120} />
+          </div>
+        </div>
+
+        {/* Shortcuts Section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Shortcuts</h4>
+            <button
+              type="button"
+              onClick={addShortcut}
+              className="text-xs font-bold text-primary hover:underline cursor-pointer"
+            >
+              + Add Shortcut
+            </button>
+          </div>
+          {shortcuts.map((sh, idx) => (
+            <div key={idx} className="flex flex-col gap-3 p-4 rounded-2xl border border-border/50 bg-muted/10 relative">
+              <button
+                type="button"
+                onClick={() => removeShortcut(idx)}
+                className="absolute top-2 right-2 text-muted-foreground hover:text-rose-500 text-xs font-medium cursor-pointer"
+              >
+                Remove
+              </button>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <TextField
+                  label="Shortcut Name"
+                  placeholder="e.g. Google Drive"
+                  value={sh.name}
+                  onChange={(e) => updateShortcut(idx, "name", e.target.value)}
+                />
+                <TextField
+                  label="Shortcut Link"
+                  placeholder="https://..."
+                  value={sh.link}
+                  onChange={(e) => updateShortcut(idx, "link", e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="checkbox"
+                  id={`sh-dropdown-edit-${idx}`}
+                  checked={sh.displayInDropdown}
+                  onChange={(e) => updateShortcut(idx, "displayInDropdown", e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <label htmlFor={`sh-dropdown-edit-${idx}`} className="text-xs text-muted-foreground font-medium cursor-pointer">
+                  Display in 3-dots dropdown menu
+                </label>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Access link section */}

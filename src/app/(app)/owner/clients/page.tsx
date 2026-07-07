@@ -269,10 +269,14 @@ function ClientsPage() {
                     {/* Top row: Initial + Name/Industry */}
                     <div className="flex items-center gap-3">
                       <div
-                        className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-bold text-white shadow-sm"
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-bold text-white shadow-sm overflow-hidden"
                         style={{ backgroundColor: c.logoColor }}
                       >
-                        {c.name[0]}
+                        {c.logoUrl ? (
+                          <img src={c.logoUrl} alt={c.name} className="h-full w-full object-cover" />
+                        ) : (
+                          c.name[0]
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -315,7 +319,7 @@ function ClientsPage() {
                     <div className="grid grid-cols-3 gap-2.5 text-xs pt-1" onClick={(e) => e.stopPropagation()}>
                       <Stat label="Projects" value={clientProjects.length.toString()} href={`/owner/projects?client=${c.id}`} />
                       <Stat label="Requests" value={c.openRequests.toString()} href={`/owner/requests?client=${c.id}`} />
-                      <Stat label="Hours / mo" value={c.hoursMonth.toString()} />
+                      <Stat label="time" value={`${c.hoursMonth}h`} href={`/owner/time?client=${c.id}`} />
                     </div>
                   </div>
 
@@ -325,9 +329,9 @@ function ClientsPage() {
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => open("client.edit", { clientId: c.id })}
-                        className="rounded-full border border-border/50 bg-background/30 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+                        className="rounded-2xl border border-border/50 bg-background/30 px-3.5 py-1 text-xs font-semibold text-foreground hover:bg-muted hover:border-primary/20 transition-all cursor-pointer"
                       >
-                        View
+                        Edit
                       </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -336,6 +340,21 @@ function ClientsPage() {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/owner/files?client=${c.id}`)}
+                            className="flex items-center gap-2 cursor-pointer font-medium"
+                          >
+                            <span>View files</span>
+                          </DropdownMenuItem>
+                          {c.shortcuts?.filter(sh => sh.displayInDropdown && sh.link).map((sh, sIdx) => (
+                            <DropdownMenuItem
+                              key={sIdx}
+                              onClick={() => window.open(sh.link, "_blank")}
+                              className="flex items-center gap-2 cursor-pointer font-medium"
+                            >
+                              <span>{sh.name}</span>
+                            </DropdownMenuItem>
+                          ))}
                           <DropdownMenuItem
                             onClick={() => {
                               const newStatus = c.status === "active" ? "paused" : "active";
@@ -390,7 +409,7 @@ function ClientsPage() {
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium">Projects</th>
                     <th className="px-5 py-3 font-medium">Requests</th>
-                    <th className="px-5 py-3 font-medium">Hours</th>
+                    <th className="px-5 py-3 font-medium">Time</th>
                     <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
@@ -401,12 +420,16 @@ function ClientsPage() {
                       <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                         <td className="px-5 py-3 font-medium">
                           <div className="flex items-center gap-2.5">
-                            <span
-                              className="flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold text-white border border-black/10"
+                            <div
+                              className="flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold text-white border border-black/10 overflow-hidden shrink-0"
                               style={{ backgroundColor: c.logoColor }}
                             >
-                              {c.name[0]}
-                            </span>
+                              {c.logoUrl ? (
+                                <img src={c.logoUrl} alt={c.name} className="h-full w-full object-cover" />
+                              ) : (
+                                c.name[0]
+                              )}
+                            </div>
                             <button
                               onClick={() => open("client.edit", { clientId: c.id })}
                               className="hover:text-primary transition-colors text-left font-medium"
@@ -439,14 +462,18 @@ function ClientsPage() {
                             {c.openRequests}
                           </Link>
                         </td>
-                        <td className="px-5 py-3 text-muted-foreground">{c.hoursMonth}</td>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          <Link href={`/owner/time?client=${c.id}`} className="hover:text-primary transition-colors font-medium">
+                            {c.hoursMonth}h
+                          </Link>
+                        </td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => open("client.edit", { clientId: c.id })}
                               className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
                             >
-                              View
+                              Edit
                             </button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -455,6 +482,21 @@ function ClientsPage() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/owner/files?client=${c.id}`)}
+                                  className="flex items-center gap-2 cursor-pointer font-medium"
+                                >
+                                  <span>View files</span>
+                                </DropdownMenuItem>
+                                {c.shortcuts?.filter(sh => sh.displayInDropdown && sh.link).map((sh, sIdx) => (
+                                  <DropdownMenuItem
+                                    key={sIdx}
+                                    onClick={() => window.open(sh.link, "_blank")}
+                                    className="flex items-center gap-2 cursor-pointer font-medium"
+                                  >
+                                    <span>{sh.name}</span>
+                                  </DropdownMenuItem>
+                                ))}
                                 <DropdownMenuItem
                                   onClick={() => {
                                     const newStatus = c.status === "active" ? "paused" : "active";

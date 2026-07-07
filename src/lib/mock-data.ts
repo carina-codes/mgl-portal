@@ -83,6 +83,12 @@ export type Client = {
     other?: string;
   };
   shareLinks?: ProjectShareLink[];
+  logoUrl?: string;
+  shortcuts?: Array<{
+    name: string;
+    link: string;
+    displayInDropdown: boolean;
+  }>;
 };
 
 export type ProjectStatus = "planning" | "in_progress" | "ongoing" | "review" | "completed" | "on_hold";
