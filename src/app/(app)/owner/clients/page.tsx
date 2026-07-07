@@ -331,7 +331,7 @@ function ClientsPage() {
 
                   {/* Footer actions */}
                   <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4 text-xs text-muted-foreground">
-                    <AvatarStack userIds={getClientUserIds(c, users)} users={getExtendedUsers(c, users)} max={4} size={26} />
+                    <AvatarStack userIds={getClientUserIds(c, users)} users={getExtendedUsers(c, users)} max={4} size={26} baseColor={c.logoColor} />
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => open("client.edit", { clientId: c.id })}
