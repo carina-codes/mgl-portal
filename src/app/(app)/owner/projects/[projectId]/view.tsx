@@ -124,6 +124,43 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const formatSubmissionTime = (submittedAt: string) => {
+  if (!submittedAt) return "";
+  const isRecent = 
+    submittedAt.toLowerCase().includes("hour") ||
+    submittedAt.toLowerCase().includes("min") ||
+    submittedAt.toLowerCase().includes("now") ||
+    submittedAt.toLowerCase().includes("today");
+    
+  if (isRecent) {
+    return `Submitted ${submittedAt}`;
+  }
+  
+  let dateVal = new Date();
+  if (submittedAt.toLowerCase() === "yesterday" || submittedAt.toLowerCase() === "1 day ago") {
+    dateVal.setDate(dateVal.getDate() - 1);
+  } else if (submittedAt.toLowerCase().includes("days ago")) {
+    const num = parseInt(submittedAt);
+    if (!isNaN(num)) {
+      dateVal.setDate(dateVal.getDate() - num);
+    }
+  } else {
+    const parsed = new Date(submittedAt);
+    if (!isNaN(parsed.getTime())) {
+      dateVal = parsed;
+    }
+  }
+  
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dateFormatted = `${months[dateVal.getMonth()]} ${dateVal.getDate()}, ${dateVal.getFullYear()}`;
+  
+  const hours = String(dateVal.getHours()).padStart(2, "0");
+  const mins = String(dateVal.getMinutes()).padStart(2, "0");
+  const timeFormatted = `${hours}:${mins}`;
+  
+  return `Submitted on ${dateFormatted} ${timeFormatted}`;
+};
+
 function ProjectDetail() {
   const params = useParams();
   const projectId = params?.projectId as string;
@@ -140,7 +177,7 @@ function ProjectDetail() {
     return allRequests.filter(
       (r) =>
         r.projectId === projectId &&
-        (r.status === "needs_clarification" || r.status === "under_review")
+        (r.status === "submitted" || r.status === "under_review")
     ).length;
   }, [allRequests, projectId]);
 
@@ -2421,12 +2458,6 @@ function RequestsTab({ projectId }: { projectId: string }) {
             badge: "bg-review text-review-foreground border-review-foreground/20",
             textHover: "group-hover:text-sky-600 dark:group-hover:text-sky-400",
           },
-          needs_clarification: {
-            cardHover: "hover:border-amber-500/25",
-            glow: "bg-amber-500/5 group-hover:bg-amber-500/10",
-            badge: "bg-progress text-progress-foreground border-progress-foreground/20",
-            textHover: "group-hover:text-amber-600 dark:group-hover:text-amber-400",
-          },
           under_review: {
             cardHover: "hover:border-violet-500/25",
             glow: "bg-violet-500/5 group-hover:bg-violet-500/10",
@@ -2439,19 +2470,13 @@ function RequestsTab({ projectId }: { projectId: string }) {
             badge: "bg-done text-done-foreground border-done-foreground/20",
             textHover: "group-hover:text-emerald-600 dark:group-hover:text-emerald-400",
           },
-          rejected: {
+          closed: {
             cardHover: "hover:border-rose-500/25",
             glow: "bg-rose-500/5 group-hover:bg-rose-500/10",
             badge: "bg-todo text-todo-foreground border-todo-foreground/20",
             textHover: "group-hover:text-rose-600 dark:group-hover:text-rose-400",
           },
-          converted_task: {
-            cardHover: "hover:border-blue-500/25",
-            glow: "bg-blue-500/5 group-hover:bg-blue-500/10",
-            badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-            textHover: "group-hover:text-blue-600 dark:group-hover:text-blue-400",
-          },
-          converted_project: {
+          convert: {
             cardHover: "hover:border-blue-500/25",
             glow: "bg-blue-500/5 group-hover:bg-blue-500/10",
             badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
@@ -2514,13 +2539,7 @@ function RequestsTab({ projectId }: { projectId: string }) {
                 </p>
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                   <Clock className="h-3 w-3 shrink-0" />
-                  <span>Submitted {r.submittedAt}</span>
-                  {r.estimatedHours && (
-                    <>
-                      <span className="text-muted-foreground/30">•</span>
-                      <span>Est: {r.estimatedHours}h</span>
-                    </>
-                  )}
+                  <span>{formatSubmissionTime(r.submittedAt)}</span>
                 </div>
               </div>
             </div>

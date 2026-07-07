@@ -172,17 +172,15 @@ export type RequestType =
   | "revision"
   | "new_task"
   | "new_project"
-  | "asset_upload"
+  | "meeting"
   | "question";
 
 export type RequestStatus =
   | "submitted"
-  | "needs_clarification"
   | "under_review"
+  | "closed"
   | "approved"
-  | "rejected"
-  | "converted_task"
-  | "converted_project";
+  | "convert";
 
 export type ClientRequest = {
   id: string;
@@ -708,15 +706,15 @@ export function tasksByProject(projectId: string) {
 // ─────────────────────────────────────────────────────────── Requests
 
 export const requests: ClientRequest[] = [
-  { id: "r1", clientId: "c1", projectId: "p1", type: "revision", title: "Soften hero gradient on onboarding screen", description: "Marcus mentioned the gradient feels too saturated next to product UI screenshots.", status: "under_review", submittedAt: "2 hours ago", submittedBy: "u8", estimatedHours: 3, priority: "medium" },
+  { id: "r1", clientId: "c1", projectId: "p1", type: "revision", title: "Soften hero gradient on onboarding screen", description: "Marcus mentioned the gradient feels too saturated next to product UI screenshots.", status: "under_review", submittedAt: "2 hours ago", submittedBy: "u8", priority: "medium" },
   { id: "r2", clientId: "c1", projectId: "p2", type: "new_task", title: "Add testimonials carousel to pricing page", description: "Three quotes ready, would like the same card layout as homepage.", status: "submitted", submittedAt: "Yesterday", submittedBy: "u8", priority: "low" },
-  { id: "r3", clientId: "c1", type: "new_project", title: "Q4 partnership microsite", description: "Co-branded with Linear. ~3 pages, launch by Sep 30.", status: "needs_clarification", submittedAt: "2 days ago", submittedBy: "u8", priority: "high" },
-  { id: "r4", clientId: "c2", projectId: "p4", type: "asset_upload", title: "Updated product photography (24 SKUs)", description: "Fresh photography for hero placements and PDP.", status: "approved", submittedAt: "3 days ago", submittedBy: "u7", priority: "medium" },
-  { id: "r5", clientId: "c2", projectId: "p4", type: "revision", title: "Tighten kerning on wordmark", description: "Slight optical adjustment between N and o.", status: "converted_task", submittedAt: "4 days ago", submittedBy: "u7", estimatedHours: 1, priority: "low" },
+  { id: "r3", clientId: "c1", type: "new_project", title: "Q4 partnership microsite", description: "Co-branded with Linear. ~3 pages, launch by Sep 30.", status: "under_review", submittedAt: "2 days ago", submittedBy: "u8", priority: "high" },
+  { id: "r4", clientId: "c2", projectId: "p4", type: "meeting", title: "Updated product photography (24 SKUs)", description: "Fresh photography for hero placements and PDP.", status: "approved", submittedAt: "3 days ago", submittedBy: "u7", priority: "medium" },
+  { id: "r5", clientId: "c2", projectId: "p4", type: "revision", title: "Tighten kerning on wordmark", description: "Slight optical adjustment between N and o.", status: "convert", submittedAt: "4 days ago", submittedBy: "u7", priority: "low" },
   { id: "r6", clientId: "c3", projectId: "p6", type: "question", title: "Can we explore a serif system for menus?", description: "Considering an editorial direction for in-room print.", status: "submitted", submittedAt: "5 hours ago", submittedBy: "u9", priority: "low" },
-  { id: "r7", clientId: "c3", projectId: "p6", type: "new_task", title: "Add downloadable brand kit to client portal", description: "PDF + zipped assets so the team can self-serve.", status: "approved", submittedAt: "Today", submittedBy: "u9", estimatedHours: 4, priority: "medium" },
+  { id: "r7", clientId: "c3", projectId: "p6", type: "new_task", title: "Add downloadable brand kit to client portal", description: "PDF + zipped assets so the team can self-serve.", status: "approved", submittedAt: "Today", submittedBy: "u9", priority: "medium" },
   { id: "r8", clientId: "c3", type: "new_project", title: "Lumen rooftop bar concept", description: "Branding, menu system and digital reservations site.", status: "submitted", submittedAt: "1 hour ago", submittedBy: "u9", priority: "high" },
-  { id: "r9", clientId: "c4", projectId: "p7", type: "revision", title: "Update lead architect bio", description: "New copy attached.", status: "converted_task", submittedAt: "1 day ago", submittedBy: "u7", priority: "low" },
+  { id: "r9", clientId: "c4", projectId: "p7", type: "revision", title: "Update lead architect bio", description: "New copy attached.", status: "convert", submittedAt: "1 day ago", submittedBy: "u7", priority: "low" },
   { id: "r10", clientId: "c1", projectId: "p2", type: "question", title: "Is Sentry monitoring included this sprint?", description: "Want to confirm scope before launch.", status: "submitted", submittedAt: "30 mins ago", submittedBy: "u8", priority: "low" },
 ];
 
@@ -811,19 +809,17 @@ export const PRIORITY_META: Record<Priority, { label: string; cls: string }> = {
 
 export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; cls: string }> = {
   submitted: { label: "Submitted", cls: "bg-sky-100 text-sky-700" },
-  needs_clarification: { label: "Needs clarification", cls: "bg-amber-100 text-amber-700" },
   under_review: { label: "Under review", cls: "bg-violet-100 text-violet-700" },
+  closed: { label: "Closed", cls: "bg-rose-100 text-rose-700" },
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "Rejected", cls: "bg-rose-100 text-rose-700" },
-  converted_task: { label: "Converted → Task", cls: "bg-blue-100 text-blue-700" },
-  converted_project: { label: "Converted → Project", cls: "bg-blue-100 text-blue-700" },
+  convert: { label: "Convert", cls: "bg-blue-100 text-blue-700" },
 };
 
 export const REQUEST_TYPE_META: Record<RequestType, { label: string; icon: string }> = {
   revision: { label: "Revision", icon: "RefreshCw" },
-  new_task: { label: "New task", icon: "ListPlus" },
-  new_project: { label: "New project", icon: "FolderPlus" },
-  asset_upload: { label: "Asset upload", icon: "Upload" },
+  new_task: { label: "Task", icon: "ListPlus" },
+  new_project: { label: "Project", icon: "FolderPlus" },
+  meeting: { label: "Meeting", icon: "Calendar" },
   question: { label: "Question", icon: "MessageCircleQuestion" },
 };
 

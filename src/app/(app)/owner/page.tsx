@@ -25,7 +25,7 @@ import {
 
 export default function Dashboard() {
   const activeProjects = projects.filter((p) => p.status !== "completed").length;
-  const openRequests = requests.filter((r) => !["approved", "rejected", "converted_task", "converted_project"].includes(r.status)).length;
+  const openRequests = requests.filter((r) => ["submitted", "under_review"].includes(r.status)).length;
   const recentRequests = requests.slice(0, 5);
   const featured = projects.slice(0, 3);
 

@@ -366,7 +366,7 @@ export const useStore = create<State>((set, get) => ({
     const r = get().requests.find((x) => x.id === id);
     if (!r) return null;
     const task = get().createTask({ projectId, title: r.title, note: r.description, priority: r.priority });
-    get().setRequestStatus(id, "converted_task");
+    get().setRequestStatus(id, "convert");
     return task;
   },
   convertRequestToProject: (id, projectInput) => {
@@ -381,7 +381,7 @@ export const useStore = create<State>((set, get) => ({
       hoursEstimate: projectInput.hoursEstimate ?? 40,
       team: projectInput.team ?? [],
     });
-    get().setRequestStatus(id, "converted_project");
+    get().setRequestStatus(id, "convert");
     return project;
   },
 

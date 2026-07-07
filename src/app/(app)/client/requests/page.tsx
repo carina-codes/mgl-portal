@@ -7,13 +7,13 @@ import { useStore } from "@/lib/store";
 import { useActiveClient } from "@/hooks/use-active-client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Send, Upload, FolderPlus, ListPlus, RefreshCw, MessageCircleQuestion } from "lucide-react";
+import { Send, Upload, FolderPlus, ListPlus, RefreshCw, MessageCircleQuestion, Calendar } from "lucide-react";
 
 const TYPES = [
   { id: "revision", label: "Revision", icon: RefreshCw },
-  { id: "new_task", label: "New task", icon: ListPlus },
-  { id: "new_project", label: "New project", icon: FolderPlus },
-  { id: "asset_upload", label: "Upload asset", icon: Upload },
+  { id: "new_task", label: "Task", icon: ListPlus },
+  { id: "new_project", label: "Project", icon: FolderPlus },
+  { id: "meeting", label: "Meeting", icon: Calendar },
   { id: "question", label: "Question", icon: MessageCircleQuestion },
 ] as const;
 

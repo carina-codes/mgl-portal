@@ -121,7 +121,7 @@ export type ModalKey =
   | "request.new"
   | "request.review"
   | "request.approve"
-  | "request.reject"
+  | "request.close"
   | "request.convertTask"
   | "request.convertProject"
 
@@ -2744,7 +2744,6 @@ function NewRequestModal({ close, payload }: { close: () => void; payload?: Moda
     type: "revision" as RequestType,
     title: "",
     description: "",
-    estimatedHours: 2,
     priority: "medium" as Priority,
   });
   const valid = form.title.trim().length > 1 && !!form.clientId;
@@ -2790,12 +2789,8 @@ function NewRequestModal({ close, payload }: { close: () => void; payload?: Moda
             ))}
           </SelectField>
         </div>
-        <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Summarize the ask" />
-        <div>
-          <FieldLabel>Details</FieldLabel>
-          <RichEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Context, references, success criteria…" minHeight={140} />
-        </div>
-        <div className="grid grid-cols-3 gap-3">
+
+        <div className="grid grid-cols-2 gap-3">
           <SelectField label="Client" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value, projectId: "" })}>
             {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </SelectField>
@@ -2803,7 +2798,14 @@ function NewRequestModal({ close, payload }: { close: () => void; payload?: Moda
             <option value="">— None —</option>
             {clientProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </SelectField>
-          <TextField label="Est. hours" type="number" value={form.estimatedHours} onChange={(e) => setForm({ ...form, estimatedHours: Number(e.target.value) })} />
+        </div>
+
+        <div className="border-t border-border/50 my-1" />
+
+        <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Summarize the ask" />
+        <div>
+          <FieldLabel>Details</FieldLabel>
+          <RichEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Context, references, success criteria…" minHeight={140} />
         </div>
       </FieldGroup>
     </AppDialog>
@@ -2832,7 +2834,7 @@ function ReviewRequestModal({ close, payload }: { close: () => void; payload?: M
       size="lg"
       footer={
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
-          <GhostButton onClick={close}>Close</GhostButton>
+          <GhostButton onClick={close} className="mr-auto">Cancel</GhostButton>
           <button
             onClick={() => open("request.convertTask", { requestId: id })}
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
@@ -2846,10 +2848,10 @@ function ReviewRequestModal({ close, payload }: { close: () => void; payload?: M
             <FolderPlus className="h-3.5 w-3.5" /> Convert to project
           </button>
           <button
-            onClick={() => open("request.reject", { requestId: id })}
+            onClick={() => open("request.close", { requestId: id })}
             className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
           >
-            <XCircle className="h-3.5 w-3.5" /> Reject
+            <XCircle className="h-3.5 w-3.5" /> Close
           </button>
           <PrimaryButton
             loading={busy}
@@ -2905,7 +2907,7 @@ function ApproveRequestModal({ close, payload }: { close: () => void; payload?: 
   );
 }
 
-function RejectRequestModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
+function CloseRequestModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const id = payload?.requestId as string;
   const setStatus = useStore((s) => s.setRequestStatus);
   const [reason, setReason] = useState("");
@@ -2914,7 +2916,7 @@ function RejectRequestModal({ close, payload }: { close: () => void; payload?: M
     <AppDialog
       open
       onOpenChange={(v) => !v && close()}
-      title="Reject request"
+      title="Close request"
       description="Let the client know why so we can keep the relationship strong."
       icon={<XCircle className="h-5 w-5" />}
       footer={
@@ -2923,12 +2925,12 @@ function RejectRequestModal({ close, payload }: { close: () => void; payload?: M
           <DangerButton
             loading={busy}
             onClick={async () => {
-              if (!reason.trim()) return toast.error("Add a short reason before rejecting.");
-              await run(() => setStatus(id, "rejected"), "Request rejected");
+              if (!reason.trim()) return toast.error("Add a short reason before closing.");
+              await run(() => setStatus(id, "closed"), "Request closed");
               close();
             }}
           >
-            Reject request
+            Close request
           </DangerButton>
         </div>
       }
@@ -4623,7 +4625,7 @@ const REGISTRY: Record<ModalKey, React.FC<{ close: () => void; payload?: ModalPa
   "request.new": NewRequestModal,
   "request.review": ReviewRequestModal,
   "request.approve": ApproveRequestModal,
-  "request.reject": RejectRequestModal,
+  "request.close": CloseRequestModal,
   "request.convertTask": ConvertRequestToTaskModal,
   "request.convertProject": ConvertRequestToProjectModal,
 
