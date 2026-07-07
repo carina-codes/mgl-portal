@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/components/filter-bar";
@@ -65,8 +66,14 @@ function TimePage() {
     () => {
       const defs: FilterDef[] = [
         {
+          id: "client",
+          label: "Client",
+          multi: true,
+          options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
+        },
+        {
           id: "member",
-          label: "Member",
+          label: "Team",
           multi: true,
           options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
         },
@@ -89,22 +96,14 @@ function TimePage() {
         });
       }
 
-      defs.push(
-        {
-          id: "client",
-          label: "Client",
-          multi: true,
-          options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
-        },
-        {
-          id: "billable",
-          label: "Billable",
-          options: [
-            { value: "yes", label: "Billable", color: "#10B981" },
-            { value: "no", label: "Non-billable" },
-          ] as FilterOption[],
-        }
-      );
+      defs.push({
+        id: "billable",
+        label: "Billable",
+        options: [
+          { value: "yes", label: "Billable" },
+          { value: "no", label: "Non-billable" },
+        ] as FilterOption[],
+      });
 
       return defs;
     },
@@ -218,7 +217,7 @@ function TimePage() {
               <thead className="text-left text-xs text-muted-foreground">
                 <tr className="border-b border-border">
                   <th className="px-5 py-3 font-medium">Date</th>
-                  <th className="px-5 py-3 font-medium">Member</th>
+                  <th className="px-5 py-3 font-medium">Team</th>
                   <th className="px-5 py-3 font-medium">Project</th>
                   <th className="px-5 py-3 font-medium">Note / Work Done</th>
                   <th className="px-5 py-3 font-medium text-right">Hours</th>
@@ -232,54 +231,47 @@ function TimePage() {
                   const p = projects.find((x) => x.id === e.projectId);
                   return (
                     <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
-                      <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">{e.date}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          {u && <UserAvatar user={u} size={22} />}
-                          <span className="font-semibold text-foreground/90 text-xs whitespace-nowrap">
-                            {u?.name}
-                          </span>
+                      <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{e.date}</td>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        <div className="flex items-center gap-2.5">
+                          {u && <UserAvatar user={u} size={24} />}
+                          <div className="flex flex-col">
+                            <span className="text-foreground font-semibold">{u?.name}</span>
+                            <span className="text-[11px] text-muted-foreground">{u?.email}</span>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3">
-                        <span className="inline-flex items-center justify-center font-medium px-2 py-0.5 rounded bg-muted text-muted-foreground text-[10px] whitespace-nowrap">
-                          {p?.name || "General"}
-                        </span>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        {p ? (
+                          <Link href={`/owner/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
+                            {p.name}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-muted-foreground/50">General</span>
+                        )}
                       </td>
-                      <td className="px-5 py-3">
-                        <div className="text-xs text-foreground/80 max-w-[200px] md:max-w-[300px] truncate" title={e.note}>
-                          {e.note || <span className="italic text-muted-foreground/30">No note provided</span>}
-                        </div>
+                      <td className="px-5 py-3 text-muted-foreground font-medium">
+                        {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
                       </td>
-                      <td className="px-5 py-3 text-right">
-                        <span className="inline-flex items-center justify-center font-bold px-2 py-0.5 rounded-lg text-xs bg-muted text-foreground/80 font-mono">
-                          {e.hours.toFixed(1)}h
-                        </span>
+                      <td className="px-5 py-3 text-right text-muted-foreground font-semibold">
+                        {e.hours.toFixed(1)}h
                       </td>
                       <td className="px-5 py-3 whitespace-nowrap">
-                        {e.billable ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            <span className="h-1 w-1 rounded-full bg-emerald-500" />
-                            Billable
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-slate-500/10 px-2 py-0.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 border border-slate-500/10">
-                            <span className="h-1 w-1 rounded-full bg-slate-400" />
-                            Non-billable
-                          </span>
-                        )}
+                        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", e.billable ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20" : "bg-slate-50 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border border-slate-500/10")}>
+                          {e.billable ? "Billable" : "Non-billable"}
+                        </span>
                       </td>
                       <td className="px-5 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => open("time.edit", { timeId: e.id })}
-                            className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
+                            className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all font-medium"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => open("time.delete", { timeId: e.id })}
-                            className="rounded-full px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-500/10 cursor-pointer transition-all"
+                            className="rounded-full px-2 py-1 text-[11px] text-rose-500 hover:bg-rose-500/5 cursor-pointer transition-all font-medium"
                           >
                             Delete
                           </button>
