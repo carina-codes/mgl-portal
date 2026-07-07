@@ -33,6 +33,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AvatarStack } from "@/components/user-avatar";
 
+const ensureAbsoluteUrl = (url: string) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${url}`;
+};
+
 const HEALTH_TONE: Record<string, { label: string; cls: string }> = {
   healthy: { label: "Healthy", cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20" },
   watch: { label: "Watch", cls: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-500/20" },
@@ -349,7 +355,7 @@ function ClientsPage() {
                           {c.shortcuts?.filter(sh => sh.displayInDropdown && sh.link).map((sh, sIdx) => (
                             <DropdownMenuItem
                               key={sIdx}
-                              onClick={() => window.open(sh.link, "_blank")}
+                              onClick={() => window.open(ensureAbsoluteUrl(sh.link), "_blank")}
                               className="flex items-center gap-2 cursor-pointer font-medium"
                             >
                               <span>{sh.name}</span>
@@ -491,7 +497,7 @@ function ClientsPage() {
                                 {c.shortcuts?.filter(sh => sh.displayInDropdown && sh.link).map((sh, sIdx) => (
                                   <DropdownMenuItem
                                     key={sIdx}
-                                    onClick={() => window.open(sh.link, "_blank")}
+                                    onClick={() => window.open(ensureAbsoluteUrl(sh.link), "_blank")}
                                     className="flex items-center gap-2 cursor-pointer font-medium"
                                   >
                                     <span>{sh.name}</span>
