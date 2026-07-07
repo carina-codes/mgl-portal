@@ -305,9 +305,9 @@ function ClientsPage() {
                     </div>
 
                     {/* Main Stats Grid */}
-                    <div className="grid grid-cols-3 gap-2.5 text-xs pt-1">
-                      <Stat label="Projects" value={clientProjects.length.toString()} />
-                      <Stat label="Requests" value={c.openRequests.toString()} />
+                    <div className="grid grid-cols-3 gap-2.5 text-xs pt-1" onClick={(e) => e.stopPropagation()}>
+                      <Stat label="Projects" value={clientProjects.length.toString()} href={`/owner/projects?client=${c.id}`} />
+                      <Stat label="Requests" value={c.openRequests.toString()} href={`/owner/requests?client=${c.id}`} />
                       <Stat label="Hours / mo" value={c.hoursMonth.toString()} />
                     </div>
                   </div>
@@ -422,8 +422,16 @@ function ClientsPage() {
                             {STATUS_TONE[c.status]?.label || c.status}
                           </button>
                         </td>
-                        <td className="px-5 py-3 text-muted-foreground">{clientProjects.length}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{c.openRequests}</td>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          <Link href={`/owner/projects?client=${c.id}`} className="hover:text-primary transition-colors font-medium">
+                            {clientProjects.length}
+                          </Link>
+                        </td>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          <Link href={`/owner/requests?client=${c.id}`} className="hover:text-primary transition-colors font-medium">
+                            {c.openRequests}
+                          </Link>
+                        </td>
                         <td className="px-5 py-3 text-muted-foreground">{c.hoursMonth}</td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -494,13 +502,19 @@ function ClientsPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="group flex flex-col items-center justify-center rounded-xl bg-background/40 border border-border/40 py-1.5 px-2 hover:bg-background/80 hover:border-primary/30 transition-all hover:-translate-y-0.5 duration-300">
+function Stat({ label, value, href }: { label: string; value: string; href?: string }) {
+  const content = (
+    <div className="group flex w-full flex-col items-center justify-center rounded-xl bg-background/40 border border-border/40 py-1.5 px-2 hover:bg-background/80 hover:border-primary/30 transition-all hover:-translate-y-0.5 duration-300 cursor-pointer">
       <div className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-none">{value}</div>
       <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href} className="w-full flex">{content}</Link>;
+  }
+
+  return content;
 }
 
 export default ClientsPage;
