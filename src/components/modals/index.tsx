@@ -22,6 +22,7 @@ import {
   SelectField,
 } from "@/components/ui/app-dialog";
 import { cn } from "@/lib/utils";
+import { DateInput } from "@/components/ui/date-input";
 import { RichEditor } from "@/components/rich-editor";
 import { useStore } from "@/lib/store";
 import {
@@ -4479,17 +4480,14 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
           </div>
         </div>
 
-        {/* Start & End Dates */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
               Start Date
             </label>
-            <input
-              type="date"
+            <DateInput
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all text-foreground"
             />
           </div>
 
@@ -4497,11 +4495,9 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
               End Date
             </label>
-            <input
-              type="date"
+            <DateInput
               value={form.endDate}
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-              className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all text-foreground"
             />
           </div>
         </div>

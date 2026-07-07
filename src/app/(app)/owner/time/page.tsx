@@ -1,14 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
-import { Plus, Pencil, Clock, Coins, TrendingUp, Search, Trash2, FileDown } from "lucide-react";
+import { Plus, Pencil, Clock, Coins, TrendingUp, Search, Trash2, FileDown, MoreHorizontal } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr + "T00:00:00");
+  if (isNaN(date.getTime())) return dateStr;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+};
 
 function TimePage() {
   const [mounted, setMounted] = useState(false);
@@ -72,16 +87,16 @@ function TimePage() {
           options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
         },
         {
-          id: "member",
-          label: "Team",
-          multi: true,
-          options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
-        },
-        {
           id: "project",
           label: "Project",
           multi: true,
           options: projects.map((p) => ({ value: p.id, label: p.name })),
+        },
+        {
+          id: "member",
+          label: "Team",
+          multi: true,
+          options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
         },
       ];
 
@@ -231,14 +246,11 @@ function TimePage() {
                   const p = projects.find((x) => x.id === e.projectId);
                   return (
                     <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
-                      <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{e.date}</td>
+                      <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{formatDate(e.date)}</td>
                       <td className="px-5 py-3 text-muted-foreground">
                         <div className="flex items-center gap-2.5">
                           {u && <UserAvatar user={u} size={24} />}
-                          <div className="flex flex-col">
-                            <span className="text-foreground font-semibold">{u?.name}</span>
-                            <span className="text-[11px] text-muted-foreground">{u?.email}</span>
-                          </div>
+                          <span className="text-foreground font-semibold">{u?.name}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">
@@ -262,20 +274,33 @@ function TimePage() {
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => open("time.edit", { timeId: e.id })}
-                            className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all font-medium"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => open("time.delete", { timeId: e.id })}
-                            className="rounded-full px-2 py-1 text-[11px] text-rose-500 hover:bg-rose-500/5 cursor-pointer transition-all font-medium"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32 border border-border bg-card">
+                            <DropdownMenuItem
+                              onSelect={(ev) => {
+                                ev.preventDefault();
+                                setTimeout(() => open("time.edit", { timeId: e.id }), 100);
+                              }}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <span>Edit</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={(ev) => {
+                                ev.preventDefault();
+                                setTimeout(() => open("time.delete", { timeId: e.id }), 100);
+                              }}
+                              className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                            >
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );

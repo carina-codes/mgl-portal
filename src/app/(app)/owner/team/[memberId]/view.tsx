@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
 import { useStore } from "@/lib/store";
 import { useModals } from "@/components/modals";
+import { DateInput } from "@/components/ui/date-input";
 import {
   STAGE_META,
   PRIORITY_META,
@@ -734,21 +735,21 @@ function TaskDetailsDrawer({
 
           <div className="grid grid-cols-3 gap-2 items-center">
             <span className="text-muted-foreground font-medium">Due Date:</span>
-            <input
-              type="date"
+            <DateInput
+              size="sm"
               value={parseDateToInputVal(task.dueDate)}
               onChange={(e) => updateTask(task.id, { dueDate: formatToMockDate(e.target.value) })}
-              className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary text-foreground cursor-pointer"
+              className="col-span-2 cursor-pointer"
             />
           </div>
 
           <div className="grid grid-cols-3 gap-2 items-center">
             <span className="text-muted-foreground font-medium">Start Date:</span>
-            <input
-              type="date"
+            <DateInput
+              size="sm"
               value={task.startDate ?? ""}
               onChange={(e) => updateTask(task.id, { startDate: e.target.value })}
-              className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary text-foreground"
+              className="col-span-2"
             />
           </div>
 

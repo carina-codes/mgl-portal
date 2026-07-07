@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ChevronLeft } from "lucide-react";
+import { DateInput } from "./date-input";
 
 /**
  * AppDialog — the unified modal primitive for the Carina Client Platform.
@@ -221,15 +222,24 @@ export function TextField({
   label,
   hint,
   className,
+  type,
   ...rest
 }: { label: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div>
       <FieldLabel hint={hint}>{label}</FieldLabel>
-      <input
-        {...rest}
-        className={cn( "h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15", className, )}
-      />
+      {type === "date" ? (
+        <DateInput
+          {...rest}
+          className={className}
+        />
+      ) : (
+        <input
+          {...rest}
+          type={type}
+          className={cn( "h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15", className, )}
+        />
+      )}
     </div>
   );
 }
