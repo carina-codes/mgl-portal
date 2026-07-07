@@ -992,18 +992,6 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
                   onChange={(e) => updateShortcut(idx, "link", e.target.value)}
                 />
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  type="checkbox"
-                  id={`sh-dropdown-${idx}`}
-                  checked={sh.displayInDropdown}
-                  onChange={(e) => updateShortcut(idx, "displayInDropdown", e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                />
-                <label htmlFor={`sh-dropdown-${idx}`} className="text-xs text-muted-foreground font-medium cursor-pointer">
-                  Display in 3-dots dropdown menu
-                </label>
-              </div>
             </div>
           ))}
         </div>
@@ -1430,18 +1418,6 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
                   value={sh.link}
                   onChange={(e) => updateShortcut(idx, "link", e.target.value)}
                 />
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  type="checkbox"
-                  id={`sh-dropdown-edit-${idx}`}
-                  checked={sh.displayInDropdown}
-                  onChange={(e) => updateShortcut(idx, "displayInDropdown", e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                />
-                <label htmlFor={`sh-dropdown-edit-${idx}`} className="text-xs text-muted-foreground font-medium cursor-pointer">
-                  Display in 3-dots dropdown menu
-                </label>
               </div>
             </div>
           ))}

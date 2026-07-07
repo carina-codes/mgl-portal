@@ -352,7 +352,7 @@ function ClientsPage() {
                           >
                             <span>View files</span>
                           </DropdownMenuItem>
-                          {c.shortcuts?.filter(sh => sh.displayInDropdown && sh.link).map((sh, sIdx) => (
+                          {c.shortcuts?.filter(sh => sh.name && sh.link).map((sh, sIdx) => (
                             <DropdownMenuItem
                               key={sIdx}
                               onClick={() => window.open(ensureAbsoluteUrl(sh.link), "_blank")}
@@ -494,7 +494,7 @@ function ClientsPage() {
                                 >
                                   <span>View files</span>
                                 </DropdownMenuItem>
-                                {c.shortcuts?.filter(sh => sh.displayInDropdown && sh.link).map((sh, sIdx) => (
+                                {c.shortcuts?.filter(sh => sh.name && sh.link).map((sh, sIdx) => (
                                   <DropdownMenuItem
                                     key={sIdx}
                                     onClick={() => window.open(ensureAbsoluteUrl(sh.link), "_blank")}
