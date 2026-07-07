@@ -12,7 +12,7 @@
  * whichever modal is currently active.
  */
 import { create } from "zustand";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
   AppDialog,
@@ -661,6 +661,20 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
     zipCode: "",
   }));
 
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm((prev) => ({ ...prev, logoUrl: reader.result as string }));
+        toast.success("Logo uploaded successfully");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [additionalContacts, setAdditionalContacts] = useState<any[]>([]);
   const [clientShareToken, setClientShareToken] = useState(() => Math.random().toString(36).substring(2, 10));
   const [copied, setCopied] = useState(false);
@@ -788,17 +802,15 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
             </div>
             <div>
               <FieldLabel>Workspace Logo</FieldLabel>
+              <input
+                type="file"
+                ref={logoInputRef}
+                onChange={handleLogoFileChange}
+                accept="image/*"
+                className="hidden"
+              />
               <div
-                onClick={() => {
-                  const mockUrls = [
-                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop&q=60",
-                    "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=80&auto=format&fit=crop&q=60",
-                    "https://images.unsplash.com/photo-1618005198143-d3667434a9e3?w=80&auto=format&fit=crop&q=60"
-                  ];
-                  const randomLogo = mockUrls[Math.floor(Math.random() * mockUrls.length)];
-                  setForm({ ...form, logoUrl: randomLogo });
-                  toast.success("Logo uploaded successfully");
-                }}
+                onClick={() => logoInputRef.current?.click()}
                 className="h-11 rounded-2xl border border-dashed border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20 flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 px-3 overflow-hidden text-xs text-muted-foreground"
               >
                 {form.logoUrl ? (
@@ -1076,6 +1088,20 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
     zipCode: client?.zipCode ?? "",
   }));
 
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm((prev) => ({ ...prev, logoUrl: reader.result as string }));
+        toast.success("Logo uploaded successfully");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const [additionalContacts, setAdditionalContacts] = useState(() => client?.additionalContacts || []);
   const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
   const [copied, setCopied] = useState(false);
@@ -1215,17 +1241,15 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
             </div>
             <div>
               <FieldLabel>Workspace Logo</FieldLabel>
+              <input
+                type="file"
+                ref={logoInputRef}
+                onChange={handleLogoFileChange}
+                accept="image/*"
+                className="hidden"
+              />
               <div
-                onClick={() => {
-                  const mockUrls = [
-                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=80&auto=format&fit=crop&q=60",
-                    "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=80&auto=format&fit=crop&q=60",
-                    "https://images.unsplash.com/photo-1618005198143-d3667434a9e3?w=80&auto=format&fit=crop&q=60"
-                  ];
-                  const randomLogo = mockUrls[Math.floor(Math.random() * mockUrls.length)];
-                  setForm({ ...form, logoUrl: randomLogo });
-                  toast.success("Logo uploaded successfully");
-                }}
+                onClick={() => logoInputRef.current?.click()}
                 className="h-11 rounded-2xl border border-dashed border-border hover:border-primary/50 bg-muted/10 hover:bg-muted/20 flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 px-3 overflow-hidden text-xs text-muted-foreground"
               >
                 {form.logoUrl ? (
