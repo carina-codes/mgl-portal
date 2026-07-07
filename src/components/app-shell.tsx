@@ -354,7 +354,7 @@ export function AppShell({
               >
                 Switch to client
               </Link>
-              <Link href="/client/settings" className="hover:opacity-90 transition-opacity cursor-pointer flex shrink-0">
+              <Link href={`/owner/team/${user.id}`} className="hover:opacity-90 transition-opacity cursor-pointer flex shrink-0">
                 <UserAvatar user={user} size={36} />
               </Link>
             </div>
