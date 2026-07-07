@@ -2800,8 +2800,6 @@ function NewRequestModal({ close, payload }: { close: () => void; payload?: Moda
           </SelectField>
         </div>
 
-        <div className="border-t border-border/50 my-1" />
-
         <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Summarize the ask" />
         <div>
           <FieldLabel>Details</FieldLabel>
