@@ -2,12 +2,12 @@
 
 
 import { PortalShell } from "@/components/portal-shell";
-import { requests, REQUEST_STATUS_META, REQUEST_TYPE_META } from "@/lib/mock-data";
+import { REQUEST_STATUS_META, REQUEST_TYPE_META } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
+import { useActiveClient } from "@/hooks/use-active-client";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Send, Upload, FolderPlus, ListPlus, RefreshCw, MessageCircleQuestion } from "lucide-react";
-
-
 
 const TYPES = [
   { id: "revision", label: "Revision", icon: RefreshCw },
@@ -19,7 +19,9 @@ const TYPES = [
 
 function PortalRequests() {
   const [selected, setSelected] = useState<(typeof TYPES)[number]["id"]>("revision");
-  const my = requests.filter((r) => r.clientId === "c1");
+  const { client } = useActiveClient();
+  const requests = useStore((s) => s.requests);
+  const my = requests.filter((r) => r.clientId === client.id);
   return (
     <PortalShell title="Requests" subtitle="Submit, track, and follow up on requests">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">

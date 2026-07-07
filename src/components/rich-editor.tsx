@@ -154,13 +154,13 @@ export function RichEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       Mention.configure({
-        HTMLAttributes: { class: "carina-mention text-primary font-semibold hover:underline" },
+        HTMLAttributes: { class: "carina-mention text-primary font-semibold" },
         suggestion: mentionSuggestion,
       }),
       Mention.extend({
         name: "reference",
       }).configure({
-        HTMLAttributes: { class: "carina-reference text-primary font-semibold hover:underline cursor-pointer" },
+        HTMLAttributes: { class: "carina-reference text-primary font-semibold cursor-pointer" },
         suggestion: referenceSuggestion,
       }),
       Highlight.configure({ multicolor: true }),

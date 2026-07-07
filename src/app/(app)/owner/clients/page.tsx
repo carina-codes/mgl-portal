@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { FilterBar } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
@@ -106,6 +108,7 @@ const getClientUserIds = (c: any, users: any[]) => {
 };
 
 function ClientsPage() {
+  const router = useRouter();
   const [view, setView] = useState<"grid" | "list">("grid");
   const clients = useStore((s) => s.clients);
   const projects = useStore((s) => s.projects);
@@ -130,17 +133,6 @@ function ClientsPage() {
         options: [
           { value: "active", label: "Active" },
           { value: "paused", label: "Paused" },
-          { value: "archived", label: "Archived" },
-        ],
-      },
-      {
-        id: "health",
-        label: "Health",
-        multi: true,
-        options: [
-          { value: "healthy", label: "Healthy", color: "#10B981" },
-          { value: "watch", label: "Watch", color: "#F59E0B" },
-          { value: "at-risk", label: "At risk", color: "#F43F5E" },
         ],
       },
       { id: "industry", label: "Industry", multi: true, options: industries },
@@ -170,7 +162,6 @@ function ClientsPage() {
       )
         return false;
       if (filters.status?.length && !filters.status.includes(c.status)) return false;
-      if (filters.health?.length && !filters.health.includes(c.health)) return false;
       if (filters.industry?.length && !filters.industry.includes(c.industry)) return false;
       return true;
     });
@@ -259,14 +250,15 @@ function ClientsPage() {
               return (
                 <div
                   key={c.id}
-                  className="group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-card/85 hover:border-primary/25"
+                  className="group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-white dark:bg-card p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-white hover:border-primary/25 cursor-pointer"
+                  onClick={() => open("client.edit", { clientId: c.id })}
                 >
                   <div
                     className="absolute right-0 top-0 -mt-8 -mr-8 h-24 w-24 rounded-full blur-xl transition-all duration-500 pointer-events-none bg-primary/5 group-hover:bg-primary/10"
                     style={{ backgroundColor: `${c.logoColor}10` }}
                   />
 
-                  <Link href={`/owner/clients/${c.id}`} className="block space-y-4">
+                  <div className="block space-y-4">
                     {/* Top row: Initial + Name/Industry */}
                     <div className="flex items-center gap-3">
                       <div
@@ -287,33 +279,29 @@ function ClientsPage() {
                       </div>
                     </div>
 
-                    {/* Metadata Badges */}
-                    <div className="flex gap-2 border-b border-border/40 pb-3 flex-wrap">
-                      <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold", HEALTH_TONE[c.health]?.cls)}>
-                        {HEALTH_TONE[c.health]?.label || c.health}
-                      </span>
+                    {/* Display Flex: Status Tag (Left), Website URL (Right) */}
+                    <div className="text-xs flex items-center justify-between text-muted-foreground font-medium border-b border-border/40 pb-3">
                       <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold", STATUS_TONE[c.status]?.cls)}>
                         {STATUS_TONE[c.status]?.label || c.status}
                       </span>
-                      {c.retainer && (
-                        <span className="ml-auto font-semibold text-muted-foreground bg-muted/45 px-2 py-0.5 rounded text-[10px]">
-                          {c.retainer}
-                        </span>
+                      {c.website && (
+                        <a
+                          href={c.website.startsWith("http") ? c.website : `https://${c.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-2 hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
+                          <span className="truncate">{c.website.replace("https://", "").replace("http://", "")}</span>
+                        </a>
                       )}
                     </div>
 
-                    {/* Quick Contacts */}
-                    <div className="text-xs space-y-1.5 text-muted-foreground font-medium border-b border-border/40 pb-3">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
-                        <span className="truncate">{c.contactEmail}</span>
-                      </div>
-                      {c.website && (
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
-                          <span className="truncate">{c.website.replace("https://", "")}</span>
-                        </div>
-                      )}
+                    {/* Contact Name & Email Row */}
+                    <div className="text-xs flex items-center justify-between text-muted-foreground font-medium border-b border-border/40 pb-3">
+                      <span className="truncate text-foreground font-semibold">{c.contact}</span>
+                      <span className="truncate">{c.contactEmail}</span>
                     </div>
 
                     {/* Main Stats Grid */}
@@ -322,52 +310,53 @@ function ClientsPage() {
                       <Stat label="Requests" value={c.openRequests.toString()} />
                       <Stat label="Hours / mo" value={c.hoursMonth.toString()} />
                     </div>
-                  </Link>
+                  </div>
 
                   {/* Footer actions */}
                   <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4 text-xs text-muted-foreground">
                     <AvatarStack userIds={getClientUserIds(c, users)} users={getExtendedUsers(c, users)} max={4} size={26} />
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => open("client.status", { clientId: c.id })}
-                        className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
-                      >
-                        Status
-                      </button>
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => open("client.edit", { clientId: c.id })}
-                        className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
+                        className="rounded-full border border-border/50 bg-background/30 px-3.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
                       >
-                        Edit
+                        View
                       </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button
-                            className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 transition-all cursor-pointer"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
+                          <button className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                           <DropdownMenuItem
-                            onClick={() => open("client.share", { clientId: c.id })}
+                            onClick={() => {
+                              const newStatus = c.status === "active" ? "paused" : "active";
+                              useStore.getState().updateClient(c.id, { status: newStatus });
+                              toast.success(`Client ${newStatus === "active" ? "activated" : "paused"}`);
+                            }}
                             className="flex items-center gap-2 cursor-pointer"
                           >
-                            <UserPlus className="h-3.5 w-3.5" />
-                            <span>Invite client</span>
+                            <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => open("client.archive", { clientId: c.id })}
+                            onClick={() => {
+                              const origin = typeof window !== "undefined" ? window.location.origin : "";
+                              const token = c.clientShareToken || Math.random().toString(36).substring(2, 10);
+                              if (!c.clientShareToken) {
+                                useStore.getState().updateClient(c.id, { clientShareToken: token });
+                              }
+                              navigator.clipboard.writeText(`${origin}/client?token=${token}`);
+                              toast.success("Access link copied to clipboard");
+                            }}
                             className="flex items-center gap-2 cursor-pointer"
                           >
-                            <Archive className="h-3.5 w-3.5" />
-                            <span>Archive client</span>
+                            <span>Copy access link</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => open("client.delete", { clientId: c.id })}
                             className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
                             <span>Delete client</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -392,7 +381,6 @@ function ClientsPage() {
                     <th className="px-5 py-3 font-medium">Client</th>
                     <th className="px-5 py-3 font-medium">Contact</th>
                     <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3 font-medium">Health</th>
                     <th className="px-5 py-3 font-medium">Projects</th>
                     <th className="px-5 py-3 font-medium">Requests</th>
                     <th className="px-5 py-3 font-medium">Hours</th>
@@ -412,9 +400,12 @@ function ClientsPage() {
                             >
                               {c.name[0]}
                             </span>
-                            <Link href={`/owner/clients/${c.id}`} className="hover:text-primary transition-colors">
+                            <button
+                              onClick={() => open("client.edit", { clientId: c.id })}
+                              className="hover:text-primary transition-colors text-left font-medium"
+                            >
                               {c.name}
-                            </Link>
+                            </button>
                           </div>
                         </td>
                         <td className="px-5 py-3 text-muted-foreground">
@@ -431,11 +422,6 @@ function ClientsPage() {
                             {STATUS_TONE[c.status]?.label || c.status}
                           </button>
                         </td>
-                        <td className="px-5 py-3">
-                          <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium", HEALTH_TONE[c.health]?.cls)}>
-                            {HEALTH_TONE[c.health]?.label || c.health}
-                          </span>
-                        </td>
                         <td className="px-5 py-3 text-muted-foreground">{clientProjects.length}</td>
                         <td className="px-5 py-3 text-muted-foreground">{c.openRequests}</td>
                         <td className="px-5 py-3 text-muted-foreground">{c.hoursMonth}</td>
@@ -445,7 +431,7 @@ function ClientsPage() {
                               onClick={() => open("client.edit", { clientId: c.id })}
                               className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
                             >
-                              Edit
+                              View
                             </button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -454,21 +440,35 @@ function ClientsPage() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
-                                <DropdownMenuItem onClick={() => open("client.share", { clientId: c.id })} className="flex items-center gap-2 cursor-pointer">
-                                  <Share2 className="h-3.5 w-3.5" />
-                                  <span>Share Workspace</span>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const newStatus = c.status === "active" ? "paused" : "active";
+                                    useStore.getState().updateClient(c.id, { status: newStatus });
+                                    toast.success(`Client ${newStatus === "active" ? "activated" : "paused"}`);
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => open("client.settings", { clientId: c.id })} className="flex items-center gap-2 cursor-pointer">
-                                  <Settings className="h-3.5 w-3.5" />
-                                  <span>Settings</span>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                    const token = c.clientShareToken || Math.random().toString(36).substring(2, 10);
+                                    if (!c.clientShareToken) {
+                                      useStore.getState().updateClient(c.id, { clientShareToken: token });
+                                    }
+                                    navigator.clipboard.writeText(`${origin}/client?token=${token}`);
+                                    toast.success("Access link copied to clipboard");
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer"
+                                >
+                                  <span>Copy access link</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => open("client.archive", { clientId: c.id })} className="flex items-center gap-2 cursor-pointer">
-                                  <Archive className="h-3.5 w-3.5" />
-                                  <span>Archive</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => open("client.delete", { clientId: c.id })} className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer">
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  <span>Delete</span>
+                                <DropdownMenuItem
+                                  onClick={() => open("client.delete", { clientId: c.id })}
+                                  className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                                >
+                                  <span>Delete client</span>
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

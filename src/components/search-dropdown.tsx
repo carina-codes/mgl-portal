@@ -197,15 +197,6 @@ export function SearchDropdown() {
                   <div className="text-xs font-semibold">Go to Dashboard Overview</div>
                 </CommandItem>
                 <CommandItem
-                  onSelect={() => runCommand(() => router.push("/owner/settings"))}
-                  className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 cursor-pointer transition-colors text-foreground hover:bg-muted/70 data-[selected=true]:bg-muted/70 data-[selected=true]:text-foreground outline-none"
-                >
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                    <Settings className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="text-xs font-semibold">Go to Settings</div>
-                </CommandItem>
-                <CommandItem
                   onSelect={() => runCommand(() => router.push("/owner/team"))}
                   className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 cursor-pointer transition-colors text-foreground hover:bg-muted/70 data-[selected=true]:bg-muted/70 data-[selected=true]:text-foreground outline-none"
                 >
@@ -222,15 +213,6 @@ export function SearchDropdown() {
                     <MessageSquare className="h-3.5 w-3.5" />
                   </div>
                   <div className="text-xs font-semibold">Open Messages</div>
-                </CommandItem>
-                <CommandItem
-                  onSelect={() => runCommand(() => router.push("/owner/time"))}
-                  className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 cursor-pointer transition-colors text-foreground hover:bg-muted/70 data-[selected=true]:bg-muted/70 data-[selected=true]:text-foreground outline-none"
-                >
-                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="text-xs font-semibold">Track Time</div>
                 </CommandItem>
               </div>
             </CommandGroup>

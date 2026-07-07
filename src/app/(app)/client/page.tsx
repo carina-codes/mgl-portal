@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { PortalShell } from "@/components/portal-shell";
-import { projects, clients, PROJECT_STATUS_META } from "@/lib/mock-data";
+import { PROJECT_STATUS_META } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
+import { useActiveClient } from "@/hooks/use-active-client";
 import { ArrowRight, Send } from "lucide-react";
 
-
-
 function PortalHome() {
-  // Client u8 = Marcus / Arcadia
-  const client = clients.find((c) => c.id === "c1")!;
+  const { client } = useActiveClient();
+  const projects = useStore((s) => s.projects);
   const myProjects = projects.filter((p) => p.clientId === client.id);
 
   return (

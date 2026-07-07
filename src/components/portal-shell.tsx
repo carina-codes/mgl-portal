@@ -74,7 +74,12 @@ export function PortalShell({
             >
               Switch to internal
             </button>
-            <UserAvatar user={user} size={36} />
+            <Link
+              href="/client/settings"
+              className="hover:opacity-90 transition-opacity cursor-pointer flex shrink-0"
+            >
+              <UserAvatar user={user} size={36} />
+            </Link>
           </div>
         </div>
       </header>

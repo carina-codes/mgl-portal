@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { PortalShell } from "@/components/portal-shell";
-import { projects, clients, PROJECT_STATUS_META } from "@/lib/mock-data";
-
-
+import { PROJECT_STATUS_META } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
+import { useActiveClient } from "@/hooks/use-active-client";
 
 function PortalProjects() {
-  const myProjects = projects.filter((p) => p.clientId === "c1");
-  const client = clients.find((c) => c.id === "c1")!;
+  const { client } = useActiveClient();
+  const projects = useStore((s) => s.projects);
+  const myProjects = projects.filter((p) => p.clientId === client.id);
   return (
     <PortalShell title="Projects" subtitle={`${myProjects.length} projects with ${client.name.split(" ")[0]} team`}>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

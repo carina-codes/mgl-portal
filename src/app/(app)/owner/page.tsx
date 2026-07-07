@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar, AvatarStack } from "@/components/user-avatar";
+import { KpiCard } from "@/components/ui/kpi-card";
 import {
   clients,
   projects,
@@ -39,10 +40,31 @@ export default function Dashboard() {
       }
     >
       {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Kpi label="Active projects" value={activeProjects} delta="+2 this month" icon={TrendingUp} tone="bg-progress" />
-        <Kpi label="Open requests" value={openRequests} delta="3 need review" icon={Inbox} tone="bg-todo" />
-        <Kpi label="Hours this week" value="186" delta="+12% vs last" icon={Clock} tone="bg-done" />
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <KpiCard
+          label="Active projects"
+          value={activeProjects}
+          icon={TrendingUp}
+          trend={{ value: "+2 this month", positive: true }}
+          color="purple"
+          sparklineData={[12, 14, 13, 15, 17, 16, 18]}
+        />
+        <KpiCard
+          label="Open requests"
+          value={openRequests}
+          icon={Inbox}
+          trend={{ value: "3 review items", positive: false }}
+          color="amber"
+          sparklineData={[5, 4, 6, 3, 2, 4, 3]}
+        />
+        <KpiCard
+          label="Hours this week"
+          value="186"
+          icon={Clock}
+          trend={{ value: "+12% vs last week", positive: true }}
+          color="blue"
+          sparklineData={[160, 165, 170, 180, 175, 182, 186]}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -53,7 +75,7 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold">Active projects</h2>
               <p className="text-xs text-muted-foreground">Across all clients</p>
             </div>
-            <Link href="/owner/projects" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/owner/projects" className="text-sm font-medium text-primary">
               View all →
             </Link>
           </div>
@@ -102,7 +124,7 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold">Request inbox</h2>
               <p className="text-xs text-muted-foreground">Awaiting your call</p>
             </div>
-            <Link href="/owner/requests" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/owner/requests" className="text-sm font-medium text-primary">
               All →
             </Link>
           </div>
@@ -156,7 +178,7 @@ export default function Dashboard() {
               <h2 className="text-lg font-semibold">Team activity</h2>
               <p className="text-xs text-muted-foreground">Today's contributors</p>
             </div>
-            <Link href="/owner/team" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/owner/team" className="text-sm font-medium text-primary">
               All →
             </Link>
           </div>
@@ -184,31 +206,3 @@ export default function Dashboard() {
   );
 }
 
-function Kpi({
-  label,
-  value,
-  delta,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  delta: string;
-  icon: typeof TrendingUp;
-  tone: string;
-}) {
-  return (
-    <div className="panel p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs font-medium text-muted-foreground">{label}</div>
-          <div className="mt-1 text-3xl font-semibold tracking-tight">{value}</div>
-          <div className="mt-1 text-[11px] text-muted-foreground">{delta}</div>
-        </div>
-        <div className={`grid h-10 w-10 place-items-center rounded-2xl ${tone}`}>
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-    </div>
-  );
-}

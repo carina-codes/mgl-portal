@@ -225,7 +225,7 @@ function RequestsView() {
                         onClick={() => setSelectedRequestId(r.id)}
                         className="text-left block w-full group/title cursor-pointer"
                       >
-                        <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight line-clamp-2 hover:underline decoration-1", accentCls.textHover)}>
+                        <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight line-clamp-2 decoration-1", accentCls.textHover)}>
                           {r.title}
                         </h3>
                       </button>

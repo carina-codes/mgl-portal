@@ -3,12 +3,15 @@
 
 import { PortalShell } from "@/components/portal-shell";
 import { UserAvatar } from "@/components/user-avatar";
-import { channels, messages, users } from "@/lib/mock-data";
-
-
+import { useStore } from "@/lib/store";
+import { useActiveClient } from "@/hooks/use-active-client";
 
 function PortalMessages() {
-  const channel = channels.find((c) => c.clientId === "c1" && c.projectId)!;
+  const { client } = useActiveClient();
+  const channels = useStore((s) => s.channels);
+  const messages = useStore((s) => s.messages);
+  const users = useStore((s) => s.users);
+  const channel = channels.find((c) => c.clientId === client.id && c.projectId)!;
   const msgs = messages.filter((m) => m.channelId === channel.id && m.visibility === "client");
   return (
     <PortalShell title="Messages" subtitle={`Thread: ${channel.name}`}>

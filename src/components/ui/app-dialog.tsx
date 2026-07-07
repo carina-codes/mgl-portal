@@ -49,7 +49,7 @@ interface BaseProps {
 }
 
 interface SingleProps extends BaseProps {
-  title: string;
+  title: React.ReactNode;
   description?: string;
   icon?: React.ReactNode;
   children: React.ReactNode;

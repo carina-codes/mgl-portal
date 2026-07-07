@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { toast } from "sonner";
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
@@ -265,7 +266,7 @@ export default function MemberDetail() {
                         setIsEditingBio(true);
                       }
                     }}
-                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-primary font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     {isEditingBio ? <Check className="h-3.5 w-3.5" /> : <Edit2 className="h-3.5 w-3.5" />}
                     {isEditingBio ? "Save Bio" : "Edit Bio"}
@@ -292,7 +293,7 @@ export default function MemberDetail() {
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Contact & Work Settings</h4>
                   <button
                     onClick={handleSaveContactDetails}
-                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-primary font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     <Check className="h-3.5 w-3.5" /> Save Contact Details
                   </button>
@@ -389,49 +390,33 @@ export default function MemberDetail() {
 
               {/* Stat boxes grid */}
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <StatCard
+                <KpiCard
                   label="Active Projects"
                   value={assignedProjects.length.toString()}
                   description="Assigned"
                   icon={Building2}
-                  colorCls={{
-                    bg: "bg-blue-500/10 text-blue-500",
-                    dot: "bg-blue-500",
-                    hover: "hover:bg-blue-500/[0.03] hover:border-blue-500/25",
-                  }}
+                  color="purple"
                 />
-                <StatCard
+                <KpiCard
                   label="Hours Tracked"
                   value={`${monthHours.toFixed(1)}h`}
                   description="This month"
                   icon={Clock}
-                  colorCls={{
-                    bg: "bg-amber-500/10 text-amber-500",
-                    dot: "bg-amber-500",
-                    hover: "hover:bg-amber-500/[0.03] hover:border-amber-500/25",
-                  }}
+                  color="blue"
                 />
-                <StatCard
+                <KpiCard
                   label="Assigned Tasks"
                   value={activeTasksCount.toString()}
                   description="Active list"
                   icon={ListTodo}
-                  colorCls={{
-                    bg: "bg-sky-500/10 text-sky-500",
-                    dot: "bg-sky-500",
-                    hover: "hover:bg-sky-500/[0.03] hover:border-sky-500/25",
-                  }}
+                  color="amber"
                 />
-                <StatCard
+                <KpiCard
                   label="Tasks Completed"
                   value={completedTasksCount.toString()}
                   description="Archived done"
                   icon={Check}
-                  colorCls={{
-                    bg: "bg-emerald-500/10 text-emerald-500",
-                    dot: "bg-emerald-500",
-                    hover: "hover:bg-emerald-500/[0.03] hover:border-emerald-500/25",
-                  }}
+                  color="green"
                 />
               </div>
             </div>
@@ -450,7 +435,7 @@ export default function MemberDetail() {
                         setIsEditingEmergency(true);
                       }
                     }}
-                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-primary font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     {isEditingEmergency ? <Check className="h-3.5 w-3.5" /> : <Edit2 className="h-3.5 w-3.5" />}
                     {isEditingEmergency ? "Save" : "Edit"}
@@ -595,39 +580,7 @@ export default function MemberDetail() {
 
 /* ───── Stat Card Component ───── */
 
-function StatCard({
-  label,
-  value,
-  description,
-  icon: Icon,
-  colorCls,
-}: {
-  label: string;
-  value: string;
-  description: string;
-  icon: React.ComponentType<any>;
-  colorCls: { bg: string; dot: string; hover: string };
-}) {
-  return (
-    <div className={cn(
-      "rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-4 transition-all duration-300 flex flex-col justify-between group select-none",
-      colorCls.hover
-    )}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors leading-tight">
-          {label}
-        </span>
-        <div className={cn("flex h-7 w-7 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground transition-colors group-hover:text-foreground", colorCls.bg)}>
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-      <div className="mt-3">
-        <div className="text-2xl font-bold text-foreground leading-none">{value}</div>
-        <div className="mt-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{description}</div>
-      </div>
-    </div>
-  );
-}
+
 
 /* ───── Dynamic Task Details Drawer & Helpers (Ported) ───── */
 

@@ -830,12 +830,14 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
   const id = payload?.clientId as string;
   const client = useStore((s) => s.clients.find((c) => c.id === id));
   const update = useStore((s) => s.updateClient);
+  const deleteClient = useStore((s) => s.deleteClient);
   const { busy, run } = useAsyncAction();
-  const [section, setSection] = useState<"company" | "contact" | "location" | "socials">("company");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   
   const [form, setForm] = useState(() => ({
     name: client?.name ?? "",
     industry: client?.industry ?? "",
+    subIndustry: client?.subIndustry ?? "",
     logoColor: client?.logoColor ?? "#0049FE",
     contact: client?.contact ?? "",
     contactEmail: client?.contactEmail ?? "",
@@ -859,12 +861,50 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
     linkedin: client?.socialLinks?.linkedin ?? "",
     instagram: client?.socialLinks?.instagram ?? "",
     twitter: client?.socialLinks?.twitter ?? "",
+    facebook: client?.socialLinks?.facebook ?? "",
     status: client?.status ?? "active",
     health: client?.health ?? "healthy",
     retainer: client?.retainer ?? "Project",
+    businessEmail: client?.businessEmail ?? client?.contactEmail ?? "",
+    zipCode: client?.zipCode ?? "",
   }));
 
+  const [additionalContacts, setAdditionalContacts] = useState(() => client?.additionalContacts || []);
+  const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
+  const [copied, setCopied] = useState(false);
+
   if (!client) return null;
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const accessLink = `${origin}/client?token=${clientShareToken}`;
+
+  const addContact = () => {
+    setAdditionalContacts([
+      ...additionalContacts,
+      { name: "", title: "", email: "", phone: "", department: "" }
+    ]);
+  };
+
+  const updateContact = (index: number, key: string, val: string) => {
+    const next = [...additionalContacts];
+    next[index] = { ...next[index], [key]: val };
+    setAdditionalContacts(next);
+  };
+
+  const removeContact = (index: number) => {
+    setAdditionalContacts(additionalContacts.filter((_, i) => i !== index));
+  };
+
+  const regenerateToken = () => {
+    const newToken = Math.random().toString(36).substring(2, 10);
+    setClientShareToken(newToken);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(accessLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSubmit = async () => {
     const tags = form.tagsString.split(",").map((t) => t.trim()).filter(Boolean);
@@ -872,12 +912,15 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
       linkedin: form.linkedin,
       instagram: form.instagram,
       twitter: form.twitter,
+      facebook: form.facebook,
     };
     
     await run(() => update(id, {
       ...form,
       tags,
       socialLinks,
+      additionalContacts,
+      clientShareToken,
     }), "Client updated");
     close();
   };
@@ -886,17 +929,34 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
     <AppDialog
       open
       onOpenChange={(v) => !v && close()}
-      title="Edit client"
-      description="Update client workspace profile attributes."
+      title={
+        <div>
+          <div className="text-lg font-semibold tracking-tight">View client</div>
+          <div className="text-sm text-muted-foreground font-normal">View and manage client workspace profile attributes.</div>
+        </div>
+      }
       icon={<UserCog className="h-5 w-5" />}
       size="lg"
       footer={
         <div className="flex w-full justify-between items-center">
-          <div className="text-xs text-muted-foreground">
-            Changes apply to client: <span className="font-semibold text-foreground">{client.name}</span>
+          <div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (confirmDelete) {
+                  await run(() => deleteClient(id), `${client.name} deleted`);
+                  close();
+                } else {
+                  setConfirmDelete(true);
+                }
+              }}
+              className="text-sm font-medium text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+            >
+              {confirmDelete ? "Confirm Delete" : "Delete Client"}
+            </button>
           </div>
           <div className="flex gap-2">
-            <GhostButton onClick={close}>Cancel</GhostButton>
+            <GhostButton onClick={() => { setConfirmDelete(false); close(); }}>Cancel</GhostButton>
             <PrimaryButton
               loading={busy}
               onClick={handleSubmit}
@@ -907,143 +967,158 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
         </div>
       }
     >
-      <div className="flex border-b border-border/60 pb-2 mb-4 gap-1">
-        {(["company", "contact", "location", "socials"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSection(s)}
-            className={cn(
-              "px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors cursor-pointer",
-              section === s
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            {s === "company" ? "Company Info" : s === "location" ? "Location & Availability" : s === "socials" ? "Socials & Notes" : "Primary Contact"}
-          </button>
-        ))}
-      </div>
+      <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
+        {/* Industry section */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Core Industry</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Industry" placeholder="SaaS · DTC · Brand" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
+            <TextField label="Sub Industry" placeholder="B2B · E-Commerce" value={form.subIndustry} onChange={(e) => setForm({ ...form, subIndustry: e.target.value })} />
+          </div>
+        </div>
 
-      <FieldGroup>
-        {section === "company" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <TextField label="Company Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <TextField label="Industry" placeholder="SaaS · DTC · Brand" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
+        {/* Contact details section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Primary Contact</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Contact Name" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+            <TextField label="Contact Position / Role" placeholder="CMO / VP Marketing" value={form.contactRole} onChange={(e) => setForm({ ...form, contactRole: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Contact Email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
+            <TextField label="Contact Phone" placeholder="+1 (555) 012-3457" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
+          </div>
+
+          {/* Dynamic Contacts (Add More) */}
+          <div className="space-y-3 pt-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-semibold text-muted-foreground">Additional Contacts</span>
+              <button
+                type="button"
+                onClick={addContact}
+                className="text-xs font-bold text-primary cursor-pointer"
+              >
+                + Add Contact
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <TextField label="Website URL" placeholder="https://example.com" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
-              <TextField label="Main Phone" placeholder="+1 (555) 012-3456" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <SelectField label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as any })}>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="archived">Archived</option>
-              </SelectField>
-              <SelectField label="Health" value={form.health} onChange={(e) => setForm({ ...form, health: e.target.value as any })}>
-                <option value="healthy">Healthy</option>
-                <option value="watch">Watch</option>
-                <option value="at-risk">At Risk</option>
-              </SelectField>
-              <TextField label="Retainer" value={form.retainer} onChange={(e) => setForm({ ...form, retainer: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <FieldLabel>Brand Color</FieldLabel>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={form.logoColor}
-                    onChange={(e) => setForm({ ...form, logoColor: e.target.value })}
-                    className="h-11 w-12 cursor-pointer rounded-2xl border border-border bg-background"
+            {additionalContacts.map((contact, idx) => (
+              <div key={idx} className="relative p-4 rounded-2xl border border-border/50 bg-muted/10 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => removeContact(idx)}
+                  className="absolute top-2 right-2 text-muted-foreground hover:text-rose-500 text-xs font-medium cursor-pointer"
+                >
+                  Remove
+                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <TextField
+                    label="Name"
+                    value={contact.name}
+                    onChange={(e) => updateContact(idx, "name", e.target.value)}
                   />
-                  <input
-                    value={form.logoColor}
-                    onChange={(e) => setForm({ ...form, logoColor: e.target.value })}
-                    className="h-11 flex-1 rounded-2xl border border-border bg-background px-3 text-sm uppercase"
+                  <TextField
+                    label="Title / Role"
+                    value={contact.title}
+                    onChange={(e) => updateContact(idx, "title", e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <TextField
+                    label="Email"
+                    type="email"
+                    value={contact.email}
+                    onChange={(e) => updateContact(idx, "email", e.target.value)}
+                  />
+                  <TextField
+                    label="Phone"
+                    value={contact.phone}
+                    onChange={(e) => updateContact(idx, "phone", e.target.value)}
                   />
                 </div>
               </div>
-              <TextField label="Tags (comma-separated)" placeholder="Enterprise, Retail, High-Priority" value={form.tagsString} onChange={(e) => setForm({ ...form, tagsString: e.target.value })} />
-            </div>
-            <div>
-              <FieldLabel>Company Description</FieldLabel>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Core business, client biography..."
-                className="h-20 w-full rounded-2xl border border-border bg-background p-3 text-sm focus:border-primary focus:outline-none text-foreground"
-              />
-            </div>
+            ))}
           </div>
-        )}
+        </div>
 
-        {section === "contact" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <TextField label="Primary Contact Name" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
-              <TextField label="Contact Email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <TextField label="Contact Phone" placeholder="+1 (555) 012-3457" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
-              <TextField label="Contact Role/Title" placeholder="CMO / VP Marketing" value={form.contactRole} onChange={(e) => setForm({ ...form, contactRole: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <SelectField label="Preferred Contact Method" value={form.preferredContactMethod} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value as any })}>
-                <option value="email">Email</option>
-                <option value="phone">Phone</option>
-                <option value="messages">Portal Messages</option>
-              </SelectField>
-            </div>
+        {/* Business details section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Business Details</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Business Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <TextField label="Business Phone" placeholder="+1 (555) 012-3456" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
-        )}
-
-        {section === "location" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-              <TextField label="State / Region" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
-              <TextField label="Country" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Business Email" type="email" value={form.businessEmail} onChange={(e) => setForm({ ...form, businessEmail: e.target.value })} />
+            <TextField label="Working Hours" placeholder="9:00 AM - 5:00 PM EST" value={form.workingHours} onChange={(e) => setForm({ ...form, workingHours: e.target.value })} />
+          </div>
+          <div className="space-y-3">
+            <TextField label="Business Address" placeholder="e.g. 100 Broadway, 24th Floor" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <div className="grid grid-cols-2 gap-3">
+              <TextField label="City" placeholder="New York" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              <TextField label="State" placeholder="NY" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <TextField label="Zip Code" placeholder="10005" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
               <TextField label="Time Zone" placeholder="America/New_York" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
-              <TextField label="Working Hours" placeholder="9:00 AM - 5:00 PM EST" value={form.workingHours} onChange={(e) => setForm({ ...form, workingHours: e.target.value })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <TextField label="Business Address" placeholder="e.g. 100 Broadway, 24th Floor" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-              <TextField label="Map Directions Link" placeholder="https://maps.google.com/..." value={form.mapDirectionsLink} onChange={(e) => setForm({ ...form, mapDirectionsLink: e.target.value })} />
-            </div>
-            <div>
-              <TextField label="Availability Notes" placeholder="e.g. Out of office on Fridays" value={form.availabilityNotes} onChange={(e) => setForm({ ...form, availabilityNotes: e.target.value })} />
             </div>
           </div>
-        )}
+          <div>
+            <FieldLabel>Business Description</FieldLabel>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Core business, client biography..."
+              className="h-20 w-full rounded-2xl border border-border bg-background p-3 text-sm focus:border-primary focus:outline-none text-foreground"
+            />
+          </div>
+        </div>
 
-        {section === "socials" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <TextField label="LinkedIn URL" placeholder="https://linkedin.com/in/..." value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
-              <TextField label="Instagram URL" placeholder="https://instagram.com/..." value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} />
-              <TextField label="Twitter / X URL" placeholder="https://x.com/..." value={form.twitter} onChange={(e) => setForm({ ...form, twitter: e.target.value })} />
-            </div>
-            <div>
-              <FieldLabel>Rich Text Notes (Client Overview)</FieldLabel>
-              <RichEditor value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} minHeight={120} />
-            </div>
-            <div>
-              <FieldLabel>Internal Notes (Visible only to team)</FieldLabel>
-              <textarea
-                value={form.internalNotes}
-                onChange={(e) => setForm({ ...form, internalNotes: e.target.value })}
-                placeholder="Important account secrets, negotiation margins..."
-                className="h-16 w-full rounded-2xl border border-border bg-background p-3 text-sm focus:border-primary focus:outline-none text-foreground"
-              />
-            </div>
+        {/* Web presence & social links section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Online Presence</h4>
+          <TextField label="Website URL" placeholder="https://example.com" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="LinkedIn URL" placeholder="https://linkedin.com/company/..." value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
+            <TextField label="Instagram URL" placeholder="https://instagram.com/..." value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} />
           </div>
-        )}
-      </FieldGroup>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Twitter / X URL" placeholder="https://x.com/..." value={form.twitter} onChange={(e) => setForm({ ...form, twitter: e.target.value })} />
+            <TextField label="Facebook URL" placeholder="https://facebook.com/..." value={form.facebook} onChange={(e) => setForm({ ...form, facebook: e.target.value })} />
+          </div>
+        </div>
+
+        {/* Access link section */}
+        <div className="space-y-4 border-t border-border/50 pt-5">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Portal Access Link</h4>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                readOnly
+                value={accessLink}
+                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
+              >
+                {copied ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={regenerateToken}
+              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Regenerate
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Anyone with this link will be able to access the client portal view without logging in.
+          </p>
+        </div>
+      </div>
     </AppDialog>
   );
 }

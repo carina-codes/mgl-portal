@@ -952,7 +952,7 @@ function Overview({ projectId }: { projectId: string }) {
                         href={selectedDeliv.url} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="text-xs text-primary font-semibold hover:underline inline-flex items-center gap-1 shrink-0"
+                        className="text-xs text-primary font-semibold inline-flex items-center gap-1 shrink-0"
                       >
                         Visit site <ArrowUpRight className="h-3 w-3" />
                       </a>
@@ -2481,7 +2481,7 @@ function RequestsTab({ projectId }: { projectId: string }) {
                     onClick={() => open("request.review", { requestId: r.id })}
                     className="text-left block w-full group/title cursor-pointer"
                   >
-                    <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight line-clamp-2 hover:underline decoration-1", accentCls.textHover)}>
+                    <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight line-clamp-2 decoration-1", accentCls.textHover)}>
                       {r.title}
                     </h3>
                   </button>
@@ -3561,7 +3561,7 @@ function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: 
                             return (
                               <button
                                 onClick={() => onTaskClick?.(assocTask.id)}
-                                className="mt-1.5 flex items-center gap-1.5 text-[9px] font-bold text-primary hover:underline cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
+                                className="mt-1.5 flex items-center gap-1.5 text-[9px] font-bold text-primary cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
                               >
                                 <span className="h-1.2 w-1.2 rounded-full bg-primary" />
                                 Task: {assocTask.title}
