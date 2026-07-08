@@ -35,7 +35,6 @@ function Button({ className, ...props }: React.ComponentProps<typeof BaseButton>
 const SECTIONS = [
   { id: "profile", label: "My profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Building2 },
-  { id: "branding", label: "Branding", icon: Palette },
   { id: "team", label: "Team & roles", icon: Users },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
@@ -83,7 +82,6 @@ function SettingsPage() {
         <div className="space-y-6 min-w-0">
           {active === "profile" && <ProfileSection />}
           {active === "workspace" && <WorkspaceSection />}
-          {active === "branding" && <BrandingSection />}
           {active === "team" && <TeamSection />}
           {active === "billing" && <BillingSection />}
           {active === "notifications" && <NotificationsSection />}
