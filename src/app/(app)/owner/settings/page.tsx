@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button as BaseButton } from "@/components/ui/button";
+import { useStore } from "@/lib/store";
+import { useCurrentUser } from "@/lib/role-context";
 
 function Button({ className, ...props }: React.ComponentProps<typeof BaseButton>) {
   return <BaseButton className={cn("rounded-full font-semibold", className)} {...props} />;
@@ -163,8 +165,22 @@ const DEFAULT_WORKSPACE = {
 };
 
 function WorkspaceSection() {
-  const [form, setForm] = useState(DEFAULT_WORKSPACE);
+  const workspaceName = useStore((s) => s.workspaceName);
+  const updateWorkspaceName = useStore((s) => s.updateWorkspaceName);
+
+  const [form, setForm] = useState({
+    name: workspaceName,
+    subdomain: "carina.clientplatform.app",
+    currency: "USD",
+    timezone: "Europe / Berlin",
+    hours: "Mon–Fri · 9am–6pm CET",
+  });
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSave = () => {
+    updateWorkspaceName(form.name);
+    toast.success("Workspace settings saved");
+  };
 
   return (
     <>
@@ -179,8 +195,8 @@ function WorkspaceSection() {
           <Field label="Working hours" value={form.hours} onChange={set("hours")} />
         </div>
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => { setForm(DEFAULT_WORKSPACE); toast("Changes discarded"); }}>Cancel</Button>
-          <Button onClick={() => toast.success("Workspace settings saved")}>Save changes</Button>
+          <Button variant="ghost" onClick={() => { setForm({ ...form, name: workspaceName }); toast("Changes discarded"); }}>Cancel</Button>
+          <Button onClick={handleSave}>Save changes</Button>
         </div>
       </Section>
 
@@ -695,15 +711,30 @@ export default SettingsPageWrapper;
 /* ---------- My Profile ---------- */
 
 function ProfileSection() {
+  const user = useCurrentUser();
+  const update = useStore((s) => s.updateTeamMember);
+
   const [profile, setProfile] = useState({
-    name: "Maya Larsson",
-    email: "maya@carina.studio",
-    title: "Creative Director & Owner",
-    phone: "+1 (555) 019-2834",
+    name: user?.name ?? "Maya Larsson",
+    email: user?.email ?? "maya@carina.studio",
+    title: user?.title ?? "Creative Director & Owner",
+    phone: user?.phone ?? "+1 (555) 019-2834",
     language: "en-US",
   });
 
   const set = (k: keyof typeof profile) => (v: string) => setProfile((p) => ({ ...p, [k]: v }));
+
+  const initials = profile.name.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2);
+
+  const handleSave = () => {
+    update(user.id, {
+      name: profile.name,
+      email: profile.email,
+      title: profile.title,
+      phone: profile.phone,
+    });
+    toast.success("Profile saved successfully");
+  };
 
   return (
     <>
@@ -711,7 +742,7 @@ function ProfileSection() {
         <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="relative group">
             <div className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground font-bold text-2xl">
-              ML
+              {initials || "CR"}
             </div>
             <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-[10px] text-white font-semibold">
               Change
@@ -752,8 +783,17 @@ function ProfileSection() {
         </div>
 
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => toast("Changes discarded")}>Cancel</Button>
-          <Button onClick={() => toast.success("Profile saved successfully")}>Save changes</Button>
+          <Button variant="ghost" onClick={() => {
+            setProfile({
+              name: user?.name ?? "",
+              email: user?.email ?? "",
+              title: user?.title ?? "",
+              phone: user?.phone ?? "",
+              language: "en-US",
+            });
+            toast("Changes discarded");
+          }}>Cancel</Button>
+          <Button onClick={handleSave}>Save changes</Button>
         </div>
       </Section>
 

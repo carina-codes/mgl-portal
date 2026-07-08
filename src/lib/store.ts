@@ -68,6 +68,8 @@ type State = {
   comments: Comment[];
   storageConnections: StorageConnection[];
   projectStorageMappings: ProjectStorageMapping[];
+  workspaceName: string;
+  updateWorkspaceName: (name: string) => void;
 
   /* Clients */
   createClient: (input: Partial<Client> & Pick<Client, "name" | "industry" | "contact" | "contactEmail">) => Client;
@@ -203,6 +205,7 @@ export const useStore = create<State>((set, get) => ({
   projectStorageMappings: [
     { id: "psm-1", projectId: "p1", provider: "gdrive", email: "marketing-ops@kristal.com", folderName: "Marketing Assets", connectedAt: "Yesterday · 10:15 AM" }
   ],
+  workspaceName: "Carina",
 
   /* Clients */
   createClient: (input) => {
@@ -589,6 +592,7 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({
       aiActions: [{ id: uid("ai"), ts: "Just now", ...a }, ...s.aiActions].slice(0, 50),
     })),
+  updateWorkspaceName: (name) => set({ workspaceName: name }),
 }));
 
 /* ────────────────────── Derived helpers ────────────────────── */

@@ -30,6 +30,7 @@ import {
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
+import { useStore } from "@/lib/store";
 import type { ReactNode } from "react";
 import {
   DropdownMenu,
@@ -170,6 +171,7 @@ export function AppShell({
   const pathname = usePathname() || "";
   const { role, setRole } = useRole();
   const user = useCurrentUser();
+  const workspaceName = useStore((s) => s.workspaceName);
   const router = useRouter();
   const { open } = useModals();
   const [theme, setTheme] = useState<"light" | "dark">(globalMounted ? globalTheme : "light");
@@ -314,10 +316,10 @@ export function AppShell({
             {/* Left: Logo */}
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
-                C
+                {workspaceName ? workspaceName.slice(0, 1).toUpperCase() : "C"}
               </div>
               <div className="hidden sm:block">
-                <div className="text-sm font-semibold tracking-tight leading-none">Carina</div>
+                <div className="text-sm font-semibold tracking-tight leading-none">{workspaceName || "Carina"}</div>
                 <div className="text-[10px] text-muted-foreground mt-0.5 leading-none">Internal Workspace</div>
               </div>
             </div>
