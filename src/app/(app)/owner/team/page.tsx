@@ -297,7 +297,7 @@ function TeamPage() {
                     <th className="px-5 py-3 font-medium">Role</th>
                     <th className="px-5 py-3 font-medium">Availability</th>
                     <th className="px-5 py-3 font-medium">Active Projects</th>
-                    <th className="px-5 py-3 font-medium">Hours (6d)</th>
+                    <th className="px-5 py-3 font-medium">Time</th>
                     <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
