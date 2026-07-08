@@ -361,13 +361,13 @@ function ClientsPage() {
                               <span>{sh.name}</span>
                             </DropdownMenuItem>
                           ))}
-                          <DropdownMenuItem
+                           <DropdownMenuItem
                             onClick={() => {
                               const newStatus = c.status === "active" ? "paused" : "active";
                               useStore.getState().updateClient(c.id, { status: newStatus });
                               toast.success(`Client ${newStatus === "active" ? "activated" : "paused"}`);
                             }}
-                            className="flex items-center gap-2 cursor-pointer"
+                            className="flex items-center gap-2 cursor-pointer font-medium"
                           >
                             <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                           </DropdownMenuItem>
@@ -381,13 +381,13 @@ function ClientsPage() {
                               navigator.clipboard.writeText(`${origin}/client?token=${token}`);
                               toast.success("Access link copied to clipboard");
                             }}
-                            className="flex items-center gap-2 cursor-pointer"
+                            className="flex items-center gap-2 cursor-pointer font-medium"
                           >
                             <span>Copy access link</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => open("client.delete", { clientId: c.id })}
-                            className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                            className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-medium"
                           >
                             <span>Delete client</span>
                           </DropdownMenuItem>
@@ -509,7 +509,7 @@ function ClientsPage() {
                                     useStore.getState().updateClient(c.id, { status: newStatus });
                                     toast.success(`Client ${newStatus === "active" ? "activated" : "paused"}`);
                                   }}
-                                  className="flex items-center gap-2 cursor-pointer"
+                                  className="flex items-center gap-2 cursor-pointer font-medium"
                                 >
                                   <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                                 </DropdownMenuItem>
@@ -523,13 +523,13 @@ function ClientsPage() {
                                     navigator.clipboard.writeText(`${origin}/client?token=${token}`);
                                     toast.success("Access link copied to clipboard");
                                   }}
-                                  className="flex items-center gap-2 cursor-pointer"
+                                  className="flex items-center gap-2 cursor-pointer font-medium"
                                 >
                                   <span>Copy access link</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => open("client.delete", { clientId: c.id })}
-                                  className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                                  className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-medium"
                                 >
                                   <span>Delete client</span>
                                 </DropdownMenuItem>

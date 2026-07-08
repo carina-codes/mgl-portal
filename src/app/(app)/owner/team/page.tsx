@@ -191,14 +191,14 @@ function TeamPage() {
                   {/* Footer actions */}
                   <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4 text-xs text-muted-foreground">
                     <div className="flex -space-x-1" onClick={(e) => e.stopPropagation()}>
-                      {assignedProjects.slice(0, 3).map((p) => (
+                      {assignedProjects.slice(0, 3).map((p, pIdx) => (
                         <div
                           key={p.id}
                           className="inline-flex items-center justify-center rounded-full font-bold text-white ring-2 ring-card text-[9px] uppercase tracking-wider"
                           style={{
                             width: "24px",
                             height: "24px",
-                            backgroundColor: p.color || "#0049FE",
+                            backgroundColor: ["#0049FE", "#1E62FF", "#0036C1"][pIdx % 3],
                           }}
                           title={p.name}
                         >

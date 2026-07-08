@@ -3506,8 +3506,24 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
     timezone: "America/Los_Angeles",
     memberShareToken: Math.random().toString(36).substring(2, 10),
   });
+
+  const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string }>>([]);
   
   const valid = form.name && form.email.includes("@");
+
+  const addShortcut = () => {
+    setShortcuts([...shortcuts, { name: "", link: "" }]);
+  };
+
+  const updateShortcut = (index: number, key: string, val: string) => {
+    const next = [...shortcuts];
+    next[index] = { ...next[index], [key]: val };
+    setShortcuts(next);
+  };
+
+  const removeShortcut = (index: number) => {
+    setShortcuts(shortcuts.filter((_, i) => i !== index));
+  };
 
   return (
     <AppDialog
@@ -3528,7 +3544,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
             loading={busy}
             disabled={!valid}
             onClick={async () => {
-              await run(() => add(form), `Invite sent to ${form.email}`);
+              await run(() => add({ ...form, shortcuts }), `Invite sent to ${form.email}`);
               close();
             }}
           >
@@ -3591,6 +3607,45 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
           <div>
             <RichEditor value={form.internalNotes} onChange={(v) => setForm({ ...form, internalNotes: v })} minHeight={120} />
           </div>
+        </div>
+
+        {/* Shortcuts Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Shortcuts</h4>
+            <button
+              type="button"
+              onClick={addShortcut}
+              className="text-xs font-bold text-primary hover:underline cursor-pointer"
+            >
+              + Add Shortcut
+            </button>
+          </div>
+          {shortcuts.map((sh, idx) => (
+            <div key={idx} className="flex flex-col gap-3 p-4 rounded-2xl border border-border/50 bg-muted/10 relative">
+              <button
+                type="button"
+                onClick={() => removeShortcut(idx)}
+                className="absolute top-2 right-2 text-muted-foreground hover:text-rose-500 text-xs font-medium cursor-pointer"
+              >
+                Remove
+              </button>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <TextField
+                  label="Shortcut Name"
+                  placeholder="e.g. Wiki"
+                  value={sh.name}
+                  onChange={(e) => updateShortcut(idx, "name", e.target.value)}
+                />
+                <TextField
+                  label="Shortcut Link"
+                  placeholder="https://..."
+                  value={sh.link}
+                  onChange={(e) => updateShortcut(idx, "link", e.target.value)}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </AppDialog>
