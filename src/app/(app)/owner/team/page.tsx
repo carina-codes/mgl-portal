@@ -15,6 +15,7 @@ function TeamPage() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const allUsers = useStore((s) => s.users);
   const projects = useStore((s) => s.projects);
+  const allTasks = useStore((s) => s.tasks);
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
@@ -113,35 +114,36 @@ function TeamPage() {
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((u) => {
               const assignedProjects = projects.filter((p) => p.team.includes(u.id));
+              const userTasks = allTasks.filter((t) => t.assignees.includes(u.id));
               const hours = totalHoursByUser(u.id);
               const isBusy = assignedProjects.length > 2;
 
               return (
                 <div
                   key={u.id}
-                  className="group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-card/85 hover:border-primary/25"
+                  className="group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-white dark:bg-card p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-white hover:border-primary/25 cursor-pointer"
                 >
                   <div
                     className="absolute right-0 top-0 -mt-8 -mr-8 h-24 w-24 rounded-full blur-xl transition-all duration-500 pointer-events-none bg-primary/5 group-hover:bg-primary/10"
                     style={{ backgroundColor: `${u.color}10` }}
                   />
 
-                  <Link href={`/owner/team/${u.id}`} className="block space-y-4 cursor-pointer">
+                  <div className="block space-y-4">
                     {/* Top row: Avatar + Name/Role */}
-                    <div className="flex items-center gap-3">
+                    <Link href={`/owner/team/${u.id}`} className="flex items-center gap-3 cursor-pointer">
                       <UserAvatar user={u} size={44} />
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-base font-bold tracking-tight text-foreground truncate leading-tight">
+                        <h3 className="text-base font-bold tracking-tight text-foreground truncate group-hover:text-primary transition-colors leading-tight">
                           {u.name}
                         </h3>
                         <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">
                           {u.title}
                         </p>
                       </div>
-                    </div>
+                    </Link>
 
-                    {/* Metadata Badges */}
-                    <div className="flex gap-2 border-b border-border/40 pb-3 flex-wrap">
+                    {/* Display Flex: Status Tag (Left), Role Tag (Right) */}
+                    <div className="text-xs flex items-center justify-between text-muted-foreground font-medium border-b border-border/40 pb-3">
                       <span className={cn(
                         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
                         isBusy
@@ -155,20 +157,19 @@ function TeamPage() {
                       </span>
                     </div>
 
-                    {/* Email Contact */}
-                    <div className="text-xs space-y-1.5 text-muted-foreground font-medium border-b border-border/40 pb-3">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
-                        <span className="truncate">{u.email}</span>
-                      </div>
+                    {/* Email Contact Row */}
+                    <div className="text-xs flex items-center justify-between text-muted-foreground font-medium border-b border-border/40 pb-3">
+                      <span className="truncate text-foreground font-semibold">Email</span>
+                      <span className="truncate">{u.email}</span>
                     </div>
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-2.5 text-xs pt-1">
-                      <Stat label="Projects" value={assignedProjects.length.toString()} />
-                      <Stat label="Hours (6d)" value={hours.toFixed(1) + "h"} />
+                    {/* Main Stats Grid */}
+                    <div className="grid grid-cols-3 gap-2.5 text-xs pt-1" onClick={(e) => e.stopPropagation()}>
+                      <Stat label="Projects" value={assignedProjects.length.toString()} href={`/owner/team/${u.id}`} />
+                      <Stat label="Tasks" value={userTasks.length.toString()} href={`/owner/team/${u.id}`} />
+                      <Stat label="Time" value={`${hours.toFixed(1)}h`} href={`/owner/time?member=${u.id}`} />
                     </div>
-                  </Link>
+                  </div>
 
                   {/* Footer actions */}
                   <div className="mt-5 flex items-center justify-end border-t border-border/40 pt-4 text-xs text-muted-foreground gap-1.5">
@@ -282,13 +283,19 @@ function TeamPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="group flex flex-col items-center justify-center rounded-xl bg-background/40 border border-border/40 py-1.5 px-2 hover:bg-background/80 hover:border-primary/30 transition-all hover:-translate-y-0.5 duration-300">
+function Stat({ label, value, href }: { label: string; value: string; href?: string }) {
+  const content = (
+    <div className="group flex w-full flex-col items-center justify-center rounded-xl bg-background/40 border border-border/40 py-1.5 px-2 hover:bg-background/80 hover:border-primary/30 transition-all hover:-translate-y-0.5 duration-300 cursor-pointer">
       <div className="text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-none">{value}</div>
       <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href} className="w-full flex">{content}</Link>;
+  }
+
+  return content;
 }
 
 export default TeamPage;
