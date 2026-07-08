@@ -53,7 +53,7 @@ function TeamPage() {
       },
       {
         id: "active",
-        label: "Active project",
+        label: "Project",
         multi: true,
         options: projects.map((p) => ({ value: p.id, label: p.name })),
       },
