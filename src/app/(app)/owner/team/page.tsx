@@ -34,6 +34,14 @@ function TeamPage() {
   const filterDefs = useMemo(
     () => [
       {
+        id: "availability",
+        label: "Status",
+        options: [
+          { value: "available", label: "Available", color: "#10B981" },
+          { value: "busy", label: "Busy", color: "#F59E0B" },
+        ],
+      },
+      {
         id: "role",
         label: "Role",
         multi: true,
@@ -41,14 +49,6 @@ function TeamPage() {
           { value: "owner", label: "Owner" },
           { value: "manager", label: "Manager" },
           { value: "team", label: "Team" },
-        ],
-      },
-      {
-        id: "availability",
-        label: "Status",
-        options: [
-          { value: "available", label: "Available", color: "#10B981" },
-          { value: "busy", label: "Busy", color: "#F59E0B" },
         ],
       },
       {
