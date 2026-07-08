@@ -547,7 +547,7 @@ export function RequestDetailsDrawer({
                 onChange={(e) => useStore.getState().updateRequest(req.id, { priority: e.target.value as Priority })}
                 className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
               >
-                {(["low", "medium", "high", "urgent"] as Priority[]).map((p) => (
+                {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
                   <option key={p} value={p}>{PRIORITY_META[p].label}</option>
                 ))}
               </select>
