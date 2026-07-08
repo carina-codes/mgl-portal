@@ -271,7 +271,7 @@ function TeamPage() {
                             onClick={() => open("team.remove", { userId: u.id })}
                             className="flex items-center gap-2 cursor-pointer font-medium text-rose-500 hover:text-rose-600 focus:text-rose-500"
                           >
-                            <span>Remove member</span>
+                            <span>Delete member</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -390,7 +390,7 @@ function TeamPage() {
                                   onClick={() => open("team.remove", { userId: u.id })}
                                   className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-medium"
                                 >
-                                  <span>Remove member</span>
+                                  <span>Delete member</span>
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

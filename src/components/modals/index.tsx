@@ -3589,13 +3589,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Internal Notes</h4>
           <div>
-            <textarea
-              value={form.internalNotes}
-              onChange={(e) => setForm({ ...form, internalNotes: e.target.value })}
-              placeholder="Add internal notes about this team member here…"
-              rows={3}
-              className="w-full rounded-2xl border border-border bg-card p-3.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none placeholder-muted-foreground/60"
-            />
+            <RichEditor value={form.internalNotes} onChange={(v) => setForm({ ...form, internalNotes: v })} minHeight={120} />
           </div>
         </div>
       </div>
@@ -3690,7 +3684,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
               type="button"
               onClick={async () => {
                 if (confirmDelete) {
-                  await run(() => remove(id), `${u.name} removed`);
+                  await run(() => remove(id), `${u.name} deleted`);
                   close();
                 } else {
                   setConfirmDelete(true);
@@ -3698,7 +3692,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
               }}
               className="text-sm font-medium text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
             >
-              {confirmDelete ? "Confirm Delete" : "Remove Member"}
+              {confirmDelete ? "Confirm Delete" : "Delete Member"}
             </button>
           </div>
           <div className="flex gap-2">
@@ -3727,19 +3721,23 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
               <button
                 type="button"
                 onClick={copyToClipboard}
-                className="absolute right-2 top-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/95 transition-all cursor-pointer"
+                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
               >
-                {copied ? "Copied" : "Copy link"}
+                {copied ? "Copied!" : "Copy Link"}
               </button>
             </div>
             <button
               type="button"
               onClick={regenerateToken}
-              className="rounded-2xl border border-border bg-background px-4 text-xs font-semibold text-foreground hover:bg-muted transition-all cursor-pointer"
+              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
             >
+              <RefreshCw className="h-3.5 w-3.5" />
               Regenerate
             </button>
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            Anyone with this link will be able to access the team portal view without logging in.
+          </p>
         </div>
 
         {/* Profile Info Section */}
@@ -3793,13 +3791,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Internal Notes</h4>
           <div>
-            <textarea
-              value={form.internalNotes}
-              onChange={(e) => setForm({ ...form, internalNotes: e.target.value })}
-              placeholder="Add internal notes about this team member here…"
-              rows={3}
-              className="w-full rounded-2xl border border-border bg-card p-3.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none placeholder-muted-foreground/60"
-            />
+            <RichEditor value={form.internalNotes} onChange={(v) => setForm({ ...form, internalNotes: v })} minHeight={120} />
           </div>
         </div>
 
@@ -3854,14 +3846,14 @@ function RemoveMemberModal({ close, payload }: { close: () => void; payload?: Mo
   if (!u) return null;
   return (
     <ConfirmDialog
-      title={`Remove ${u.name}?`}
+      title={`Delete ${u.name}?`}
       description="They'll lose access to all internal projects immediately. Their past work and time entries are retained."
       icon={<Trash2 className="h-5 w-5" />}
       destructive
-      confirmLabel="Remove member"
+      confirmLabel="Delete member"
       busy={busy}
       onCancel={close}
-      onConfirm={async () => { await run(() => remove(id), `${u.name} removed`); close(); }}
+      onConfirm={async () => { await run(() => remove(id), `${u.name} deleted`); close(); }}
     />
   );
 }
