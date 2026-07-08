@@ -3531,7 +3531,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
       onOpenChange={(v) => !v && close()}
       title={
         <div>
-          <div className="text-lg font-semibold tracking-tight">Invite team member</div>
+          <div className="text-lg font-semibold tracking-tight">Add team member</div>
           <div className="text-sm text-muted-foreground font-normal">Add a new member to the agency team workspace.</div>
         </div>
       }
@@ -3544,11 +3544,11 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
             loading={busy}
             disabled={!valid}
             onClick={async () => {
-              await run(() => add({ ...form, shortcuts }), `Invite sent to ${form.email}`);
+              await run(() => add({ ...form, shortcuts }), "Member added");
               close();
             }}
           >
-            Send invite
+            Add member
           </PrimaryButton>
         </div>
       }

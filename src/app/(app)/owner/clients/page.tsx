@@ -348,7 +348,7 @@ function ClientsPage() {
                         <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                           <DropdownMenuItem
                             onClick={() => router.push(`/owner/files?client=${c.id}`)}
-                            className="flex items-center gap-2 cursor-pointer font-medium"
+                            className="flex items-center gap-2 cursor-pointer font-normal"
                           >
                             <span>View files</span>
                           </DropdownMenuItem>
@@ -356,7 +356,7 @@ function ClientsPage() {
                             <DropdownMenuItem
                               key={sIdx}
                               onClick={() => window.open(ensureAbsoluteUrl(sh.link), "_blank")}
-                              className="flex items-center gap-2 cursor-pointer font-medium"
+                              className="flex items-center gap-2 cursor-pointer font-normal"
                             >
                               <span>{sh.name}</span>
                             </DropdownMenuItem>
@@ -367,7 +367,7 @@ function ClientsPage() {
                               useStore.getState().updateClient(c.id, { status: newStatus });
                               toast.success(`Client ${newStatus === "active" ? "activated" : "paused"}`);
                             }}
-                            className="flex items-center gap-2 cursor-pointer font-medium"
+                            className="flex items-center gap-2 cursor-pointer font-normal"
                           >
                             <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                           </DropdownMenuItem>
@@ -381,13 +381,13 @@ function ClientsPage() {
                               navigator.clipboard.writeText(`${origin}/client?token=${token}`);
                               toast.success("Access link copied to clipboard");
                             }}
-                            className="flex items-center gap-2 cursor-pointer font-medium"
+                            className="flex items-center gap-2 cursor-pointer font-normal"
                           >
                             <span>Copy access link</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => open("client.delete", { clientId: c.id })}
-                            className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-medium"
+                            className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-normal"
                           >
                             <span>Delete client</span>
                           </DropdownMenuItem>
@@ -490,7 +490,7 @@ function ClientsPage() {
                               <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                                 <DropdownMenuItem
                                   onClick={() => router.push(`/owner/files?client=${c.id}`)}
-                                  className="flex items-center gap-2 cursor-pointer font-medium"
+                                  className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
                                   <span>View files</span>
                                 </DropdownMenuItem>
@@ -498,7 +498,7 @@ function ClientsPage() {
                                   <DropdownMenuItem
                                     key={sIdx}
                                     onClick={() => window.open(ensureAbsoluteUrl(sh.link), "_blank")}
-                                    className="flex items-center gap-2 cursor-pointer font-medium"
+                                    className="flex items-center gap-2 cursor-pointer font-normal"
                                   >
                                     <span>{sh.name}</span>
                                   </DropdownMenuItem>
@@ -509,7 +509,7 @@ function ClientsPage() {
                                     useStore.getState().updateClient(c.id, { status: newStatus });
                                     toast.success(`Client ${newStatus === "active" ? "activated" : "paused"}`);
                                   }}
-                                  className="flex items-center gap-2 cursor-pointer font-medium"
+                                  className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
                                   <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                                 </DropdownMenuItem>
@@ -523,13 +523,13 @@ function ClientsPage() {
                                     navigator.clipboard.writeText(`${origin}/client?token=${token}`);
                                     toast.success("Access link copied to clipboard");
                                   }}
-                                  className="flex items-center gap-2 cursor-pointer font-medium"
+                                  className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
                                   <span>Copy access link</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => open("client.delete", { clientId: c.id })}
-                                  className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-medium"
+                                  className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-normal"
                                 >
                                   <span>Delete client</span>
                                 </DropdownMenuItem>
