@@ -7,16 +7,12 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Building2,
   Users,
   CreditCard,
   Bell,
-  Plug,
   Palette,
-  Link2,
-  Webhook,
   Check,
   Copy,
   Plus,
@@ -24,24 +20,24 @@ import {
   Mail,
   MessageSquare,
   Calendar,
-  Github,
-  Slack,
-  Figma,
   User,
   Accessibility,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button as BaseButton } from "@/components/ui/button";
+
+function Button({ className, ...props }: React.ComponentProps<typeof BaseButton>) {
+  return <BaseButton className={cn("rounded-full font-semibold", className)} {...props} />;
+}
 
 const SECTIONS = [
   { id: "profile", label: "My profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Building2 },
+  { id: "branding", label: "Branding", icon: Palette },
   { id: "team", label: "Team & roles", icon: Users },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "integrations", label: "Integrations", icon: Plug },
-  { id: "branding", label: "Branding", icon: Palette },
   { id: "accessibility", label: "Accessibility", icon: Accessibility },
-  { id: "magic", label: "Magic link policy", icon: Link2 },
-  { id: "api", label: "API & webhooks", icon: Webhook },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -85,14 +81,11 @@ function SettingsPage() {
         <div className="space-y-6 min-w-0">
           {active === "profile" && <ProfileSection />}
           {active === "workspace" && <WorkspaceSection />}
+          {active === "branding" && <BrandingSection />}
           {active === "team" && <TeamSection />}
           {active === "billing" && <BillingSection />}
           {active === "notifications" && <NotificationsSection />}
-          {active === "integrations" && <IntegrationsSection />}
-          {active === "branding" && <BrandingSection />}
           {active === "accessibility" && <AccessibilitySection />}
-          {active === "magic" && <MagicLinkSection />}
-          {active === "api" && <ApiSection />}
         </div>
       </div>
     </AppShell>
@@ -238,49 +231,6 @@ function TeamSection() {
 
   return (
     <>
-      <Section title="Team & roles" description="Manage who has access and what they can do." action={<Button onClick={invite}><Plus className="h-4 w-4 mr-1.5" />Invite</Button>}>
-        <div className="overflow-hidden rounded-xl border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2.5 text-left font-medium">Member</th>
-                <th className="px-4 py-2.5 text-left font-medium">Role</th>
-                <th className="px-4 py-2.5 text-left font-medium">Status</th>
-                <th className="px-4 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {team.map((m) => (
-                <tr key={m.email} className="border-t border-border">
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{m.name}</div>
-                    <div className="text-xs text-muted-foreground">{m.email}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={m.role}
-                      onChange={(e) => updateRole(m.email, e.target.value)}
-                      className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
-                    >
-                      <option>Owner</option>
-                      <option>Admin</option>
-                      <option>Member</option>
-                      <option>Viewer</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={m.status === "Active" ? "default" : "secondary"}>{m.status}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button variant="ghost" size="sm" onClick={() => remove(m.email)}><Trash2 className="h-4 w-4" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
       <Section title="Role permissions" description="Configure what each role can access.">
         <div className="space-y-1">
           {[
@@ -760,10 +710,10 @@ function ProfileSection() {
       <Section title="My profile" description="Manage your personal profile details and contact information.">
         <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="relative group">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary text-primary-foreground font-bold text-2xl">
+            <div className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground font-bold text-2xl">
               ML
             </div>
-            <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-[10px] text-white font-semibold">
+            <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-[10px] text-white font-semibold">
               Change
             </div>
           </div>
@@ -780,7 +730,7 @@ function ProfileSection() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Full name" value={profile.name} onChange={set("name")} />
-            <Field label="Job title" value={profile.title} onChange={set("title")} />
+            <Field label="Title" value={profile.title} onChange={set("title")} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Email address" type="email" value={profile.email} onChange={set("email")} />
