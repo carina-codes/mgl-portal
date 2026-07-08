@@ -11,6 +11,7 @@ import { totalHoursByUser } from "@/lib/mock-data";
 import { UserPlus, Pencil, Trash2, LayoutGrid, List as ListIcon, Mail, MoreHorizontal } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -140,7 +141,7 @@ function TeamPage() {
                   <div className="block space-y-4">
                     {/* Top row: Avatar + Name/Role */}
                     <div className="flex items-center gap-3">
-                      <Link href={`/owner/team/${u.id}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 cursor-pointer group/header">
+                      <div onClick={() => open("team.edit", { userId: u.id })} className="flex items-center gap-3 cursor-pointer group/header">
                         <UserAvatar user={u} size={44} />
                         <div className="min-w-0 flex-1">
                           <h3 className="text-base font-bold tracking-tight text-foreground truncate group-hover/header:text-primary transition-colors leading-tight">
@@ -150,10 +151,10 @@ function TeamPage() {
                             {u.title}
                           </p>
                         </div>
-                      </Link>
+                      </div>
                     </div>
 
-                    {/* Display Flex: Status & Role tags (Left), Hourly Rate (Right) */}
+                    {/* Display Flex: Status & Role tags (Left), Hourly Rate/Financials (Right) */}
                     <div className="text-xs flex items-center justify-between text-muted-foreground font-medium border-b border-border/40 pb-3">
                       <div className="flex items-center gap-1.5">
                         <span className={cn(
@@ -169,7 +170,7 @@ function TeamPage() {
                         </span>
                       </div>
                       <span className="text-foreground font-bold text-xs">
-                        {u.hourlyRate ? `$${u.hourlyRate}/hr` : "—"}
+                        {u.financialAmount ? (u.financialType === "hourly" ? `$${u.financialAmount}/hr` : u.financialType === "salary" ? `$${(u.financialAmount/1000).toFixed(0)}k/yr` : u.financialType === "contract" ? `$${(u.financialAmount/1000).toFixed(0)}k contract` : `$${u.financialAmount}`) : (u.hourlyRate ? `$${u.hourlyRate}/hr` : "—")}
                       </span>
                     </div>
 
@@ -181,8 +182,8 @@ function TeamPage() {
 
                     {/* Main Stats Grid */}
                     <div className="grid grid-cols-3 gap-2.5 text-xs pt-1" onClick={(e) => e.stopPropagation()}>
-                      <Stat label="Projects" value={assignedProjects.length.toString()} href={`/owner/team/${u.id}`} />
-                      <Stat label="Tasks" value={userTasks.length.toString()} href={`/owner/team/${u.id}`} />
+                      <Stat label="Projects" value={assignedProjects.length.toString()} href={`/owner/projects?member=${u.id}`} />
+                      <Stat label="Tasks" value={userTasks.length.toString()} href={`/owner/projects?member=${u.id}`} />
                       <Stat label="Time" value={`${hours.toFixed(1)}h`} href={`/owner/time?member=${u.id}`} />
                     </div>
                   </div>
@@ -232,12 +233,6 @@ function TeamPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                           <DropdownMenuItem
-                            onClick={() => router.push(`/owner/team/${u.id}`)}
-                            className="flex items-center gap-2 cursor-pointer font-medium"
-                          >
-                            <span>View workload</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
                             onClick={() => router.push(`/owner/time?member=${u.id}`)}
                             className="flex items-center gap-2 cursor-pointer font-medium"
                           >
@@ -249,6 +244,29 @@ function TeamPage() {
                           >
                             <span>Edit member</span>
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const origin = typeof window !== "undefined" ? window.location.origin : "";
+                              const token = u.memberShareToken || Math.random().toString(36).substring(2, 10);
+                              if (!u.memberShareToken) {
+                                useStore.getState().updateTeamMember(u.id, { memberShareToken: token });
+                              }
+                              navigator.clipboard.writeText(`${origin}/team?token=${token}`);
+                              toast.success("Access link copied to clipboard");
+                            }}
+                            className="flex items-center gap-2 cursor-pointer font-medium"
+                          >
+                            <span>Copy access link</span>
+                          </DropdownMenuItem>
+                          {u.shortcuts?.filter((sh: any) => sh.name && sh.link).map((sh: any, sIdx: number) => (
+                            <DropdownMenuItem
+                              key={sIdx}
+                              onClick={() => window.open(sh.link.startsWith("http") ? sh.link : `https://${sh.link}`, "_blank")}
+                              className="flex items-center gap-2 cursor-pointer font-medium"
+                            >
+                              <span>{sh.name}</span>
+                            </DropdownMenuItem>
+                          ))}
                           <DropdownMenuItem
                             onClick={() => open("team.remove", { userId: u.id })}
                             className="flex items-center gap-2 cursor-pointer font-medium text-rose-500 hover:text-rose-600 focus:text-rose-500"
@@ -294,10 +312,13 @@ function TeamPage() {
                         <td className="px-5 py-3 font-medium">
                           <div className="flex items-center gap-2.5">
                             <UserAvatar user={u} size={28} />
-                            <div className="flex flex-col">
-                              <Link href={`/owner/team/${u.id}`} className="text-foreground font-bold hover:text-primary transition-colors cursor-pointer">
+                            <div className="flex flex-col text-left">
+                              <button
+                                onClick={() => open("team.edit", { userId: u.id })}
+                                className="text-foreground font-bold hover:text-primary transition-colors cursor-pointer text-left"
+                              >
                                 {u.name}
-                              </Link>
+                              </button>
                               <span className="text-[11px] text-muted-foreground mt-0.5">{u.title}</span>
                             </div>
                           </div>
@@ -319,7 +340,11 @@ function TeamPage() {
                           </span>
                         </td>
                         <td className="px-5 py-3 text-muted-foreground">{assignedProjects.length}</td>
-                        <td className="px-5 py-3 text-muted-foreground">{hours.toFixed(1)}h</td>
+                        <td className="px-5 py-3 text-muted-foreground font-medium">
+                          <Link href={`/owner/time?member=${u.id}`} className="hover:text-primary transition-colors font-medium">
+                            {hours.toFixed(1)}h
+                          </Link>
+                        </td>
                         <td className="px-5 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
                             <button
@@ -328,12 +353,47 @@ function TeamPage() {
                             >
                               Edit
                             </button>
-                            <button
-                              onClick={() => open("team.remove", { userId: u.id })}
-                              className="rounded-full px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-500/5 cursor-pointer transition-all"
-                            >
-                              Remove
-                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="rounded-full p-1 text-muted-foreground hover:bg-muted cursor-pointer transition-all">
+                                  <MoreHorizontal className="h-3.5 w-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/owner/time?member=${u.id}`)}
+                                  className="flex items-center gap-2 cursor-pointer font-medium"
+                                >
+                                  <span>View logged time</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => open("team.edit", { userId: u.id })}
+                                  className="flex items-center gap-2 cursor-pointer font-medium"
+                                >
+                                  <span>Edit member</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                    const token = u.memberShareToken || Math.random().toString(36).substring(2, 10);
+                                    if (!u.memberShareToken) {
+                                      useStore.getState().updateTeamMember(u.id, { memberShareToken: token });
+                                    }
+                                    navigator.clipboard.writeText(`${origin}/team?token=${token}`);
+                                    toast.success("Access link copied to clipboard");
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer font-medium"
+                                >
+                                  <span>Copy access link</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => open("team.remove", { userId: u.id })}
+                                  className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-medium"
+                                >
+                                  <span>Remove member</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </td>
                       </tr>

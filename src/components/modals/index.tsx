@@ -3490,49 +3490,115 @@ function DeleteFileModal({ close, payload }: { close: () => void; payload?: Moda
 function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }) {
   const add = useStore((s) => s.addTeamMember);
   const { busy, run } = useAsyncAction();
-  const [form, setForm] = useState({ name: "", email: "", title: "Designer", role: "team" as "team" | "owner" | "manager", city: "", state: "", hourlyRate: 75 });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    title: "Designer",
+    role: "team" as "team" | "owner" | "manager" | "client",
+    city: "",
+    state: "",
+    zipCode: "",
+    address: "",
+    financialType: "hourly",
+    financialAmount: 75,
+    internalNotes: "",
+    phone: "",
+    timezone: "America/Los_Angeles",
+    memberShareToken: Math.random().toString(36).substring(2, 10),
+  });
+  
   const valid = form.name && form.email.includes("@");
+
   return (
     <AppDialog
       open
       onOpenChange={(v) => !v && close()}
-      title="Invite team member"
-      description="They'll be able to access internal projects immediately."
+      title={
+        <div>
+          <div className="text-lg font-semibold tracking-tight">Invite team member</div>
+          <div className="text-sm text-muted-foreground font-normal">Add a new member to the agency team workspace.</div>
+        </div>
+      }
       icon={<UserPlus className="h-5 w-5" />}
+      size="lg"
       footer={
         <div className="flex w-full justify-end gap-2">
           <GhostButton onClick={close}>Cancel</GhostButton>
           <PrimaryButton
             loading={busy}
             disabled={!valid}
-            onClick={async () => { await run(() => add(form), `Invite sent to ${form.email}`); close(); }}
+            onClick={async () => {
+              await run(() => add(form), `Invite sent to ${form.email}`);
+              close();
+            }}
           >
             Send invite
           </PrimaryButton>
         </div>
       }
     >
-      <FieldGroup>
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
-          <TextField label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+      <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
+        {/* Profile Info Section */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Profile Info</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
+            <TextField label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as any })}>
+              <option value="team">Team</option>
+              <option value="manager">Manager</option>
+              <option value="owner">Owner</option>
+              <option value="client">Client</option>
+            </SelectField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <TextField label="Timezone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as "team" | "owner" | "manager" })}>
-            <option value="team">Team</option>
-            <option value="manager">Manager</option>
-            <option value="owner">Owner</option>
-          </SelectField>
+
+        {/* Location Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location</h4>
+          <TextField label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <div className="grid grid-cols-3 gap-3">
+            <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+            <TextField label="Zip Code" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+
+        {/* Financials Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financials</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <SelectField label="Type" value={form.financialType} onChange={(e) => setForm({ ...form, financialType: e.target.value })}>
+              <option value="hourly">Hourly</option>
+              <option value="salary">Salary</option>
+              <option value="contract">Contract</option>
+              <option value="retainer">Retainer</option>
+            </SelectField>
+            <TextField label="Amount ($)" type="number" value={form.financialAmount.toString()} onChange={(e) => setForm({ ...form, financialAmount: parseFloat(e.target.value) || 0 })} />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="Hourly Rate ($/hr)" type="number" value={form.hourlyRate.toString()} onChange={(e) => setForm({ ...form, hourlyRate: parseFloat(e.target.value) || 0 })} />
+
+        {/* Notes Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Internal Notes</h4>
+          <div>
+            <textarea
+              value={form.internalNotes}
+              onChange={(e) => setForm({ ...form, internalNotes: e.target.value })}
+              placeholder="Add internal notes about this team member here…"
+              rows={3}
+              className="w-full rounded-2xl border border-border bg-card p-3.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none placeholder-muted-foreground/60"
+            />
+          </div>
         </div>
-      </FieldGroup>
+      </div>
     </AppDialog>
   );
 }
@@ -3544,6 +3610,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
   const remove = useStore((s) => s.removeTeamMember);
   const { busy, run } = useAsyncAction();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const [form, setForm] = useState(() => ({
     name: u?.name ?? "",
@@ -3552,17 +3619,55 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
     role: u?.role ?? "team",
     city: u?.city ?? "",
     state: u?.state ?? "",
-    hourlyRate: u?.hourlyRate ?? 0,
+    zipCode: u?.zipCode ?? "",
+    address: u?.address ?? "",
+    financialType: u?.financialType ?? "hourly",
+    financialAmount: u?.financialAmount ?? u?.hourlyRate ?? 0,
+    internalNotes: u?.internalNotes ?? u?.bio ?? "",
     phone: u?.phone ?? "",
     timezone: u?.timezone ?? "America/Los_Angeles",
-    address: u?.address ?? "",
-    bio: u?.bio ?? "",
+    memberShareToken: u?.memberShareToken || Math.random().toString(36).substring(2, 10),
   }));
+
+  const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string }>>(() => u?.shortcuts || []);
 
   if (!u) return null;
 
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const accessLink = `${origin}/team?token=${form.memberShareToken}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(accessLink);
+    setCopied(true);
+    toast.success("Access link copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const regenerateToken = () => {
+    const newToken = Math.random().toString(36).substring(2, 10);
+    setForm((prev) => ({ ...prev, memberShareToken: newToken }));
+    toast.success("Access token regenerated");
+  };
+
+  const addShortcut = () => {
+    setShortcuts([...shortcuts, { name: "", link: "" }]);
+  };
+
+  const updateShortcut = (index: number, key: string, val: string) => {
+    const next = [...shortcuts];
+    next[index] = { ...next[index], [key]: val };
+    setShortcuts(next);
+  };
+
+  const removeShortcut = (index: number) => {
+    setShortcuts(shortcuts.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
-    await run(() => update(id, form), "Member updated");
+    await run(() => update(id, {
+      ...form,
+      shortcuts,
+    }), "Member updated");
     close();
   };
 
@@ -3609,8 +3714,36 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
       }
     >
       <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
-        {/* Profile Info Section */}
+        {/* Access link section */}
         <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Team Member Portal Access Link</h4>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                readOnly
+                value={accessLink}
+                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="absolute right-2 top-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/95 transition-all cursor-pointer"
+              >
+                {copied ? "Copied" : "Copy link"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={regenerateToken}
+              className="rounded-2xl border border-border bg-background px-4 text-xs font-semibold text-foreground hover:bg-muted transition-all cursor-pointer"
+            >
+              Regenerate
+            </button>
+          </div>
+        </div>
+
+        {/* Profile Info Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Profile Info</h4>
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -3634,34 +3767,79 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
         {/* Location Section */}
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <TextField label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <div className="grid grid-cols-3 gap-3">
             <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
             <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+            <TextField label="Zip Code" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
           </div>
-          <TextField label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </div>
 
         {/* Financials Section */}
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financials</h4>
           <div className="grid grid-cols-2 gap-3">
-            <TextField label="Hourly Rate ($/hr)" type="number" value={form.hourlyRate.toString()} onChange={(e) => setForm({ ...form, hourlyRate: parseFloat(e.target.value) || 0 })} />
+            <SelectField label="Type" value={form.financialType} onChange={(e) => setForm({ ...form, financialType: e.target.value })}>
+              <option value="hourly">Hourly</option>
+              <option value="salary">Salary</option>
+              <option value="contract">Contract</option>
+              <option value="retainer">Retainer</option>
+            </SelectField>
+            <TextField label="Amount ($)" type="number" value={form.financialAmount.toString()} onChange={(e) => setForm({ ...form, financialAmount: parseFloat(e.target.value) || 0 })} />
           </div>
         </div>
 
-        {/* Notes & Bio Section */}
+        {/* Notes Section */}
         <div className="space-y-4 border-t border-border/40 pt-6">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Notes & Biography</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Internal Notes</h4>
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Biography Notes</label>
             <textarea
-              value={form.bio}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              placeholder="Add bio or personal notes here…"
+              value={form.internalNotes}
+              onChange={(e) => setForm({ ...form, internalNotes: e.target.value })}
+              placeholder="Add internal notes about this team member here…"
               rows={3}
               className="w-full rounded-2xl border border-border bg-card p-3.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none placeholder-muted-foreground/60"
             />
           </div>
+        </div>
+
+        {/* Shortcuts Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <div className="flex justify-between items-center">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Shortcuts</h4>
+            <button
+              type="button"
+              onClick={addShortcut}
+              className="text-xs font-bold text-primary hover:underline cursor-pointer"
+            >
+              + Add Shortcut
+            </button>
+          </div>
+          {shortcuts.map((sh, idx) => (
+            <div key={idx} className="flex flex-col gap-3 p-4 rounded-2xl border border-border/50 bg-muted/10 relative">
+              <button
+                type="button"
+                onClick={() => removeShortcut(idx)}
+                className="absolute top-2 right-2 text-muted-foreground hover:text-rose-500 text-xs font-medium cursor-pointer"
+              >
+                Remove
+              </button>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <TextField
+                  label="Shortcut Name"
+                  placeholder="e.g. Wiki"
+                  value={sh.name}
+                  onChange={(e) => updateShortcut(idx, "name", e.target.value)}
+                />
+                <TextField
+                  label="Shortcut Link"
+                  placeholder="https://..."
+                  value={sh.link}
+                  onChange={(e) => updateShortcut(idx, "link", e.target.value)}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </AppDialog>
