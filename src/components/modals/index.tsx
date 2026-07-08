@@ -48,6 +48,7 @@ import {
   UserCog,
   Trash2,
   ListTodo,
+  ListPlus,
   ListChecks,
   Inbox,
   CheckCircle2,
