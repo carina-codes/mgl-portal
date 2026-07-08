@@ -121,6 +121,7 @@ function TeamPage() {
               return (
                 <div
                   key={u.id}
+                  onClick={() => open("team.edit", { userId: u.id })}
                   className="group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-white dark:bg-card p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-white hover:border-primary/25 cursor-pointer"
                 >
                   <div
@@ -130,37 +131,44 @@ function TeamPage() {
 
                   <div className="block space-y-4">
                     {/* Top row: Avatar + Name/Role */}
-                    <Link href={`/owner/team/${u.id}`} className="flex items-center gap-3 cursor-pointer">
-                      <UserAvatar user={u} size={44} />
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-base font-bold tracking-tight text-foreground truncate group-hover:text-primary transition-colors leading-tight">
-                          {u.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">
-                          {u.title}
-                        </p>
-                      </div>
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link href={`/owner/team/${u.id}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 cursor-pointer group/header">
+                        <UserAvatar user={u} size={44} />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-base font-bold tracking-tight text-foreground truncate group-hover/header:text-primary transition-colors leading-tight">
+                            {u.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">
+                            {u.title}
+                          </p>
+                        </div>
+                      </Link>
+                    </div>
 
-                    {/* Display Flex: Status Tag (Left), Role Tag (Right) */}
+                    {/* Display Flex: Status & Role tags (Left), Hourly Rate (Right) */}
                     <div className="text-xs flex items-center justify-between text-muted-foreground font-medium border-b border-border/40 pb-3">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                        isBusy
-                          ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-500/20"
-                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20"
-                      )}>
-                        {isBusy ? "Busy" : "Available"}
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border/60 capitalize">
-                        {u.role}
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                          isBusy
+                            ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-500/20"
+                            : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20"
+                        )}>
+                          {isBusy ? "Busy" : "Available"}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border/60 capitalize">
+                          {u.role}
+                        </span>
+                      </div>
+                      <span className="text-foreground font-bold text-xs">
+                        {u.hourlyRate ? `$${u.hourlyRate}/hr` : "—"}
                       </span>
                     </div>
 
-                    {/* Email Contact Row */}
+                    {/* Email / Location Contact Row */}
                     <div className="text-xs flex items-center justify-between text-muted-foreground font-medium border-b border-border/40 pb-3">
-                      <span className="truncate text-foreground font-semibold">Email</span>
-                      <span className="truncate">{u.email}</span>
+                      <span className="truncate text-foreground font-semibold">{u.email}</span>
+                      <span className="truncate">{u.city && u.state ? `${u.city}, ${u.state}` : ""}</span>
                     </div>
 
                     {/* Main Stats Grid */}
@@ -169,22 +177,6 @@ function TeamPage() {
                       <Stat label="Tasks" value={userTasks.length.toString()} href={`/owner/team/${u.id}`} />
                       <Stat label="Time" value={`${hours.toFixed(1)}h`} href={`/owner/time?member=${u.id}`} />
                     </div>
-                  </div>
-
-                  {/* Footer actions */}
-                  <div className="mt-5 flex items-center justify-end border-t border-border/40 pt-4 text-xs text-muted-foreground gap-1.5">
-                    <button
-                      onClick={() => open("team.edit", { userId: u.id })}
-                      className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => open("team.remove", { userId: u.id })}
-                      className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 transition-all cursor-pointer"
-                    >
-                      Remove
-                    </button>
                   </div>
                 </div>
               );

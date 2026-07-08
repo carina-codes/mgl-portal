@@ -3490,7 +3490,7 @@ function DeleteFileModal({ close, payload }: { close: () => void; payload?: Moda
 function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }) {
   const add = useStore((s) => s.addTeamMember);
   const { busy, run } = useAsyncAction();
-  const [form, setForm] = useState({ name: "", email: "", title: "Designer", role: "team" as "team" | "owner" | "manager" });
+  const [form, setForm] = useState({ name: "", email: "", title: "Designer", role: "team" as "team" | "owner" | "manager", city: "", state: "", hourlyRate: 75 });
   const valid = form.name && form.email.includes("@");
   return (
     <AppDialog
@@ -3525,6 +3525,13 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
             <option value="owner">Owner</option>
           </SelectField>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Hourly Rate ($/hr)" type="number" value={form.hourlyRate.toString()} onChange={(e) => setForm({ ...form, hourlyRate: parseFloat(e.target.value) || 0 })} />
+        </div>
       </FieldGroup>
     </AppDialog>
   );
@@ -3535,7 +3542,15 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
   const u = useStore((s) => s.users.find((u) => u.id === id));
   const update = useStore((s) => s.updateTeamMember);
   const { busy, run } = useAsyncAction();
-  const [form, setForm] = useState(() => ({ name: u?.name ?? "", title: u?.title ?? "", email: u?.email ?? "", role: u?.role ?? "team" }));
+  const [form, setForm] = useState(() => ({
+    name: u?.name ?? "",
+    title: u?.title ?? "",
+    email: u?.email ?? "",
+    role: u?.role ?? "team",
+    city: u?.city ?? "",
+    state: u?.state ?? "",
+    hourlyRate: u?.hourlyRate ?? 0
+  }));
   if (!u) return null;
   return (
     <AppDialog
@@ -3561,6 +3576,13 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
             <option value="owner">Owner</option>
             <option value="client">Client</option>
           </SelectField>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Hourly Rate ($/hr)" type="number" value={form.hourlyRate.toString()} onChange={(e) => setForm({ ...form, hourlyRate: parseFloat(e.target.value) || 0 })} />
         </div>
       </FieldGroup>
     </AppDialog>
