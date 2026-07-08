@@ -122,6 +122,7 @@ export type ModalKey =
   | "request.review"
   | "request.approve"
   | "request.close"
+  | "request.convert"
   | "request.convertTask"
   | "request.convertProject"
 
@@ -2834,16 +2835,10 @@ function ReviewRequestModal({ close, payload }: { close: () => void; payload?: M
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
           <GhostButton onClick={close} className="mr-auto">Cancel</GhostButton>
           <button
-            onClick={() => open("request.convertTask", { requestId: id })}
+            onClick={() => open("request.convert", { requestId: id })}
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
           >
-            <ArrowRightLeft className="h-3.5 w-3.5" /> Convert to task
-          </button>
-          <button
-            onClick={() => open("request.convertProject", { requestId: id })}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
-          >
-            <FolderPlus className="h-3.5 w-3.5" /> Convert to project
+            <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" /> Convert
           </button>
           <button
             onClick={() => open("request.close", { requestId: id })}
@@ -2939,6 +2934,58 @@ function CloseRequestModal({ close, payload }: { close: () => void; payload?: Mo
           <RichEditor value={reason} onChange={setReason} placeholder="e.g. Out of scope for current sprint — let's revisit Q3." minHeight={120} />
         </div>
       </FieldGroup>
+    </AppDialog>
+  );
+}
+
+function ConvertRequestChoiceModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
+  const id = payload?.requestId as string;
+  const { open } = useModals();
+  return (
+    <AppDialog
+      open
+      onOpenChange={(v) => !v && close()}
+      title="Convert Request"
+      description="Choose whether to convert this request into an individual task or a new project."
+      icon={<ArrowRightLeft className="h-5 w-5" />}
+      size="md"
+    >
+      <div className="grid grid-cols-2 gap-4 py-4">
+        <button
+          onClick={() => {
+            close();
+            open("request.convertTask", { requestId: id });
+          }}
+          className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border/85 bg-card hover:bg-muted/45 p-6 text-center cursor-pointer transition-all hover:scale-[1.02] text-foreground"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <ListPlus className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="font-bold text-sm">Task</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Add to an existing project</div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => {
+            close();
+            open("request.convertProject", { requestId: id });
+          }}
+          className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border/85 bg-card hover:bg-muted/45 p-6 text-center cursor-pointer transition-all hover:scale-[1.02] text-foreground"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+            <FolderPlus className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="font-bold text-sm">Project</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Initialize a new project</div>
+          </div>
+        </button>
+      </div>
+      <div className="flex justify-end mt-4">
+        <GhostButton onClick={close}>Cancel</GhostButton>
+      </div>
     </AppDialog>
   );
 }
@@ -4624,6 +4671,7 @@ const REGISTRY: Record<ModalKey, React.FC<{ close: () => void; payload?: ModalPa
   "request.review": ReviewRequestModal,
   "request.approve": ApproveRequestModal,
   "request.close": CloseRequestModal,
+  "request.convert": ConvertRequestChoiceModal,
   "request.convertTask": ConvertRequestToTaskModal,
   "request.convertProject": ConvertRequestToProjectModal,
 

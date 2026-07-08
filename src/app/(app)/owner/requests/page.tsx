@@ -652,21 +652,12 @@ export function RequestDetailsDrawer({
           </button>
           <button
             onClick={() => {
-              open("request.convertTask", { requestId: req.id });
+              open("request.convert", { requestId: req.id });
               onClose();
             }}
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted cursor-pointer transition-all text-foreground"
           >
-            <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" /> Convert to task
-          </button>
-          <button
-            onClick={() => {
-              open("request.convertProject", { requestId: req.id });
-              onClose();
-            }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted cursor-pointer transition-all text-foreground"
-          >
-            <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" /> Convert to project
+            <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" /> Convert
           </button>
           <button
             onClick={() => {
