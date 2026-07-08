@@ -29,20 +29,27 @@ function ProjectsView() {
   const [search, setSearch] = useState("");
   const searchParams = useSearchParams();
   const clientParam = searchParams.get("client");
+  const memberParam = searchParams.get("member");
 
   const [filters, setFilters] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
     if (clientParam) {
       initial.client = [clientParam];
     }
+    if (memberParam) {
+      initial.team = [memberParam];
+    }
     return initial;
   });
 
   useEffect(() => {
-    if (clientParam) {
-      setFilters((prev) => ({ ...prev, client: [clientParam] }));
-    }
-  }, [clientParam]);
+    setFilters((prev) => {
+      const next = { ...prev };
+      if (clientParam) next.client = [clientParam];
+      if (memberParam) next.team = [memberParam];
+      return next;
+    });
+  }, [clientParam, memberParam]);
 
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 

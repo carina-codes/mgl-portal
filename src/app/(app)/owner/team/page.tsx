@@ -45,7 +45,7 @@ function TeamPage() {
       },
       {
         id: "availability",
-        label: "Availability",
+        label: "Status",
         options: [
           { value: "available", label: "Available", color: "#10B981" },
           { value: "busy", label: "Busy", color: "#F59E0B" },
@@ -190,7 +190,13 @@ function TeamPage() {
 
                   {/* Footer actions */}
                   <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4 text-xs text-muted-foreground">
-                    <div className="flex -space-x-1" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex -space-x-1 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/owner/projects?member=${u.id}`);
+                      }}
+                    >
                       {assignedProjects.slice(0, 3).map((p, pIdx) => (
                         <div
                           key={p.id}
@@ -295,7 +301,7 @@ function TeamPage() {
                     <th className="px-5 py-3 font-medium">Member</th>
                     <th className="px-5 py-3 font-medium">Email</th>
                     <th className="px-5 py-3 font-medium">Role</th>
-                    <th className="px-5 py-3 font-medium">Availability</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium">Active Projects</th>
                     <th className="px-5 py-3 font-medium">Time</th>
                     <th className="px-5 py-3"></th>
@@ -339,7 +345,11 @@ function TeamPage() {
                             {isBusy ? "Busy" : "Available"}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-muted-foreground">{assignedProjects.length}</td>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          <Link href={`/owner/projects?member=${u.id}`} className="hover:text-primary transition-colors font-medium">
+                            {assignedProjects.length}
+                          </Link>
+                        </td>
                         <td className="px-5 py-3 text-muted-foreground font-medium">
                           <Link href={`/owner/time?member=${u.id}`} className="hover:text-primary transition-colors font-medium">
                             {hours.toFixed(1)}h
