@@ -29,6 +29,7 @@ function TeamPage() {
         multi: true,
         options: [
           { value: "owner", label: "Owner" },
+          { value: "manager", label: "Manager" },
           { value: "team", label: "Team" },
         ],
       },

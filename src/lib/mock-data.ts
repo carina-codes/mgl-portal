@@ -6,7 +6,7 @@
  * minimal refactoring later.
  */
 
-export type Role = "owner" | "team" | "client";
+export type Role = "owner" | "team" | "client" | "manager";
 
 export type User = {
   id: string;

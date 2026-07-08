@@ -3490,7 +3490,7 @@ function DeleteFileModal({ close, payload }: { close: () => void; payload?: Moda
 function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }) {
   const add = useStore((s) => s.addTeamMember);
   const { busy, run } = useAsyncAction();
-  const [form, setForm] = useState({ name: "", email: "", title: "Designer", role: "team" as "team" | "owner" });
+  const [form, setForm] = useState({ name: "", email: "", title: "Designer", role: "team" as "team" | "owner" | "manager" });
   const valid = form.name && form.email.includes("@");
   return (
     <AppDialog
@@ -3519,8 +3519,9 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
         </div>
         <div className="grid grid-cols-2 gap-3">
           <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as "team" | "owner" })}>
+          <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as "team" | "owner" | "manager" })}>
             <option value="team">Team</option>
+            <option value="manager">Manager</option>
             <option value="owner">Owner</option>
           </SelectField>
         </div>
@@ -3556,6 +3557,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
           <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as typeof form.role })}>
             <option value="team">Team</option>
+            <option value="manager">Manager</option>
             <option value="owner">Owner</option>
             <option value="client">Client</option>
           </SelectField>
