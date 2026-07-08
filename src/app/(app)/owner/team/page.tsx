@@ -1,17 +1,25 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
 import { totalHoursByUser } from "@/lib/mock-data";
-import { UserPlus, Pencil, Trash2, LayoutGrid, List as ListIcon, Mail } from "lucide-react";
+import { UserPlus, Pencil, Trash2, LayoutGrid, List as ListIcon, Mail, MoreHorizontal } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 function TeamPage() {
+  const router = useRouter();
   const [view, setView] = useState<"grid" | "list">("grid");
   const allUsers = useStore((s) => s.users);
   const projects = useStore((s) => s.projects);
@@ -176,6 +184,79 @@ function TeamPage() {
                       <Stat label="Projects" value={assignedProjects.length.toString()} href={`/owner/team/${u.id}`} />
                       <Stat label="Tasks" value={userTasks.length.toString()} href={`/owner/team/${u.id}`} />
                       <Stat label="Time" value={`${hours.toFixed(1)}h`} href={`/owner/time?member=${u.id}`} />
+                    </div>
+                  </div>
+
+                  {/* Footer actions */}
+                  <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4 text-xs text-muted-foreground">
+                    <div className="flex -space-x-1" onClick={(e) => e.stopPropagation()}>
+                      {assignedProjects.slice(0, 3).map((p) => (
+                        <div
+                          key={p.id}
+                          className="inline-flex items-center justify-center rounded-full font-bold text-white ring-2 ring-card text-[9px] uppercase tracking-wider"
+                          style={{
+                            width: "24px",
+                            height: "24px",
+                            backgroundColor: p.color || "#0049FE",
+                          }}
+                          title={p.name}
+                        >
+                          {p.name.slice(0, 2).toUpperCase()}
+                        </div>
+                      ))}
+                      {assignedProjects.length > 3 && (
+                        <div
+                          className="inline-flex items-center justify-center rounded-full font-bold bg-muted text-muted-foreground ring-2 ring-card text-[9px]"
+                          style={{
+                            width: "24px",
+                            height: "24px",
+                          }}
+                        >
+                          +{assignedProjects.length - 3}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => open("team.edit", { userId: u.id })}
+                        className="rounded-2xl border border-border/50 bg-background/30 px-3.5 py-1 text-xs font-semibold text-foreground hover:bg-muted hover:border-primary/20 transition-all cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/owner/team/${u.id}`)}
+                            className="flex items-center gap-2 cursor-pointer font-medium"
+                          >
+                            <span>View workload</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => router.push(`/owner/time?member=${u.id}`)}
+                            className="flex items-center gap-2 cursor-pointer font-medium"
+                          >
+                            <span>View logged time</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => open("team.edit", { userId: u.id })}
+                            className="flex items-center gap-2 cursor-pointer font-medium"
+                          >
+                            <span>Edit member</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => open("team.remove", { userId: u.id })}
+                            className="flex items-center gap-2 cursor-pointer font-medium text-rose-500 hover:text-rose-600 focus:text-rose-500"
+                          >
+                            <span>Remove member</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>

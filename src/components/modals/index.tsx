@@ -3541,7 +3541,10 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
   const id = payload?.userId as string;
   const u = useStore((s) => s.users.find((u) => u.id === id));
   const update = useStore((s) => s.updateTeamMember);
+  const remove = useStore((s) => s.removeTeamMember);
   const { busy, run } = useAsyncAction();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  
   const [form, setForm] = useState(() => ({
     name: u?.name ?? "",
     title: u?.title ?? "",
@@ -3549,42 +3552,118 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
     role: u?.role ?? "team",
     city: u?.city ?? "",
     state: u?.state ?? "",
-    hourlyRate: u?.hourlyRate ?? 0
+    hourlyRate: u?.hourlyRate ?? 0,
+    phone: u?.phone ?? "",
+    timezone: u?.timezone ?? "America/Los_Angeles",
+    address: u?.address ?? "",
+    bio: u?.bio ?? "",
   }));
+
   if (!u) return null;
+
+  const handleSubmit = async () => {
+    await run(() => update(id, form), "Member updated");
+    close();
+  };
+
   return (
     <AppDialog
       open
       onOpenChange={(v) => !v && close()}
-      title="Edit team member"
+      title={
+        <div>
+          <div className="text-lg font-semibold tracking-tight">Edit team member</div>
+          <div className="text-sm text-muted-foreground font-normal">View and manage member workspace profile attributes.</div>
+        </div>
+      }
       icon={<UserCog className="h-5 w-5" />}
+      size="lg"
       footer={
-        <div className="flex w-full justify-end gap-2">
-          <GhostButton onClick={close}>Cancel</GhostButton>
-          <PrimaryButton loading={busy} onClick={async () => { await run(() => update(id, form), "Member updated"); close(); }}>Save</PrimaryButton>
+        <div className="flex w-full justify-between items-center">
+          <div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (confirmDelete) {
+                  await run(() => remove(id), `${u.name} removed`);
+                  close();
+                } else {
+                  setConfirmDelete(true);
+                }
+              }}
+              className="text-sm font-medium text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+            >
+              {confirmDelete ? "Confirm Delete" : "Remove Member"}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <GhostButton onClick={() => { setConfirmDelete(false); close(); }}>Cancel</GhostButton>
+            <PrimaryButton
+              loading={busy}
+              onClick={handleSubmit}
+            >
+              Save changes
+            </PrimaryButton>
+          </div>
         </div>
       }
     >
-      <FieldGroup>
-        <TextField label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <TextField label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as typeof form.role })}>
-            <option value="team">Team</option>
-            <option value="manager">Manager</option>
-            <option value="owner">Owner</option>
-            <option value="client">Client</option>
-          </SelectField>
+      <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
+        {/* Profile Info Section */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Profile Info</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <TextField label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as typeof form.role })}>
+              <option value="team">Team</option>
+              <option value="manager">Manager</option>
+              <option value="owner">Owner</option>
+              <option value="client">Client</option>
+            </SelectField>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <TextField label="Timezone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+
+        {/* Location Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+          </div>
+          <TextField label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <TextField label="Hourly Rate ($/hr)" type="number" value={form.hourlyRate.toString()} onChange={(e) => setForm({ ...form, hourlyRate: parseFloat(e.target.value) || 0 })} />
+
+        {/* Financials Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financials</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Hourly Rate ($/hr)" type="number" value={form.hourlyRate.toString()} onChange={(e) => setForm({ ...form, hourlyRate: parseFloat(e.target.value) || 0 })} />
+          </div>
         </div>
-      </FieldGroup>
+
+        {/* Notes & Bio Section */}
+        <div className="space-y-4 border-t border-border/40 pt-6">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Notes & Biography</h4>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Biography Notes</label>
+            <textarea
+              value={form.bio}
+              onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              placeholder="Add bio or personal notes here…"
+              rows={3}
+              className="w-full rounded-2xl border border-border bg-card p-3.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none placeholder-muted-foreground/60"
+            />
+          </div>
+        </div>
+      </div>
     </AppDialog>
   );
 }
