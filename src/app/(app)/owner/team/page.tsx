@@ -174,7 +174,7 @@ function TeamPage() {
                           u.financialType === "hourly" ? `$${u.financialAmount}/hr` :
                           u.financialType === "salary" ? `$${(u.financialAmount/1000).toFixed(0)}k/yr` :
                           u.financialType === "contract" ? `$${u.financialAmount.toLocaleString()} contract` :
-                          u.financialType === "retainer" ? `$${u.financialAmount.toLocaleString()} monthly` :
+                          u.financialType === "retainer" ? `$${u.financialAmount.toLocaleString()}/mo` :
                           `$${u.financialAmount.toLocaleString()}`
                         ) : (u.hourlyRate ? `$${u.hourlyRate}/hr` : "—")}
                       </span>
