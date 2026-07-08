@@ -251,6 +251,12 @@ function TeamPage() {
                             <span>View logged time</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
+                            onClick={() => router.push(`/owner/files?member=${u.id}`)}
+                            className="flex items-center gap-2 cursor-pointer font-normal"
+                          >
+                            <span>View files</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => open("team.edit", { userId: u.id })}
                             className="flex items-center gap-2 cursor-pointer font-normal"
                           >
@@ -381,6 +387,12 @@ function TeamPage() {
                                   className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
                                   <span>View logged time</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/owner/files?member=${u.id}`)}
+                                  className="flex items-center gap-2 cursor-pointer font-normal"
+                                >
+                                  <span>View files</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => open("team.edit", { userId: u.id })}
