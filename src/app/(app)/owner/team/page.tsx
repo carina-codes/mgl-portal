@@ -170,7 +170,13 @@ function TeamPage() {
                         </span>
                       </div>
                       <span className="text-foreground font-bold text-xs">
-                        {u.financialAmount ? (u.financialType === "hourly" ? `$${u.financialAmount}/hr` : u.financialType === "salary" ? `$${(u.financialAmount/1000).toFixed(0)}k/yr` : u.financialType === "contract" ? `$${(u.financialAmount/1000).toFixed(0)}k contract` : `$${u.financialAmount}`) : (u.hourlyRate ? `$${u.hourlyRate}/hr` : "—")}
+                        {u.financialAmount ? (
+                          u.financialType === "hourly" ? `$${u.financialAmount}/hr` :
+                          u.financialType === "salary" ? `$${(u.financialAmount/1000).toFixed(0)}k/yr` :
+                          u.financialType === "contract" ? `$${u.financialAmount.toLocaleString()} contract` :
+                          u.financialType === "retainer" ? `$${u.financialAmount.toLocaleString()} monthly` :
+                          `$${u.financialAmount.toLocaleString()}`
+                        ) : (u.hourlyRate ? `$${u.hourlyRate}/hr` : "—")}
                       </span>
                     </div>
 
