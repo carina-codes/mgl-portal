@@ -193,7 +193,7 @@ function ProjectsView() {
                       />
                     </div>
                     <p className="text-[11px] text-muted-foreground font-medium">
-                      {p.type === "retainer" ? "End date" : "Target launch"}: <span className="text-foreground font-semibold">{p.endDate}</span>
+                      {p.type === "retainer" ? "End date" : "Due date"}: <span className="text-foreground font-semibold">{p.endDate}</span>
                     </p>
                   </div>
                 </Link>

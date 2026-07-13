@@ -156,6 +156,10 @@ const seedComments: Comment[] = [
   { id: "cm-t5-1", threadId: "p1-t5", author: "u8", body: "Can we see the layout with the sidebar collapsed as well?", createdAt: "2 days ago", visibility: "client" },
   { id: "cm-t5-2", threadId: "p1-t5", author: "u2", body: "Absolutely. I'll add a view showing the collapsed sidebar state. It will free up about 180px of horizontal space.", createdAt: "Yesterday · 14:00", visibility: "client" },
   { id: "cm-t5-3", threadId: "p1-t5", author: "u4", body: "Designed some new icon variants for the collapsed view. They're in the brand kit.", createdAt: "Yesterday · 16:30", visibility: "internal" },
+
+  // Request-level comments for Request 1 (r1: Soften hero gradient)
+  { id: "cm-r1-1", threadId: "r1", author: "u8", body: "We should probably check how the gradient works on older Android devices.", createdAt: "Yesterday · 11:30", visibility: "client" },
+  { id: "cm-r1-2", threadId: "r1", author: "u1", body: "Good idea, I'll test it on my Samsung A50 test device and confirm.", createdAt: "Yesterday · 12:45", visibility: "client" },
 ];
 
 export const useStore = create<State>((set, get) => ({
@@ -502,7 +506,12 @@ export const useStore = create<State>((set, get) => ({
       // Also update comment count on the task if threadId represents a task
       const updatedTasks = s.tasks.map((t) => {
         if (t.id === input.threadId) {
-          return { ...t, comments: (t.comments || 0) + 1 };
+          const addedAttachments = input.attachments?.length ?? 0;
+          return {
+            ...t,
+            comments: (t.comments || 0) + 1,
+            attachments: (t.attachments || 0) + addedAttachments,
+          };
         }
         return t;
       });

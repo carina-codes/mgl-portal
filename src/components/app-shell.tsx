@@ -26,6 +26,7 @@ import {
   Home,
   FolderOpen,
   Send,
+  ListTodo,
 } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { UserAvatar } from "@/components/user-avatar";
@@ -69,6 +70,7 @@ const NAV = [
   { to: "/owner", label: "Overview", icon: Home, exact: true },
   { to: "/owner/clients", label: "Clients", icon: Users },
   { to: "/owner/projects", label: "Projects", icon: FolderOpen },
+  { to: "/owner/tasks", label: "Tasks", icon: ListTodo },
   { to: "/owner/messages", label: "Messages", icon: MessageSquare },
   { to: "/owner/requests", label: "Requests", icon: Send },
   { to: "/owner/team", label: "Team", icon: UserCog },
@@ -209,14 +211,14 @@ export function AppShell({
         return;
       }
 
-      if (key === "n") {
+      if (key === "p") {
         e.preventDefault();
         open("project.new");
         return;
       }
       if (key === "c") {
         e.preventDefault();
-        open("time.log");
+        open("client.new");
         return;
       }
 
@@ -364,21 +366,42 @@ export function AppShell({
         </header>
 
         {/* Content Area */}
-        <main className="mx-auto max-w-6xl px-6 py-8">
-          {(title || actions) && (
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                {title && (
-                  <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">{title}</h1>
-                )}
-                {subtitle && (
-                  <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div>
-                )}
+        <main className="mx-auto max-w-6xl px-6 py-8 flex flex-col min-h-[calc(100vh-64px)]">
+          <div className="flex-grow">
+            {(title || actions) && (
+              <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  {title && (
+                    <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">{title}</h1>
+                  )}
+                  {subtitle && (
+                    <div className="mt-1 text-sm text-muted-foreground">{subtitle}</div>
+                  )}
+                </div>
+                {actions && <div className="flex items-center gap-2">{actions}</div>}
               </div>
-              {actions && <div className="flex items-center gap-2">{actions}</div>}
+            )}
+            {children}
+          </div>
+
+          {/* Footer */}
+          <footer className="mt-12 border-t border-border/50 pt-6 pb-2 text-center text-xs text-muted-foreground select-none">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span>© 2026 Carina</span>
+              <span className="text-border/40">|</span>
+              <a href="mailto:lovelycarina@gmail.com" className="text-foreground hover:underline">
+                Support
+              </a>
+              <span className="text-border/40">|</span>
+              <Link href="/updates" className="text-foreground hover:underline">
+                Updates
+              </Link>
+              <span className="text-border/40">|</span>
+              <Link href="/terms" className="text-foreground hover:underline">
+                Terms
+              </Link>
             </div>
-          )}
-          {children}
+          </footer>
         </main>
       </div>
     
@@ -414,8 +437,8 @@ export function AppShell({
             <h4 className="font-bold text-foreground">Global Actions</h4>
           </div>
           <div className="space-y-3">
-            <ShortcutRow keys={["n"]} label="Create New Project" />
-            <ShortcutRow keys={["c"]} label="Log Work Time" />
+            <ShortcutRow keys={["p"]} label="Create New Project" />
+            <ShortcutRow keys={["c"]} label="Create New Client" />
             <ShortcutRow keys={["?"]} label="Show Keyboard Shortcuts Help" />
             <ShortcutRow keys={["Esc"]} label="Close Active Modals / Drawers" />
           </div>

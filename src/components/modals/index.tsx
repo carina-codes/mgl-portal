@@ -355,7 +355,7 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
                   onChange={(e) => setForm({ ...form, hoursEstimate: Number(e.target.value) })}
                 />
                 <TextField
-                  label="Target launch"
+                  label="Due date"
                   type="date"
                   value={form.endDate}
                   onChange={(e) => setForm({ ...form, endDate: e.target.value })}
@@ -413,7 +413,26 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
     endDate: project?.endDate ?? "",
     team: project?.team ?? [],
   }));
+
+  const client = clients.find((c) => c.id === project?.clientId);
+  const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
+  const [copied, setCopied] = useState(false);
+
   if (!project) return null;
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const accessLink = `${origin}/client/projects/${project.id}?token=${clientShareToken}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(accessLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const regenerateToken = () => {
+    const newToken = Math.random().toString(36).substring(2, 10);
+    setClientShareToken(newToken);
+  };
 
   const budgetLabel = {
     fixed: "Budget (USD)",
@@ -428,7 +447,12 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
   }[form.type] ?? "Hours estimate";
 
   async function submit() {
-    await run(() => updateProject(projectId, form), "Project updated");
+    await run(() => {
+      updateProject(projectId, form);
+      if (client) {
+        useStore.getState().updateClient(client.id, { clientShareToken });
+      }
+    }, "Project updated");
     close();
   }
 
@@ -466,6 +490,38 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
       }
     >
       <FieldGroup className="space-y-6">
+        {/* Project Portal Access Link */}
+        <div className="border-b border-border/50 pb-5 space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Project Access Link</h4>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                readOnly
+                value={accessLink}
+                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
+              >
+                {copied ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={regenerateToken}
+              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Regenerate
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Anyone with this link will be able to access this project's client portal view directly.
+          </p>
+        </div>
+
         {/* Section 1: General Details */}
         <div className="space-y-4">
           <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -493,7 +549,7 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
           <div className="grid grid-cols-3 gap-3">
             <TextField label={budgetLabel} type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: Number(e.target.value) })} />
             <TextField label={hoursLabel} type="number" value={form.hoursEstimate} onChange={(e) => setForm({ ...form, hoursEstimate: Number(e.target.value) })} />
-            <TextField label="Target launch" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
+            <TextField label="Due date" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
           </div>
         </div>
 
@@ -776,7 +832,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
         </div>
       }
     >
-      <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
+      <div className="space-y-6">
         {/* Brand Identity Section */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand Identity</h4>
@@ -1171,7 +1227,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
         </div>
       }
     >
-      <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
+      <div className="space-y-6">
         {/* Access link section */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Portal Access Link</h4>
@@ -3091,7 +3147,14 @@ function ConvertRequestToProjectModal({ close, payload }: { close: () => void; p
 /* ─────────────────────────── Modals: Documents ─────────────────────────── */
 
 function UploadDocumentModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
-  const projects = useStore((s) => s.projects);
+  const allProjects = useStore((s) => s.projects);
+  const projects = useMemo(() => {
+    if (payload?.clientId) {
+      return allProjects.filter((p) => p.clientId === payload.clientId);
+    }
+    return allProjects;
+  }, [allProjects, payload?.clientId]);
+
   const docs = useStore((s) => s.documents);
   const upload = useStore((s) => s.uploadDocument);
   const { busy, run } = useAsyncAction();
@@ -3137,18 +3200,11 @@ function UploadDocumentModal({ close, payload }: { close: () => void; payload?: 
           }}
         />
         <TextField label="File name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. brief-v2.pdf" />
-        <div className="grid grid-cols-2 gap-3">
-          {!payload?.projectId ? (
-            <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </SelectField>
-          ) : null}
-          <div className={payload?.projectId ? "col-span-2" : ""}>
-            <SelectField label="Folder" value={form.folder} onChange={(e) => setForm({ ...form, folder: e.target.value })}>
-              {folders.map((f) => <option key={f} value={f}>{f}</option>)}
-            </SelectField>
-          </div>
-        </div>
+        {!payload?.projectId ? (
+          <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </SelectField>
+        ) : null}
         <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
           <input type="checkbox" checked={form.shared} onChange={(e) => setForm({ ...form, shared: e.target.checked })} className="h-4 w-4 accent-[var(--color-primary)]" />
           Share with client
@@ -3549,7 +3605,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
         </div>
       }
     >
-      <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
+      <div className="space-y-6">
         {/* Profile Info Section */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Profile Info</h4>
@@ -3758,7 +3814,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
         </div>
       }
     >
-      <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-6">
+      <div className="space-y-6">
         {/* Access link section */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Team Member Portal Access Link</h4>

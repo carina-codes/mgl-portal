@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { FilterBar } from "@/components/filter-bar";
@@ -23,7 +23,7 @@ import {
   Share2,
   UserPlus,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -113,26 +113,51 @@ const getClientUserIds = (c: any, users: any[]) => {
   return Array.from(ids);
 };
 
-function ClientsPage() {
+function ClientsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchParam = searchParams.get("search") || "";
   const [view, setView] = useState<"grid" | "list">("grid");
   const clients = useStore((s) => s.clients);
   const projects = useStore((s) => s.projects);
   const users = useStore((s) => s.users);
+  const timeEntries = useStore((s) => s.timeEntries);
   const { open } = useModals();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParam);
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
+  const clientsWithHours = useMemo(() => {
+    return clients.map((c) => {
+      // Find all projects for this client
+      const clientProjects = projects.filter((p) => p.clientId === c.id);
+      const clientProjectIds = clientProjects.map((p) => p.id);
+      // Sum hours from time entries
+      const clientTime = timeEntries.filter((te) => clientProjectIds.includes(te.projectId));
+      const totalHours = clientTime.reduce((sum, te) => sum + te.hours, 0);
+
+      return {
+        ...c,
+        hoursMonth: totalHours,
+      };
+    });
+  }, [clients, projects, timeEntries]);
+
+  useEffect(() => {
+    if (searchParam) {
+      setSearch(searchParam);
+    }
+  }, [searchParam]);
+
   const industries = useMemo(
-    () => Array.from(new Set(clients.map((c) => c.industry).filter(Boolean))).map((i) => ({ value: i, label: i })),
-    [clients],
+    () => Array.from(new Set(clientsWithHours.map((c) => c.industry).filter(Boolean))).map((i) => ({ value: i, label: i })),
+    [clientsWithHours],
   );
 
   const subIndustries = useMemo(
-    () => Array.from(new Set(clients.map((c) => c.subIndustry).filter(Boolean))).map((si) => ({ value: si, label: si })),
-    [clients],
+    () => Array.from(new Set(clientsWithHours.map((c) => c.subIndustry).filter(Boolean))).map((si) => ({ value: si, label: si })),
+    [clientsWithHours],
   );
 
   const filterDefs = useMemo(
@@ -162,7 +187,7 @@ function ClientsPage() {
   };
 
   const filteredAndSorted = useMemo(() => {
-    const res = clients.filter((c) => {
+    const res = clientsWithHours.filter((c) => {
       if (
         search &&
         !c.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -209,12 +234,12 @@ function ClientsPage() {
     });
 
     return res;
-  }, [clients, projects, search, filters, sortBy, sortOrder]);
+  }, [clientsWithHours, projects, search, filters, sortBy, sortOrder]);
 
   return (
     <AppShell
       title="Clients"
-      subtitle={`${clients.length} clients · ${clients.filter((c) => c.status === "active").length} active`}
+      subtitle={`${clientsWithHours.length} clients · ${clientsWithHours.filter((c) => c.status === "active").length} active`}
       actions={
         <>
           <div className="flex rounded-full border border-border bg-card p-0.5">
@@ -570,6 +595,14 @@ function Stat({ label, value, href }: { label: string; value: string; href?: str
   }
 
   return content;
+}
+
+function ClientsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ClientsPageContent />
+    </Suspense>
+  );
 }
 
 export default ClientsPage;

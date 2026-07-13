@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
@@ -22,11 +22,13 @@ import {
   Calendar,
   User,
   Accessibility,
+  Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button as BaseButton } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { useCurrentUser } from "@/lib/role-context";
+import { AppDialog } from "@/components/ui/app-dialog";
 
 function Button({ className, ...props }: React.ComponentProps<typeof BaseButton>) {
   return <BaseButton className={cn("rounded-full font-semibold", className)} {...props} />;
@@ -35,7 +37,7 @@ function Button({ className, ...props }: React.ComponentProps<typeof BaseButton>
 const SECTIONS = [
   { id: "profile", label: "My profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Building2 },
-  { id: "team", label: "Team & roles", icon: Users },
+  { id: "team", label: "Role Access", icon: Users },
   { id: "billing", label: "Billing", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "accessibility", label: "Accessibility", icon: Accessibility },
@@ -214,51 +216,70 @@ function WorkspaceSection() {
 
 type Member = { name: string; email: string; role: string; status: string };
 
-const INITIAL_TEAM: Member[] = [
-  { name: "Maya Larsson", email: "maya@carina.studio", role: "Owner", status: "Active" },
-  { name: "Jonas Weber", email: "jonas@carina.studio", role: "Admin", status: "Active" },
-  { name: "Priya Shah", email: "priya@carina.studio", role: "Member", status: "Active" },
-  { name: "Alex Chen", email: "alex@carina.studio", role: "Member", status: "Invited" },
-];
-
 function TeamSection() {
-  const [team, setTeam] = useState<Member[]>(INITIAL_TEAM);
-
-  const invite = () => {
-    const email = typeof window !== "undefined" ? window.prompt("Email to invite") : null;
-    if (!email) return;
-    setTeam((t) => [...t, { name: email.split("@")[0], email, role: "Member", status: "Invited" }]);
-    toast.success(`Invitation sent to ${email}`);
-  };
-
-  const updateRole = (email: string, role: string) => {
-    setTeam((t) => t.map((m) => (m.email === email ? { ...m, role } : m)));
-    toast.success(`Role updated to ${role}`);
-  };
-
-  const remove = (email: string) => {
-    confirmDanger(`Remove ${email} from the workspace?`, () => {
-      setTeam((t) => t.filter((m) => m.email !== email));
-      toast.success("Member removed");
-    });
-  };
+  const [permissions, setPermissions] = useState([
+    { perm: "Create & edit projects", roles: ["Owner", "Manager"] },
+    { perm: "Manage billing", roles: ["Owner"] },
+    { perm: "Invite team members", roles: ["Owner", "Manager"] },
+    { perm: "View time reports", roles: ["Owner", "Manager"] },
+  ]);
+  const [editingPerm, setEditingPerm] = useState<{ perm: string; roles: string[] } | null>(null);
 
   return (
     <>
       <Section title="Role permissions" description="Configure what each role can access.">
         <div className="space-y-1">
-          {[
-            { perm: "Create & edit projects", roles: "Owner, Admin" },
-            { perm: "Manage billing", roles: "Owner" },
-            { perm: "Invite team members", roles: "Owner, Admin" },
-            { perm: "View time reports", roles: "Owner, Admin" },
-          ].map((p) => (
-            <Row key={p.perm} title={p.perm} description={p.roles}>
-              <Button variant="outline" size="sm" onClick={() => toast(`Editing: ${p.perm}`)}>Edit</Button>
+          {permissions.map((p) => (
+            <Row key={p.perm} title={p.perm} description={p.roles.join(", ")}>
+              <Button variant="outline" size="sm" onClick={() => setEditingPerm({ perm: p.perm, roles: [...p.roles] })}>Edit</Button>
             </Row>
           ))}
         </div>
       </Section>
+
+      {/* Edit Permission Dialog */}
+      {editingPerm && (
+        <AppDialog
+          open
+          onOpenChange={(open) => !open && setEditingPerm(null)}
+          title={`Edit permission: ${editingPerm.perm}`}
+          description="Configure which roles are granted this permission."
+          footer={
+            <div className="flex w-full justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditingPerm(null)}>Cancel</Button>
+              <Button onClick={() => {
+                setPermissions((perms) => perms.map((p) => p.perm === editingPerm.perm ? editingPerm : p));
+                toast.success("Permissions updated");
+                setEditingPerm(null);
+              }}>Save changes</Button>
+            </div>
+          }
+        >
+          <div className="space-y-3 py-2">
+            {["Owner", "Manager", "Member"].map((role) => {
+              const checked = editingPerm.roles.includes(role);
+              return (
+                <label key={role} className="flex items-center gap-3 cursor-pointer p-2.5 rounded-xl border border-border/40 hover:bg-muted/30 transition-all select-none">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      const newRoles = e.target.checked
+                        ? [...editingPerm.roles, role]
+                        : editingPerm.roles.filter((r) => r !== role);
+                      setEditingPerm({ ...editingPerm, roles: newRoles });
+                    }}
+                    className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary/20 accent-primary"
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">{role}</div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </AppDialog>
+      )}
     </>
   );
 }
@@ -711,6 +732,7 @@ export default SettingsPageWrapper;
 function ProfileSection() {
   const user = useCurrentUser();
   const update = useStore((s) => s.updateTeamMember);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] = useState({
     name: user?.name ?? "Maya Larsson",
@@ -723,6 +745,8 @@ function ProfileSection() {
   const set = (k: keyof typeof profile) => (v: string) => setProfile((p) => ({ ...p, [k]: v }));
 
   const initials = profile.name.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2);
+  const avatarUrl = user?.avatar;
+  const isImageAvatar = avatarUrl && (avatarUrl.startsWith("data:") || avatarUrl.includes("/") || avatarUrl.includes("."));
 
   const handleSave = () => {
     update(user.id, {
@@ -734,24 +758,57 @@ function ProfileSection() {
     toast.success("Profile saved successfully");
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size exceeds 5MB limit");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      update(user.id, { avatar: dataUrl });
+      toast.success("Profile photo updated");
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <>
       <Section title="My profile" description="Manage your personal profile details and contact information.">
         <div className="flex flex-wrap items-center gap-4 mb-6">
-          <div className="relative group">
-            <div className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground font-bold text-2xl">
-              {initials || "CR"}
-            </div>
-            <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer text-[10px] text-white font-semibold">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
+          <div className="relative group cursor-pointer shrink-0" onClick={() => fileInputRef.current?.click()}>
+            {isImageAvatar ? (
+              <img
+                src={avatarUrl}
+                alt={profile.name}
+                className="h-16 w-16 object-cover rounded-full ring-2 ring-primary/20"
+              />
+            ) : (
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground font-bold text-2xl">
+                {initials || "CR"}
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] text-white font-semibold">
               Change
             </div>
           </div>
           <div className="space-y-1">
             <div className="text-sm font-semibold text-foreground">Profile photo</div>
-            <p className="text-xs text-muted-foreground">PNG, JPG or GIF up to 5MB. Recommended square dimensions.</p>
+            <p className="text-xs text-muted-foreground">PNG, JPG or GIF up to 5MB.</p>
             <div className="flex gap-2 mt-1">
-              <Button variant="outline" size="sm" onClick={() => toast.success("Photo uploaded successfully")}>Upload photo</Button>
-              <Button variant="ghost" size="sm" onClick={() => toast("Photo removed")}>Remove</Button>
+              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>Upload photo</Button>
+              <Button variant="ghost" size="sm" onClick={() => { update(user.id, { avatar: initials }); toast.success("Photo removed"); }}>Remove</Button>
             </div>
           </div>
         </div>
@@ -810,11 +867,117 @@ function ProfileSection() {
 /* ---------- Accessibility ---------- */
 
 function AccessibilitySection() {
-  const [contrast, setContrast] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const [screenReader, setScreenReader] = useState(false);
-  const [keyboardShortcuts, setKeyboardShortcuts] = useState(true);
-  const [fontSize, setFontSize] = useState("default");
+  const [contrast, setContrast] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("accessibility-contrast") === "true";
+    }
+    return false;
+  });
+  const [reduceMotion, setReduceMotion] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("accessibility-reduce-motion") === "true";
+    }
+    return false;
+  });
+  const [screenReader, setScreenReader] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("accessibility-screen-reader") === "true";
+    }
+    return false;
+  });
+  const [keyboardShortcuts, setKeyboardShortcuts] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("accessibility-keyboard-shortcuts") !== "false";
+    }
+    return true;
+  });
+  const [fontSize, setFontSize] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("accessibility-font-size") || "default";
+    }
+    return "default";
+  });
+
+  useEffect(() => {
+    const el = document.documentElement;
+    // Contrast
+    if (contrast) {
+      el.classList.add("high-contrast");
+      let styleTag = document.getElementById("high-contrast-styles");
+      if (!styleTag) {
+        styleTag = document.createElement("style");
+        styleTag.id = "high-contrast-styles";
+        styleTag.innerHTML = `
+          .high-contrast {
+            --border: #000000;
+            --muted-foreground: #000000;
+            contrast: 1.25;
+            filter: contrast(1.15) saturate(1.1);
+          }
+          .dark .high-contrast {
+            --border: #ffffff;
+            --muted-foreground: #ffffff;
+            filter: contrast(1.2) saturate(1.1);
+          }
+        `;
+        document.head.appendChild(styleTag);
+      }
+    } else {
+      el.classList.remove("high-contrast");
+      document.getElementById("high-contrast-styles")?.remove();
+    }
+    localStorage.setItem("accessibility-contrast", String(contrast));
+  }, [contrast]);
+
+  useEffect(() => {
+    const el = document.documentElement;
+    // Reduce motion
+    if (reduceMotion) {
+      el.classList.add("reduce-motion");
+      let styleTag = document.getElementById("reduce-motion-styles");
+      if (!styleTag) {
+        styleTag = document.createElement("style");
+        styleTag.id = "reduce-motion-styles";
+        styleTag.innerHTML = `
+          .reduce-motion *, .reduce-motion::before, .reduce-motion::after {
+            animation-delay: -1ms !important;
+            animation-duration: 1ms !important;
+            animation-iteration-count: 1 !important;
+            background-attachment: initial !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0s !important;
+            transition-delay: 0s !important;
+          }
+        `;
+        document.head.appendChild(styleTag);
+      }
+    } else {
+      el.classList.remove("reduce-motion");
+      document.getElementById("reduce-motion-styles")?.remove();
+    }
+    localStorage.setItem("accessibility-reduce-motion", String(reduceMotion));
+  }, [reduceMotion]);
+
+  useEffect(() => {
+    const el = document.documentElement;
+    // Font Scaling
+    if (fontSize === "large") {
+      el.style.fontSize = "16px";
+    } else if (fontSize === "xlarge") {
+      el.style.fontSize = "18px";
+    } else {
+      el.style.fontSize = "";
+    }
+    localStorage.setItem("accessibility-font-size", fontSize);
+  }, [fontSize]);
+
+  useEffect(() => {
+    localStorage.setItem("accessibility-screen-reader", String(screenReader));
+  }, [screenReader]);
+
+  useEffect(() => {
+    localStorage.setItem("accessibility-keyboard-shortcuts", String(keyboardShortcuts));
+  }, [keyboardShortcuts]);
 
   return (
     <>
@@ -848,7 +1011,7 @@ function AccessibilitySection() {
                 setFontSize(e.target.value);
                 toast(`Font scale updated to ${e.target.value}`);
               }}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none"
             >
               <option value="default">Default (14px baseline)</option>
               <option value="large">Large (16px baseline)</option>
@@ -864,7 +1027,7 @@ function AccessibilitySection() {
 
       <Section title="Interaction & assistive technologies" description="Configure screen reader, shortcut maps, and focus behaviors.">
         <div className="space-y-1">
-          <Row title="Keyboard shortcuts" description="Enable keyboard mappings to quickly trigger actions (e.g. '/' to search, 'n' for new task).">
+          <Row title="Keyboard shortcuts" description="Enable keyboard mappings to quickly trigger actions (e.g. 'p' for new project, 'c' for new client).">
             <Switch
               checked={keyboardShortcuts}
               onCheckedChange={(v) => {

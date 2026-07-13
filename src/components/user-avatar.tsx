@@ -26,7 +26,15 @@ export function UserAvatar({
       }}
       title={user.name}
     >
-      {user.avatar}
+      {user.avatar && (user.avatar.startsWith("data:") || user.avatar.includes("/") || user.avatar.includes(".")) ? (
+        <img
+          src={user.avatar}
+          alt={user.name}
+          className="h-full w-full object-cover rounded-full"
+        />
+      ) : (
+        user.avatar
+      )}
     </div>
   );
 }

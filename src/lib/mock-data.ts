@@ -14,6 +14,7 @@ export type User = {
   email: string;
   role: Role;
   title: string;
+  status?: "Available" | "Busy";
   avatar: string; // initials-based avatar color seed
   color: string;
   bio?: string;

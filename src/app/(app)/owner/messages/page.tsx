@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar, AvatarStack } from "@/components/user-avatar";
-import { STAGE_META } from "@/lib/mock-data";
+import { useModals } from "@/components/modals";
+import { STAGE_META, REQUEST_STATUS_META } from "@/lib/mock-data";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Lock, FolderKanban, MessageSquare, Search, MessageCircle, ListTodo, Eye } from "lucide-react";
@@ -11,23 +12,27 @@ import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
+import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/[projectId]/view";
 
 function MessagesPage() {
   const comments = useStore((s) => s.comments);
   const projects = useStore((s) => s.projects);
   const clients = useStore((s) => s.clients);
   const tasks = useStore((s) => s.tasks);
+  const requests = useStore((s) => s.requests);
   const storeUsers = useStore((s) => s.users);
   const uploadDocument = useStore((s) => s.uploadDocument);
   const createComment = useStore((s) => s.createComment);
   const channels = useStore((s) => s.channels);
   const markChannelAsRead = useStore((s) => s.markChannelAsRead);
+  const { open } = useModals();
 
   const [active, setActive] = useState("p1");
   const [body, setBody] = useState("");
   const [internal, setInternal] = useState(false);
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
   const [chatSearch, setChatSearch] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const [taskUnread, setTaskUnread] = useState<Record<string, number>>({
     "p1-t1": 1,
@@ -36,14 +41,23 @@ function MessagesPage() {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Get list of unique threadIds that have comments
+  // Get list of unique threadIds: only if there is a comment/message in them
   const activeThreadIds = useMemo(() => {
     const ids = new Set<string>();
+    
     comments.forEach((c) => {
-      if (c.threadId) ids.add(c.threadId);
+      if (c.threadId) {
+        const isProject = projects.some((p) => p.id === c.threadId);
+        const isRequest = requests.some((r) => r.id === c.threadId);
+        const isTask = tasks.some((t) => t.id === c.threadId);
+        if (isProject || isRequest || isTask) {
+          ids.add(c.threadId);
+        }
+      }
     });
+
     return Array.from(ids);
-  }, [comments]);
+  }, [comments, projects, requests, tasks]);
 
   // Construct thread details dynamically
   const threads = useMemo(() => {
@@ -94,11 +108,34 @@ function MessagesPage() {
           };
         }
 
+        const req = requests.find((r) => r.id === threadId);
+        if (req) {
+          const cl = clients.find((c) => c.id === req.clientId);
+          const reqProj = req.projectId ? projects.find((p) => p.id === req.projectId) : undefined;
+          const threadComments = comments.filter((c) => c.threadId === threadId);
+          const lastComment = threadComments[threadComments.length - 1];
+          const authorUser = lastComment ? storeUsers.find((u) => u.id === lastComment.author) : null;
+          
+          return {
+            id: threadId,
+            type: "request" as const,
+            name: req.title,
+            subtitle: `${cl?.name || "Internal"} · Request Thread`,
+            project: reqProj,
+            client: cl,
+            lastMessage: lastComment 
+              ? `${authorUser ? authorUser.name.split(" ")[0] : "User"}: ${lastComment.body.replace(/<[^>]+>/g, "")}` 
+              : "No messages",
+            lastAt: lastComment ? lastComment.createdAt : "",
+            unread: 0,
+          };
+        }
+
         return null;
       })
       .filter(Boolean) as Array<{
         id: string;
-        type: "project" | "task";
+        type: "project" | "task" | "request";
         name: string;
         subtitle: string;
         project?: any;
@@ -107,7 +144,7 @@ function MessagesPage() {
         lastAt: string;
         unread: number;
       }>;
-  }, [activeThreadIds, projects, clients, tasks, comments, storeUsers]);
+  }, [activeThreadIds, projects, clients, tasks, requests, comments, storeUsers]);
 
   // Ensure active thread is valid
   const activeThread = useMemo(() => {
@@ -229,7 +266,13 @@ function MessagesPage() {
                       "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl font-bold",
                       isSelected ? "bg-primary-foreground/25 text-primary-foreground" : "bg-primary/10 text-primary"
                     )}>
-                      {t.type === "project" ? <MessageCircle className="h-4.5 w-4.5" /> : <ListTodo className="h-4.5 w-4.5" />}
+                      {t.type === "project" ? (
+                        <MessageCircle className="h-4.5 w-4.5" />
+                      ) : t.type === "task" ? (
+                        <ListTodo className="h-4.5 w-4.5" />
+                      ) : (
+                        <MessageSquare className="h-4.5 w-4.5" />
+                      )}
                     </div>
                     
                     <div className="flex-1 min-w-0">
@@ -265,19 +308,23 @@ function MessagesPage() {
 
         {/* Right view: Selected Conversation */}
         {activeThread ? (
-          <div className="md:col-span-2 flex flex-col justify-between h-full bg-card overflow-hidden">
+          <div className="md:col-span-2 flex flex-col justify-between h-[calc(100vh-13rem)] min-h-[700px] bg-card overflow-hidden">
             {/* Header */}
             <div className="border-b border-border px-6 py-4 flex items-center justify-between bg-muted/5 shrink-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold text-foreground truncate">
-                    {activeThread.type === "project" ? `Project: ${activeThread.name} General` : `Task: ${activeThread.name}`}
+                    {activeThread.type === "project" 
+                      ? `Project: ${activeThread.name} General` 
+                      : activeThread.type === "task" 
+                        ? `Task: ${activeThread.name}` 
+                        : `Request: ${activeThread.name}`}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                   {activeThread.client && (
                     <Link
-                      href={`/owner/clients/${activeThread.client.id}`}
+                      href={`/owner/clients?search=${encodeURIComponent(activeThread.client.name)}`}
                       className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/60 hover:bg-muted/80 hover:text-foreground transition-all cursor-pointer"
                     >
                       Client: {activeThread.client.name}
@@ -305,12 +352,31 @@ function MessagesPage() {
                         <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
                         {meta.label}
                       </span>
-                      <Link
-                        href={`/owner/projects/${activeThread.project.id}?tab=tasks&taskId=${activeThread.id}`}
+                      <button
+                        onClick={() => setSelectedTaskId(activeThread.id)}
                         className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
                       >
                         <Eye className="h-3.5 w-3.5" /> View Task
-                      </Link>
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {activeThread.type === "request" && (() => {
+                  const req = requests.find((r) => r.id === activeThread.id);
+                  if (!req) return null;
+                  const meta = REQUEST_STATUS_META[req.status || "submitted"];
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-border/10", meta.cls)}>
+                        {meta.label}
+                      </span>
+                      <button
+                        onClick={() => open("request.review", { requestId: activeThread.id })}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> View Request
+                      </button>
                     </div>
                   );
                 })()}
@@ -325,7 +391,7 @@ function MessagesPage() {
             </div>
 
             {/* Messages Stream */}
-            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
+            <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 scrollbar-thin">
               {msgs.length === 0 ? (
                 <div className="py-16 text-center text-sm text-muted-foreground flex flex-col items-center justify-center">
                   <MessageCircle className="h-8 w-8 text-muted-foreground/50 mb-2" />
@@ -403,6 +469,12 @@ function MessagesPage() {
           </div>
         )}
       </div>
+
+      <TaskDetailsDrawer
+        taskId={selectedTaskId}
+        onClose={() => setSelectedTaskId(null)}
+        hideDiscussion
+      />
     </AppShell>
   );
 }

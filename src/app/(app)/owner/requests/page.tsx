@@ -114,6 +114,13 @@ function RequestsView() {
   }, [clientParam]);
 
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const requestIdParam = searchParams.get("requestId");
+
+  useEffect(() => {
+    if (requestIdParam) {
+      setSelectedRequestId(requestIdParam);
+    }
+  }, [requestIdParam]);
 
   const filterDefs = useMemo(
     () => [
@@ -508,7 +515,7 @@ export function RequestDetailsDrawer({
               </span>
             </div>
             {client && (
-              <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 px-1">
+              <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-2 mb-1 px-0">
                 {client.name}
               </div>
             )}
@@ -516,10 +523,10 @@ export function RequestDetailsDrawer({
               type="text"
               value={req.title}
               onChange={(e) => useStore.getState().updateRequest(req.id, { title: e.target.value })}
-              className="text-lg font-semibold bg-transparent border-0 outline-none w-full focus:ring-1 focus:ring-primary rounded-xl px-1 text-foreground"
+              className="text-lg font-semibold bg-transparent border-0 outline-none w-full focus:ring-0 p-0 m-0 text-foreground"
             />
             {req.submittedAt && (
-              <div className="text-xs text-muted-foreground mt-1.5 px-1 font-medium">
+              <div className="text-xs text-muted-foreground mt-1.5 px-0 font-medium">
                 {formatSubmissionTime(req.submittedAt)}
               </div>
             )}

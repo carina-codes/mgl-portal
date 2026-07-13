@@ -23,7 +23,7 @@ function PortalProjectDetail() {
 
       <div className="panel p-6">
         <div className="flex items-start gap-4">
-          <div className={`h-14 w-14 rounded-2xl bg-${project.accent}`} />
+          <div className={`h-14 w-14 rounded-full bg-${project.accent}`} />
           <div>
             <h1 className="text-2xl font-semibold">{project.name}</h1>
             <div className="mt-1 text-sm text-muted-foreground">

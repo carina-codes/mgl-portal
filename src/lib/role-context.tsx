@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 import type { Role } from "@/lib/mock-data";
-import { users } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
 
 type RoleContextValue = {
   role: Role;
@@ -35,5 +35,6 @@ export function useRole() {
 
 export function useCurrentUser() {
   const { userId } = useRole();
-  return users.find((u) => u.id === userId) ?? users[0];
+  const storeUsers = useStore((s) => s.users);
+  return storeUsers.find((u) => u.id === userId) ?? storeUsers[0];
 }

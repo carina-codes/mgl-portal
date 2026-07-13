@@ -99,7 +99,9 @@ export function AppDialog(props: AppDialogProps) {
             </div>
           </div>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto">
+          <div className="px-6 py-5">{children}</div>
+        </div>
         {footer && (
           <DialogFooter className="border-t border-border/60 bg-muted/30 px-6 py-4 sm:justify-end">
             {footer}
@@ -170,7 +172,9 @@ function WizardDialog({
             ))}
           </div>
         </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto px-6 py-5">{step.content({ goNext, goBack, close })}</div>
+        <div className="max-h-[60vh] overflow-y-auto">
+          <div className="px-6 py-5">{step.content({ goNext, goBack, close })}</div>
+        </div>
         <DialogFooter className="flex items-center justify-between gap-2 border-t border-border/60 bg-muted/30 px-6 py-4 sm:justify-between">
           <button
             type="button"

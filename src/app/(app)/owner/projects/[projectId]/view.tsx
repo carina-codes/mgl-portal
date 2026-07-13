@@ -78,6 +78,7 @@ import {
 import { useState, useMemo, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/components/filter-bar";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -222,7 +223,7 @@ function ProjectDetail() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className={cn(
-              "grid h-14 w-14 place-items-center rounded-2xl text-2xl font-bold border transition-all duration-300",
+              "grid h-14 w-14 place-items-center rounded-full text-2xl font-bold border transition-all duration-300",
               {
                 todo: "bg-todo text-todo-foreground border-todo-foreground/20",
                 progress: "bg-progress text-progress-foreground border-progress-foreground/20",
@@ -246,8 +247,8 @@ function ProjectDetail() {
           <div className="flex items-center gap-2">
             <AvatarStack userIds={project.team} users={users} max={4} size={32} />
             <button
-              onClick={() => open("project.settings", { projectId: project.id })}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-2 text-sm font-medium hover:bg-muted transition-colors cursor-pointer"
+              onClick={() => open("project.edit", { projectId: project.id })}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-3.5 py-2 text-sm font-medium hover:bg-primary/90 transition-colors cursor-pointer"
             >
               <Edit2 className="h-3.5 w-3.5" /> Edit
             </button>
@@ -542,7 +543,7 @@ function Overview({ projectId }: { projectId: string }) {
               <span className="font-medium">{project.startDate}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Target launch</span>
+              <span className="text-muted-foreground">Due date</span>
               <span className="font-medium">{project.endDate}</span>
             </div>
             <div className="flex justify-between">
@@ -656,6 +657,18 @@ function TasksTab({
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 bg-card/30 p-2.5 rounded-2xl border border-border/40">
         <div className="flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="h-9 w-48 rounded-full border border-border bg-card pl-9 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+            />
+          </div>
+
+
           {/* View switcher */}
           <div className="flex items-center gap-0.5 rounded-full border border-border bg-card p-0.5">
             <button
@@ -676,19 +689,6 @@ function TasksTab({
             >
               Calendar
             </button>
-          </div>
-
-          <div className="h-4 w-[1px] bg-border mx-1 hidden sm:block" />
-
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tasks..."
-              className="h-9 w-48 sm:w-56 rounded-full border border-border bg-card pl-9 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-            />
           </div>
         </div>
 
@@ -1320,7 +1320,7 @@ function formatToMockDate(dateStr: string): string {
   return dateStr;
 }
 
-function TaskDetailsDrawer({
+export function TaskDetailsDrawer({
   taskId,
   onClose,
   hideDiscussion = false,
@@ -1334,9 +1334,52 @@ function TaskDetailsDrawer({
   const projects = useProjects();
   const project = useMemo(() => projects.find((p) => p.id === task?.projectId), [projects, task?.projectId]);
   const updateTask = useStore((s) => s.updateTask);
+  const deleteTask = useStore((s) => s.deleteTask);
   const users = useStore((s) => s.users);
   const allComments = useStore((s) => s.comments);
   const comments = useMemo(() => allComments.filter((c) => c.threadId === taskId), [allComments, taskId]);
+  const documents = useStore((s) => s.documents);
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    setConfirmDelete(false);
+  }, [taskId]);
+
+  const creatorUser = useMemo(() => {
+    if (!task) return null;
+    const taskObj = task as any;
+    if (taskObj.createdBy) {
+      return users.find((u) => u.id === taskObj.createdBy);
+    }
+    if (project?.lead) {
+      return users.find((u) => u.id === project.lead);
+    }
+    return users.find((u) => u.id === "u1");
+  }, [task, project, users]);
+
+  const taskDocuments = useMemo(() => {
+    if (!task) return [];
+    const commentDocIds = comments.reduce((acc, c) => [...acc, ...(c.attachments ?? [])], [] as string[]);
+    const fromComments = documents.filter((d) => commentDocIds.includes(d.id));
+    if (fromComments.length > 0) return fromComments;
+
+    const mockFiles: Document[] = [];
+    const count = task.attachments ?? 0;
+    for (let i = 0; i < count; i++) {
+      mockFiles.push({
+        id: `mock-doc-${task.id}-${i}`,
+        projectId: task.projectId,
+        name: i === 0 ? `${task.title.replace(/[\s/\\?%*:|"<>]+/g, "-")}-Mockup.fig` : `Reference-Resource-${i}.pdf`,
+        folder: "Design",
+        size: i === 0 ? "4.2 MB" : "1.8 MB",
+        uploadedBy: "u2",
+        uploadedAt: "3 days ago",
+        shared: true,
+      });
+    }
+    return mockFiles;
+  }, [task, comments, documents]);
 
   const logTime = useStore((s) => s.logTime);
   const deleteTimeEntry = useStore((s) => s.deleteTimeEntry);
@@ -1387,7 +1430,7 @@ function TaskDetailsDrawer({
             </span>
           </div>
           {project && (
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 px-1">
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-2 mb-1 px-0">
               {project.name}
             </div>
           )}
@@ -1395,15 +1438,16 @@ function TaskDetailsDrawer({
             type="text"
             value={task.title}
             onChange={(e) => updateTask(task.id, { title: e.target.value })}
-            className="text-lg font-semibold bg-transparent border-0 outline-none w-full focus:ring-1 focus:ring-primary rounded-xl px-1 text-foreground"
+            className="text-lg font-semibold bg-transparent border-0 outline-none w-full focus:ring-0 p-0 m-0 text-foreground"
           />
           {task.createdAt && (
-            <div className="text-xs text-muted-foreground mt-1.5 px-1">
+            <div className="text-xs text-muted-foreground mt-1.5 px-0">
               Created on{" "}
               {new Date(task.createdAt).toLocaleString(undefined, {
                 dateStyle: "medium",
                 timeStyle: "short",
-              })}
+              })}{" "}
+              by {creatorUser?.name || "Carina Rivera"}
             </div>
           )}
         </SheetHeader>
@@ -1527,7 +1571,7 @@ function TaskDetailsDrawer({
             <span className="text-muted-foreground font-medium">Logged Time:</span>
             <div className="col-span-2 flex items-center gap-3">
               <span className="inline-flex items-center justify-center font-bold px-2 py-0.5 rounded-lg text-xs bg-primary/10 text-primary">
-                {taskHours.toFixed(1)}h
+                {parseFloat(taskHours.toFixed(2))}h
               </span>
               <span className="text-xs text-muted-foreground">
                 of {task.estimatedHours || 0}h estimated
@@ -1555,63 +1599,95 @@ function TaskDetailsDrawer({
           />
         </div>
 
+        {/* Attachments Section */}
+        {taskDocuments.length > 0 && (
+          <div className="border-t border-border/80 pt-6 mt-6 mb-6">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center justify-between">
+              <span>Attachments</span>
+              <span className="text-xs text-muted-foreground font-normal capitalize tracking-normal">
+                {taskDocuments.length} {taskDocuments.length === 1 ? "file" : "files"}
+              </span>
+            </h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {taskDocuments.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between bg-card hover:bg-muted/20 border border-border/40 p-2.5 rounded-xl transition-all group">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] uppercase">
+                      {doc.name.split(".").pop()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-foreground truncate" title={doc.name}>
+                        {doc.name}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {doc.size}
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toast.success(`Downloading ${doc.name}...`);
+                    }}
+                    className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                    title="Download file"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Task Time Tracker Section */}
         <div className="border-t border-border/80 pt-6 mt-6 mb-6">
           <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center justify-between">
             <span>Task Time Tracker</span>
-            <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+            <span className="text-xs text-muted-foreground font-normal capitalize tracking-normal">
               {taskEntries.length} {taskEntries.length === 1 ? "log" : "logs"}
             </span>
           </h4>
 
           {/* Form to log time inline */}
-          <div className="bg-muted/30 rounded-2xl p-4 border border-border/40 mb-4">
-            <div className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-primary" /> Log Time on this Task
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-1">
-                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Hours</label>
-                <input
-                  type="number"
-                  step="0.25"
-                  min="0.25"
-                  placeholder="0.00"
-                  value={logHours === 0 ? "" : logHours}
-                  onChange={(e) => setLogHours(parseFloat(e.target.value) || 0)}
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 text-foreground"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Work Done Note</label>
-                <input
-                  type="text"
-                  placeholder="What did you work on?"
-                  value={logNote}
-                  onChange={(e) => setLogNote(e.target.value)}
-                  className="h-9 w-full rounded-xl border border-border bg-card px-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 text-foreground"
-                />
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between">
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={logBillable}
-                  onChange={(e) => setLogBillable(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
-                />
+          <div className="bg-card/40 p-2.5 rounded-2xl border border-border/40 mb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                step="0.25"
+                min="0.25"
+                placeholder="0.00h"
+                value={logHours === 0 ? "" : logHours}
+                onChange={(e) => setLogHours(parseFloat(e.target.value) || 0)}
+                className="h-9 w-20 rounded-full border border-border bg-card text-center text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground/50"
+              />
+              <input
+                type="text"
+                placeholder="What did you work on?"
+                value={logNote}
+                onChange={(e) => setLogNote(e.target.value)}
+                className="h-9 flex-1 min-w-[150px] rounded-full border border-border bg-card px-3.5 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground/50"
+              />
+              <button
+                type="button"
+                onClick={() => setLogBillable(!logBillable)}
+                className={cn(
+                  "h-9 px-3 rounded-full border text-xs font-semibold transition-all cursor-pointer select-none",
+                  logBillable
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                )}
+              >
                 Billable
-              </label>
-              
+              </button>
               <button
                 onClick={handleLogTime}
                 disabled={logHours <= 0}
-                className="inline-flex items-center gap-1 rounded-xl bg-primary text-primary-foreground px-3 py-1.5 text-xs font-bold hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
+                className="h-9 px-4 rounded-full bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all flex items-center justify-center gap-1"
               >
-                <Plus className="h-3.5 w-3.5" /> Log Hours
+                <Plus className="h-4 w-4" /> Log
               </button>
             </div>
           </div>
@@ -1667,7 +1743,7 @@ function TaskDetailsDrawer({
           <div className="border-t border-border/80 pt-6">
             <h4 className="text-sm font-semibold mb-4 text-foreground flex items-center justify-between">
               <span>Thread Discussion</span>
-              <span className="text-xs text-muted-foreground font-normal">{comments.length} comments</span>
+              <span className="text-xs text-muted-foreground font-normal capitalize tracking-normal">{comments.length} comments</span>
             </h4>
             <div className="space-y-3 mb-4 max-h-[260px] overflow-y-auto pr-1.5 scrollbar-thin">
               {comments.length === 0 ? (
@@ -1705,6 +1781,25 @@ function TaskDetailsDrawer({
             <NewCommentForm threadId={task.id} />
           </div>
         )}
+
+        {/* Footer */}
+        <div className="border-t border-border/80 pt-4 mt-8 flex items-center justify-between">
+          <button
+            onClick={() => {
+              if (confirmDelete) {
+                deleteTask(task.id);
+                toast.success("Task deleted successfully");
+                onClose();
+              } else {
+                setConfirmDelete(true);
+              }
+            }}
+            className="text-sm font-semibold text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+          >
+            {confirmDelete ? "Confirm Delete" : "Delete Task"}
+          </button>
+
+        </div>
       </SheetContent>
     </Sheet>
   );
@@ -2034,13 +2129,13 @@ function DocumentsTab({ projectId }: { projectId: string }) {
           <div className="flex border border-border rounded-full p-0.5 bg-card">
             <button
               onClick={() => setViewType("grid")}
-              className={cn("rounded-full px-2.5 py-1 text-xs font-semibold cursor-pointer", viewType === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+              className={cn("rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all", viewType === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
             >
               Grid
             </button>
             <button
               onClick={() => setViewType("list")}
-              className={cn("rounded-full px-2.5 py-1 text-xs font-semibold cursor-pointer", viewType === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+              className={cn("rounded-full px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all", viewType === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
             >
               List
             </button>
@@ -2640,364 +2735,208 @@ function ChatInputBox({ threadId, onAttachClick }: { threadId: string; onAttachC
 
 /* ───── Time Entries Tab ───── */
 
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr + "T00:00:00");
+  if (isNaN(date.getTime())) return dateStr;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+};
+
 function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: (id: string) => void }) {
   const allTimeEntries = useStore((s) => s.timeEntries);
   const projectEntries = useMemo(() => allTimeEntries.filter((t) => t.projectId === projectId), [allTimeEntries, projectId]);
-  const projects = useProjects();
-  const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
   const users = useStore((s) => s.users);
+  const projects = useStore((s) => s.projects);
   const tasks = useStore((s) => s.tasks);
   const { open } = useModals();
   const deleteTimeEntry = useStore((s) => s.deleteTimeEntry);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMember, setSelectedMember] = useState("all");
-  const [selectedBillable, setSelectedBillable] = useState("all");
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
 
-  // Dynamic values
-  const totalHours = useMemo(() => projectEntries.reduce((sum, e) => sum + e.hours, 0), [projectEntries]);
-  const displayHours = useMemo(() => {
-    if (selectedMember === "all") return totalHours;
-    return projectEntries.filter((e) => e.userId === selectedMember).reduce((sum, e) => sum + e.hours, 0);
-  }, [projectEntries, selectedMember, totalHours]);
-
-  const selectedMemberName = useMemo(() => {
-    if (selectedMember === "all") return "";
-    const u = users.find((x) => x.id === selectedMember);
-    return u ? u.name.split(" ")[0] : "";
-  }, [selectedMember, users]);
-
-  const billableHours = useMemo(() => projectEntries.filter((e) => e.billable).reduce((sum, e) => sum + e.hours, 0), [projectEntries]);
-  const nonBillableHours = totalHours - billableHours;
+  const filterDefs = useMemo(
+    () => {
+      const defs: FilterDef[] = [
+        {
+          id: "member",
+          label: "Team",
+          multi: true,
+          options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
+        },
+        {
+          id: "billable",
+          label: "Billable",
+          options: [
+            { value: "yes", label: "Billable" },
+            { value: "no", label: "Non-billable" },
+          ] as FilterOption[],
+        },
+      ];
+      return defs;
+    },
+    [users]
+  );
 
   const filteredEntries = useMemo(() => {
     return projectEntries.filter((e) => {
-      if (searchQuery && !e.note.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      if (selectedMember !== "all" && e.userId !== selectedMember) return false;
-      if (selectedBillable === "billable" && !e.billable) return false;
-      if (selectedBillable === "non-billable" && e.billable) return false;
+      if (search && !e.note?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filters.member?.length && !filters.member.includes(e.userId)) return false;
+      if (filters.billable?.length) {
+        const v = filters.billable[0];
+        if (v === "yes" && !e.billable) return false;
+        if (v === "no" && e.billable) return false;
+      }
+      if (!inRange(e.date, dateRange)) return false;
       return true;
     });
-  }, [projectEntries, searchQuery, selectedMember, selectedBillable]);
-
-  const teammateHours = useMemo(() => {
-    const map: Record<string, number> = {};
-    projectEntries.forEach((e) => {
-      map[e.userId] = (map[e.userId] || 0) + e.hours;
-    });
-    return Object.entries(map)
-      .map(([userId, hours]) => ({
-        userId,
-        hours,
-        user: users.find((u) => u.id === userId),
-      }))
-      .sort((a, b) => b.hours - a.hours);
-  }, [projectEntries, users]);
+  }, [projectEntries, search, filters.member, filters.billable, dateRange]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Interactive Title & Action Bar */}
-      <div className="col-span-full flex items-center justify-between pb-2">
-        <div>
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            Time Tracking
-            <span className="text-xs font-normal text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full">
-              {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
-            </span>
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Track work hours, billing status, and monitor project budgets.</p>
-        </div>
-        <button
-          onClick={() => open("time.log", { projectId })}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-bold hover:bg-primary/95 cursor-pointer transition-all"
-        >
-          <Plus className="h-3.5 w-3.5" /> Log Time
-        </button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-card/40 p-2.5 rounded-2xl border border-border/40 [&>div]:mb-0 [&>div]:w-full [&_input]:h-9 [&_input]:w-48 [&_input]:text-xs [&_input]:pl-9 [&_input]:pr-3">
+        <FilterBar
+          search={search}
+          onSearch={setSearch}
+          placeholder="Search notes…"
+          filters={filterDefs}
+          values={filters}
+          onChange={setFilters}
+          dateRange={dateRange}
+          onDateRange={setDateRange}
+          trailing={
+            <button
+              onClick={() => open("time.log", { projectId })}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Plus className="h-4 w-4" /> Log time
+            </button>
+          }
+        />
       </div>
 
-      <div className="lg:col-span-2 space-y-4">
-        {/* Filter Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-border bg-card text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedMember}
-              onChange={(e) => setSelectedMember(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all"
-            >
-              <option value="all">All Teammates</option>
-              {users.filter(u => u.role !== "client").map((u) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
-            <select
-              value={selectedBillable}
-              onChange={(e) => setSelectedBillable(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer transition-all"
-            >
-              <option value="all">All Billability</option>
-              <option value="billable">Billable Only</option>
-              <option value="non-billable">Non-billable Only</option>
-            </select>
-            {(searchQuery || selectedMember !== "all" || selectedBillable !== "all") && (
-              <button
-                onClick={() => {
-                  setSearchQuery("");
-                  setSelectedMember("all");
-                  setSelectedBillable("all");
-                }}
-                className="text-xs font-semibold text-primary hover:bg-muted px-2.5 py-2 rounded-xl transition-all cursor-pointer"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Table wrapper */}
-        <div className="panel bg-card border-border/60 overflow-hidden">
-          {filteredEntries.length === 0 ? (
-            <div className="py-12 text-center flex flex-col items-center justify-center">
-              <div className="h-10 w-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">
-                <Search className="h-5 w-5" />
-              </div>
-              <div className="text-xs font-semibold text-foreground">No time entries found</div>
-              <div className="text-[10px] text-muted-foreground mt-1 max-w-[240px]">
-                Try adjusting your search queries or filter selections.
-              </div>
+      {/* Table Section */}
+      <div className="panel bg-card border-border/60 overflow-hidden">
+        {filteredEntries.length === 0 ? (
+          <div className="py-12 text-center flex flex-col items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">
+              <Search className="h-5 w-5" />
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground">
-                  <tr className="border-b border-border">
-                    <th className="px-5 py-3 font-medium">Date</th>
-                    <th className="px-5 py-3 font-medium">Team</th>
-                    <th className="px-5 py-3 font-medium">Note / Work Done</th>
-                    <th className="px-5 py-3 font-medium text-right">Hours</th>
-                    <th className="px-5 py-3 font-medium">Status</th>
-                    <th className="px-5 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredEntries.map((e) => {
-                    const u = users.find((x) => x.id === e.userId)!;
-                    if (!u) return null;
-                    return (
-                      <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
-                        <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{e.date}</td>
-                        <td className="px-5 py-3 text-muted-foreground">
-                          <div className="flex items-center gap-2.5">
-                            <UserAvatar user={u} size={24} />
-                            <span className="text-foreground font-semibold">{u.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground font-medium">
-                          <div>
-                            {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
-                          </div>
-                          {(() => {
-                            const assocTask = e.taskId ? tasks.find((t) => t.id === e.taskId) : null;
-                            if (!assocTask) return null;
-                            return (
-                              <button
-                                onClick={() => onTaskClick?.(assocTask.id)}
-                                className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-primary cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
-                              >
-                                <span className="h-1.2 w-1.2 rounded-full bg-primary" />
-                                Task: {assocTask.title}
-                              </button>
-                            );
-                          })()}
-                        </td>
-                        <td className="px-5 py-3 text-right text-muted-foreground font-semibold">
-                          {e.hours.toFixed(1)}h
-                        </td>
-                        <td className="px-5 py-3 whitespace-nowrap">
-                          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", e.billable ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20" : "bg-slate-50 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border border-slate-500/10")}>
-                            {e.billable ? "Billable" : "Non-billable"}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-right whitespace-nowrap">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
-                                <MoreHorizontal className="h-3.5 w-3.5" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-32 border border-border bg-card">
-                              <DropdownMenuItem
-                                onSelect={(ev) => {
-                                  ev.preventDefault();
-                                  setTimeout(() => open("time.edit", { timeId: e.id }), 100);
-                                }}
-                                className="flex items-center gap-2 cursor-pointer"
-                              >
-                                <span>Edit</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={(ev) => {
-                                  ev.preventDefault();
-                                  setTimeout(() => deleteTimeEntry(e.id), 100);
-                                }}
-                                className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
-                              >
-                                <span>Delete</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        {/* Hours Logged Card */}
-        <div className="panel p-5 bg-card border-border/60">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                Hours Logged {selectedMemberName ? `(${selectedMemberName})` : ""}
-              </div>
-              <div className="mt-1 text-2xl font-bold text-foreground">
-                {displayHours.toFixed(1)}h
-              </div>
-            </div>
-            <div className="p-2 rounded-xl bg-primary/10 text-primary">
-              <Clock className="h-4.5 w-4.5" />
+            <div className="text-xs font-semibold text-foreground">No time entries found</div>
+            <div className="text-[10px] text-muted-foreground mt-1 max-w-[240px]">
+              Try adjusting your search query, dates, or filter selections.
             </div>
           </div>
-          <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-muted">
-            <div 
-              className="h-full bg-primary transition-all duration-500" 
-              style={{ width: `${Math.min(100, (displayHours / Math.max(1, project.hoursEstimate)) * 100)}%` }} 
-            />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs text-muted-foreground bg-muted/20">
+                <tr className="border-b border-border">
+                  <th className="px-5 py-3 font-medium">Date</th>
+                  <th className="px-5 py-3 font-medium">Team</th>
+                  <th className="px-5 py-3 font-medium">Project</th>
+                  <th className="px-5 py-3 font-medium">Note / Work Done</th>
+                  <th className="px-5 py-3 font-medium text-right">Hours</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEntries.map((e) => {
+                  const u = users.find((x) => x.id === e.userId)!;
+                  const p = projects.find((x) => x.id === e.projectId);
+                  return (
+                    <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                      <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{formatDate(e.date)}</td>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        <div className="flex items-center gap-2.5">
+                          <UserAvatar user={u} size={24} />
+                          <span className="text-foreground font-semibold">{u.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        {p ? (
+                          <Link href={`/owner/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
+                            {p.name}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-muted-foreground/50">General</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-muted-foreground font-medium">
+                        <div>
+                          {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
+                        </div>
+                        {(() => {
+                          const assocTask = e.taskId ? tasks.find((t) => t.id === e.taskId) : null;
+                          if (!assocTask) return null;
+                          return (
+                            <button
+                              onClick={() => onTaskClick?.(assocTask.id)}
+                              className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-primary cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
+                            >
+                              <span className="h-1.2 w-1.2 rounded-full bg-primary" />
+                              Task: {assocTask.title}
+                            </button>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-5 py-3 text-right text-muted-foreground font-semibold">
+                        {parseFloat(e.hours.toFixed(2))}h
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <span className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                          e.billable 
+                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20" 
+                            : "bg-slate-50 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border border-slate-500/10"
+                        )}>
+                          {e.billable ? "Billable" : "Non-billable"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32 border border-border bg-card">
+                            <DropdownMenuItem
+                              onSelect={(ev) => {
+                                ev.preventDefault();
+                                setTimeout(() => open("time.edit", { timeId: e.id }), 100);
+                              }}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <span>Edit</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={(ev) => {
+                                ev.preventDefault();
+                                setTimeout(() => deleteTimeEntry(e.id), 100);
+                              }}
+                              className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                            >
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <div className="mt-2 text-[10px] text-muted-foreground flex items-center justify-between">
-            <span>Estimate: {project.hoursEstimate}h</span>
-            <span>{Math.round((displayHours / Math.max(1, project.hoursEstimate)) * 100)}%</span>
-          </div>
-        </div>
-
-        {/* Budget Card */}
-        <div className="panel p-5 bg-card border-border/60">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Project Budget</div>
-              <div className="mt-1 text-2xl font-bold text-foreground">
-                ${(project.spent / 1000).toFixed(1)}k
-              </div>
-            </div>
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500">
-              <Coins className="h-4.5 w-4.5" />
-            </div>
-          </div>
-          {(() => {
-            const budgetPercent = Math.round((project.spent / Math.max(1, project.budget)) * 100);
-            let barColor = "bg-emerald-500";
-            if (budgetPercent > 90) barColor = "bg-rose-500";
-            else if (budgetPercent > 70) barColor = "bg-amber-500";
-
-            return (
-              <>
-                <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div 
-                    className={cn("h-full transition-all duration-500", barColor)}
-                    style={{ width: `${Math.min(100, budgetPercent)}%` }} 
-                  />
-                </div>
-                <div className="mt-2 text-[10px] text-muted-foreground flex items-center justify-between">
-                  <span>Budget: ${(project.budget / 1000).toFixed(0)}k</span>
-                  <span>{budgetPercent}%</span>
-                </div>
-              </>
-            );
-          })()}
-        </div>
-
-        {/* Teammate Contribution Card */}
-        <div className="panel p-5 bg-card border-border/60">
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">Teammate Contribution</h3>
-          <div className="space-y-3.5">
-            {teammateHours.length === 0 ? (
-              <div className="text-xs text-muted-foreground italic py-1">No hours logged yet</div>
-            ) : (
-              teammateHours.map(({ userId, hours, user }) => {
-                if (!user) return null;
-                const percentage = totalHours > 0 ? (hours / totalHours) * 100 : 0;
-                return (
-                  <div key={userId} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <UserAvatar user={user} size={18} />
-                        <span className="font-medium text-foreground">{user.name.split(" ")[0]}</span>
-                      </div>
-                      <span className="font-semibold text-muted-foreground">{hours.toFixed(1)}h</span>
-                    </div>
-                    <div className="h-1 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary/75 rounded-full transition-all duration-500"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Billability Breakdown Card */}
-        <div className="panel p-5 bg-card border-border/60">
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Billability Breakdown</h3>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-bold text-foreground">
-              {totalHours > 0 ? Math.round((billableHours / totalHours) * 100) : 0}%
-            </span>
-            <span className="text-[10px] text-muted-foreground font-medium">billable hours</span>
-          </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted flex">
-            <div
-              className="h-full bg-emerald-500 transition-all duration-500"
-              style={{ width: `${totalHours > 0 ? (billableHours / totalHours) * 100 : 0}%` }}
-              title={`Billable: ${billableHours}h`}
-            />
-            <div
-              className="h-full bg-slate-300 dark:bg-slate-700 transition-all duration-500"
-              style={{ width: `${totalHours > 0 ? (nonBillableHours / totalHours) * 100 : 0}%` }}
-              title={`Non-billable: ${nonBillableHours}h`}
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span>Billable: <strong>{billableHours.toFixed(1)}h</strong></span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-              <span>Non-billable: <strong>{nonBillableHours.toFixed(1)}h</strong></span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
+
+
 
 function EmptyState({ icon: Icon, label }: { icon: any; label: string }) {
   return (

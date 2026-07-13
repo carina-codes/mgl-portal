@@ -8,6 +8,7 @@ import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/compone
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
 import { Plus, Pencil, Clock, Coins, TrendingUp, Search, Trash2, FileDown, MoreHorizontal } from "lucide-react";
+import { KpiCard } from "@/components/ui/kpi-card";
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
@@ -177,41 +178,31 @@ function TimePage() {
       }
     >
       {/* Stats Cards Section */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {/* Total Logged Card */}
-        <div className="panel p-5 bg-card border-border/60 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Hours Logged</div>
-            <div className="mt-1 text-2xl font-bold text-foreground" suppressHydrationWarning>{total.toFixed(1)}h</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-            <Clock className="h-5 w-5" />
-          </div>
-        </div>
-
-        {/* Billable Card */}
-        <div className="panel p-5 bg-card border-border/60 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Billable Hours</div>
-            <div className="mt-1 text-2xl font-bold text-foreground" suppressHydrationWarning>{billable.toFixed(1)}h</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500">
-            <Coins className="h-5 w-5" />
-          </div>
-        </div>
-
-        {/* Utilization Card */}
-        <div className="panel p-5 bg-card border-border/60 flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Utilization</div>
-            <div className="mt-1 text-2xl font-bold text-foreground" suppressHydrationWarning>
-              {total ? Math.round((billable / total) * 100) : 0}%
-            </div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
-            <TrendingUp className="h-5 w-5" />
-          </div>
-        </div>
+      <div className="mb-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+        <KpiCard
+          label="Hours Logged"
+          value={`${parseFloat(total.toFixed(2))}h`}
+          icon={Clock}
+          color="blue"
+          delay={0}
+          sparklineData={[120, 135, 125, 148, 150, 160, 168]}
+        />
+        <KpiCard
+          label="Billable Hours"
+          value={`${parseFloat(billable.toFixed(2))}h`}
+          icon={Coins}
+          color="green"
+          delay={100}
+          sparklineData={[90, 110, 105, 120, 130, 138, 144]}
+        />
+        <KpiCard
+          label="Utilization"
+          value={`${total ? Math.round((billable / total) * 100) : 0}%`}
+          icon={TrendingUp}
+          color="purple"
+          delay={200}
+          progress={total ? Math.round((billable / total) * 100) : 0}
+        />
       </div>
 
       <div className="space-y-4">
@@ -266,7 +257,7 @@ function TimePage() {
                         {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
                       </td>
                       <td className="px-5 py-3 text-right text-muted-foreground font-semibold">
-                        {e.hours.toFixed(1)}h
+                        {parseFloat(e.hours.toFixed(2))}h
                       </td>
                       <td className="px-5 py-3 whitespace-nowrap">
                         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", e.billable ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20" : "bg-slate-50 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border border-slate-500/10")}>
@@ -276,7 +267,7 @@ function TimePage() {
                       <td className="px-5 py-3 text-right whitespace-nowrap">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+                            <button className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
                               <MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
                           </DropdownMenuTrigger>

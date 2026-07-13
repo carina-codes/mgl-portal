@@ -8,7 +8,7 @@ import { FilterBar } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
 import { totalHoursByUser } from "@/lib/mock-data";
-import { UserPlus, Pencil, Trash2, LayoutGrid, List as ListIcon, Mail, MoreHorizontal } from "lucide-react";
+import { UserPlus, Pencil, Trash2, LayoutGrid, List as ListIcon, Mail, MoreHorizontal, Plus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ function TeamPage() {
   const allUsers = useStore((s) => s.users);
   const projects = useStore((s) => s.projects);
   const allTasks = useStore((s) => s.tasks);
+  const updateTeamMember = useStore((s) => s.updateTeamMember);
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
@@ -68,7 +69,8 @@ function TeamPage() {
     if (filters.role?.length && !filters.role.includes(u.role)) return false;
     if (filters.active?.length && !assignedProjects.some((p) => filters.active!.includes(p.id))) return false;
     if (filters.availability?.length) {
-      const isBusy = assignedProjects.length > 2;
+      const currentStatus = u.status || (assignedProjects.length > 2 ? "Busy" : "Available");
+      const isBusy = currentStatus === "Busy";
       if (filters.availability[0] === "available" && isBusy) return false;
       if (filters.availability[0] === "busy" && !isBusy) return false;
     }
@@ -105,7 +107,7 @@ function TeamPage() {
             onClick={() => open("team.add")}
             className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer"
           >
-            <UserPlus className="h-4 w-4" /> Add team member
+            <Plus className="h-4 w-4" /> Add member
           </button>
         </>
       }
@@ -125,7 +127,8 @@ function TeamPage() {
               const assignedProjects = projects.filter((p) => p.team.includes(u.id));
               const userTasks = allTasks.filter((t) => t.assignees.includes(u.id));
               const hours = totalHoursByUser(u.id);
-              const isBusy = assignedProjects.length > 2;
+              const currentStatus = u.status || (assignedProjects.length > 2 ? "Busy" : "Available");
+              const isBusy = currentStatus === "Busy";
 
               return (
                 <div
@@ -190,7 +193,7 @@ function TeamPage() {
                     <div className="grid grid-cols-3 gap-2.5 text-xs pt-1" onClick={(e) => e.stopPropagation()}>
                       <Stat label="Projects" value={assignedProjects.length.toString()} href={`/owner/projects?member=${u.id}`} />
                       <Stat label="Tasks" value={userTasks.length.toString()} href={`/owner/projects?member=${u.id}`} />
-                      <Stat label="Time" value={`${hours.toFixed(1)}h`} href={`/owner/time?member=${u.id}`} />
+                      <Stat label="Time" value={`${parseFloat(hours.toFixed(2))}h`} href={`/owner/time?member=${u.id}`} />
                     </div>
                   </div>
 
@@ -253,11 +256,17 @@ function TeamPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
-                              toast.success(`${u.name} is now set to available`);
+                              if (isBusy) {
+                                updateTeamMember(u.id, { status: "Available" });
+                                toast.success(`${u.name} is now set to available`);
+                              } else {
+                                updateTeamMember(u.id, { status: "Busy" });
+                                toast.success(`${u.name} is now set to busy`);
+                              }
                             }}
                             className="flex items-center gap-2 cursor-pointer font-normal"
                           >
-                            <span>Set to available</span>
+                            <span>{isBusy ? "Set to available" : "Set to busy"}</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -320,7 +329,8 @@ function TeamPage() {
                   {filtered.map((u) => {
                     const assignedProjects = projects.filter((p) => p.team.includes(u.id));
                     const hours = totalHoursByUser(u.id);
-                    const isBusy = assignedProjects.length > 2;
+                    const currentStatus = u.status || (assignedProjects.length > 2 ? "Busy" : "Available");
+                    const isBusy = currentStatus === "Busy";
 
                     return (
                       <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/40">
@@ -361,7 +371,7 @@ function TeamPage() {
                         </td>
                         <td className="px-5 py-3 text-muted-foreground font-medium">
                           <Link href={`/owner/time?member=${u.id}`} className="hover:text-primary transition-colors font-medium">
-                            {hours.toFixed(1)}h
+                            {parseFloat(hours.toFixed(2))}h
                           </Link>
                         </td>
                         <td className="px-5 py-3 text-right">
@@ -388,11 +398,17 @@ function TeamPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    toast.success(`${u.name} is now set to available`);
+                                    if (isBusy) {
+                                      updateTeamMember(u.id, { status: "Available" });
+                                      toast.success(`${u.name} is now set to available`);
+                                    } else {
+                                      updateTeamMember(u.id, { status: "Busy" });
+                                      toast.success(`${u.name} is now set to busy`);
+                                    }
                                   }}
                                   className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
-                                  <span>Set to available</span>
+                                  <span>{isBusy ? "Set to available" : "Set to busy"}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {

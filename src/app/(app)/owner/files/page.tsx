@@ -30,7 +30,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import React, { useState, useMemo, useEffect, Suspense } from "react";
+import React, { useState, useMemo, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -131,22 +131,7 @@ function FilesView() {
     );
   };
 
-  // Upload Logic
-  const handleUploadMock = () => {
-    const name = prompt("Enter file name to upload:");
-    if (!name) return;
-    const size = `${(Math.random() * 3 + 0.5).toFixed(1)} MB`;
-    const targetProjId = clientProjectIds[0] || "";
-    
-    uploadDocument({
-      projectId: targetProjId,
-      name,
-      folder: activeClient ? activeClient.name : "All Files",
-      size,
-      shared: true,
-    });
-    toast.success(`Uploaded ${name} successfully!`);
-  };
+
 
   // Inline Renaming States
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
@@ -262,7 +247,7 @@ function FilesView() {
             </button>
           </div>
           <button
-            onClick={handleUploadMock}
+            onClick={() => open("doc.upload", { clientId: clientParam })}
             className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer"
           >
             <Upload className="h-4 w-4" /> Upload file
@@ -313,8 +298,16 @@ function FilesView() {
                         />
                       </div>
 
-                      <div className="h-28 bg-muted/40 flex items-center justify-center relative select-none overflow-hidden">
-                        <FileIcon className="h-10 w-10 text-foreground" />
+                      <div className="h-28 bg-muted/40 flex items-center justify-center relative select-none overflow-hidden w-full">
+                        {file.previewUrl ? (
+                          <img
+                            src={file.previewUrl}
+                            alt={file.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <FileIcon className="h-10 w-10 text-foreground" />
+                        )}
                       </div>
 
                       <div className="p-4 flex-1 flex flex-col justify-between">
@@ -459,28 +452,40 @@ function FilesView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredFiles.map((file) => (
-                    <tr
-                      key={file.id}
-                      className={cn(
-                        "border-b border-border last:border-0 hover:bg-muted/40 transition-colors",
-                        selectedFileIds.includes(file.id) && "bg-primary/[0.01]"
-                      )}
-                    >
-                      <td className="px-5 py-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedFileIds.includes(file.id)}
-                          onChange={() => toggleSelectFile(file.id)}
-                          className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-5 py-3 font-medium">
-                        <span className="inline-flex items-center gap-2.5">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span>{file.name}</span>
-                        </span>
-                      </td>
+                  {filteredFiles.map((file) => {
+                    const FileIcon = getFileIcon(file.name);
+                    return (
+                      <tr
+                        key={file.id}
+                        className={cn(
+                          "border-b border-border last:border-0 hover:bg-muted/40 transition-colors",
+                          selectedFileIds.includes(file.id) && "bg-primary/[0.01]"
+                        )}
+                      >
+                        <td className="px-5 py-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedFileIds.includes(file.id)}
+                            onChange={() => toggleSelectFile(file.id)}
+                            className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-5 py-3 font-medium">
+                          <span className="inline-flex items-center gap-2.5">
+                            {file.previewUrl ? (
+                              <img
+                                src={file.previewUrl}
+                                alt={file.name}
+                                className="h-7 w-7 rounded object-cover border border-border/50 shrink-0"
+                              />
+                            ) : (
+                              <div className="h-7 w-7 flex items-center justify-center rounded bg-muted/40 text-muted-foreground border border-border/20 shrink-0">
+                                <FileIcon className="h-4 w-4" />
+                              </div>
+                            )}
+                            <span>{file.name}</span>
+                          </span>
+                        </td>
                       <td className="px-5 py-3 text-muted-foreground">File</td>
                       <td className="px-5 py-3 text-muted-foreground">{file.size}</td>
                       <td className="px-5 py-3 text-muted-foreground">{file.uploadedAt}</td>
@@ -519,7 +524,7 @@ function FilesView() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  )})}
 
                   {filteredFiles.length === 0 && (
                     <tr>
