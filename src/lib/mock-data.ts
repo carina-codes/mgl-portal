@@ -94,7 +94,7 @@ export type Client = {
   }>;
 };
 
-export type ProjectStatus = "planning" | "in_progress" | "ongoing" | "review" | "completed" | "on_hold";
+export type ProjectStatus = "planning" | "in_progress" | "ongoing" | "review" | "completed";
 
 export type ProjectShareLink = {
   id: string;
@@ -834,5 +834,4 @@ export const PROJECT_STATUS_META: Record<ProjectStatus, { label: string; cls: st
   ongoing: { label: "Ongoing", cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   review: { label: "In review", cls: "bg-review text-review-foreground" },
   completed: { label: "Completed", cls: "bg-done text-done-foreground" },
-  on_hold: { label: "On hold", cls: "bg-muted text-muted-foreground" },
 };

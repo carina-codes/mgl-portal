@@ -5,6 +5,7 @@
  * filters, and pages can read and mutate the same source of truth.
  */
 import { create } from "zustand";
+import { useMemo } from "react";
 import {
   clients as seedClients,
   projects as seedProjects,
@@ -620,4 +621,50 @@ export function getProjectProgress(projectId: string) {
             ? "watch"
             : "healthy",
   } as const;
+}
+
+export function useProjects() {
+  const projects = useStore((s) => s.projects);
+  const tasks = useStore((s) => s.tasks);
+
+  return useMemo(() => {
+    return projects.map((p) => {
+      const pTasks = tasks.filter((t) => t.projectId === p.id);
+      let status: ProjectStatus = "planning";
+
+      if (p.type === "retainer") {
+        status = "ongoing";
+      } else if (pTasks.length === 0) {
+        status = "planning";
+      } else {
+        const allCompleted = pTasks.every((t) => t.stage === "completed");
+        if (allCompleted) {
+          status = "completed";
+        } else {
+          const hasTodo = pTasks.some((t) => t.stage === "todo");
+          const hasInProgress = pTasks.some((t) => t.stage === "in_progress");
+          const hasReview = pTasks.some((t) => t.stage === "in_review");
+          if (!hasTodo && !hasInProgress && hasReview) {
+            status = "review";
+          } else {
+            status = "in_progress";
+          }
+        }
+      }
+
+      const completed = pTasks.filter((t) => t.stage === "completed").length;
+      const progress = pTasks.length ? Math.round((completed / pTasks.length) * 100) : 0;
+
+      return {
+        ...p,
+        status,
+        progress,
+      };
+    });
+  }, [projects, tasks]);
+}
+
+export function useProject(projectId: string) {
+  const projects = useProjects();
+  return useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
 }

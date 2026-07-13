@@ -4,12 +4,12 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack } from "@/components/user-avatar";
 import { PROJECT_STATUS_META } from "@/lib/mock-data";
-import { useStore } from "@/lib/store";
+import { useStore, useProjects } from "@/lib/store";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { Plus, LayoutGrid, List as ListIcon, MoreHorizontal, Archive, Trash2, UserPlus } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -21,8 +21,9 @@ import {
 
 
 function ProjectsView() {
+  const router = useRouter();
   const [view, setView] = useState<"grid" | "list">("grid");
-  const projects = useStore((s) => s.projects);
+  const projects = useProjects();
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const { open } = useModals();
@@ -169,7 +170,7 @@ function ProjectsView() {
                     </span>
                     <span className="font-semibold text-muted-foreground capitalize bg-muted/45 px-2 py-0.5 rounded text-[10px]">
                       {{
-                        fixed: "Fixed Price",
+                        fixed: "Fixed",
                         hourly: "Hourly",
                         retainer: "Retainer",
                       }[p.type] ?? p.type}
@@ -202,12 +203,6 @@ function ProjectsView() {
                   <AvatarStack userIds={p.team} users={users} max={4} size={26} />
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => open("project.status", { projectId: p.id })}
-                      className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
-                    >
-                      Status
-                    </button>
-                    <button
                       onClick={() => open("project.edit", { projectId: p.id })}
                       className="rounded-full border border-border/50 bg-background/30 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer"
                     >
@@ -223,24 +218,15 @@ function ProjectsView() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                         <DropdownMenuItem
-                          onClick={() => open("project.share", { projectId: p.id })}
-                          className="flex items-center gap-2 cursor-pointer"
+                          onClick={() => router.push(`/owner/projects/${p.id}?tab=files`)}
+                          className="flex items-center gap-2 cursor-pointer font-normal"
                         >
-                          <UserPlus className="h-3.5 w-3.5" />
-                          <span>Invite team</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => open("project.archive", { projectId: p.id })}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <Archive className="h-3.5 w-3.5" />
-                          <span>Archive project</span>
+                          <span>View files</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => open("project.delete", { projectId: p.id })}
-                          className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                          className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-normal"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
                           <span>Delete project</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -293,7 +279,7 @@ function ProjectsView() {
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{client?.name}</td>
                     <td className="px-5 py-3">
-                      <button onClick={() => open("project.status", { projectId: p.id })} className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${PROJECT_STATUS_META[p.status].cls}`}>{PROJECT_STATUS_META[p.status].label}</button>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${PROJECT_STATUS_META[p.status].cls}`}>{PROJECT_STATUS_META[p.status].label}</span>
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
@@ -324,24 +310,15 @@ function ProjectsView() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                             <DropdownMenuItem
-                              onClick={() => open("project.share", { projectId: p.id })}
-                              className="flex items-center gap-2 cursor-pointer"
+                              onClick={() => router.push(`/owner/projects/${p.id}?tab=files`)}
+                              className="flex items-center gap-2 cursor-pointer font-normal"
                             >
-                              <UserPlus className="h-3.5 w-3.5" />
-                              <span>Invite team</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => open("project.archive", { projectId: p.id })}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <Archive className="h-3.5 w-3.5" />
-                              <span>Archive project</span>
+                              <span>View files</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => open("project.delete", { projectId: p.id })}
-                              className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                              className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer font-normal"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
                               <span>Delete project</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>

@@ -244,12 +244,7 @@ function TeamPage() {
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
-                          <DropdownMenuItem
-                            onClick={() => router.push(`/owner/time?member=${u.id}`)}
-                            className="flex items-center gap-2 cursor-pointer font-normal"
-                          >
-                            <span>View logged time</span>
-                          </DropdownMenuItem>
+
                           <DropdownMenuItem
                             onClick={() => router.push(`/owner/files?member=${u.id}`)}
                             className="flex items-center gap-2 cursor-pointer font-normal"
@@ -257,10 +252,12 @@ function TeamPage() {
                             <span>View files</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => open("team.edit", { userId: u.id })}
+                            onClick={() => {
+                              toast.success(`${u.name} is now set to available`);
+                            }}
                             className="flex items-center gap-2 cursor-pointer font-normal"
                           >
-                            <span>Edit member</span>
+                            <span>Set to available</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -382,12 +379,7 @@ function TeamPage() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
-                                <DropdownMenuItem
-                                  onClick={() => router.push(`/owner/time?member=${u.id}`)}
-                                  className="flex items-center gap-2 cursor-pointer font-normal"
-                                >
-                                  <span>View logged time</span>
-                                </DropdownMenuItem>
+
                                 <DropdownMenuItem
                                   onClick={() => router.push(`/owner/files?member=${u.id}`)}
                                   className="flex items-center gap-2 cursor-pointer font-normal"
@@ -395,10 +387,12 @@ function TeamPage() {
                                   <span>View files</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => open("team.edit", { userId: u.id })}
+                                  onClick={() => {
+                                    toast.success(`${u.name} is now set to available`);
+                                  }}
                                   className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
-                                  <span>Edit member</span>
+                                  <span>Set to available</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {

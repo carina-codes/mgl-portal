@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams, useRouter } from "next/navigation";
+import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
-import { useStore, type StorageConnection } from "@/lib/store";
+import { useStore, useProjects, type StorageConnection } from "@/lib/store";
 import { useModals } from "@/components/modals";
 import { DateInput } from "@/components/ui/date-input";
 import {
@@ -78,6 +78,12 @@ import {
 import { useState, useMemo, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { AppDialog, TextField, SelectField, FieldGroup, FieldLabel } from "@/components/ui/app-dialog";
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
@@ -170,7 +176,7 @@ function ProjectDetail() {
   const router = useRouter();
   const { open } = useModals();
   
-  const projects = useStore((s) => s.projects);
+  const projects = useProjects();
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const allRequests = useStore((s) => s.requests);
@@ -191,9 +197,17 @@ function ProjectDetail() {
   const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
   const client = useMemo(() => project ? clients.find((c) => c.id === project.clientId) : undefined, [clients, project]);
   
-  const [tab, setTab] = useState<TabId>("tasks");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab") as TabId;
+  const [tab, setTab] = useState<TabId>(() => tabParam || "tasks");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (tabParam) {
+      setTab(tabParam);
+    }
+  }, [tabParam]);
 
   if (!project) throw notFound();
   if (!client) throw notFound();
@@ -237,12 +251,6 @@ function ProjectDetail() {
             >
               <Edit2 className="h-3.5 w-3.5" /> Edit
             </button>
-            <button
-              onClick={() => open("project.share", { projectId: project.id })}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              <UserPlus className="h-3.5 w-3.5" /> Invite
-            </button>
           </div>
         </div>
       </div>
@@ -255,23 +263,11 @@ function ProjectDetail() {
           return (
             <button
               key={t.id}
-              onClick={() => {
-                if (t.id === "requests") {
-                  router.push(`/owner/requests?client=${project.clientId}`);
-                } else {
-                  setTab(t.id);
-                }
-              }}
+              onClick={() => setTab(t.id)}
               className={cn( "flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all cursor-pointer", active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/50", )}
             >
               <div className="relative shrink-0">
                 <Icon className="h-4 w-4" />
-                {t.id === "requests" && projectRequestsCount > 0 && (
-                  <span className={cn("absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ring-[1px]", active ? "bg-white ring-primary" : "bg-primary ring-card")} />
-                )}
-                {t.id === "chat" && hasUnreadChat && (
-                  <span className={cn("absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full ring-[1px]", active ? "bg-white ring-primary" : "bg-primary ring-card")} />
-                )}
               </div>
               <span>{t.label}</span>
             </button>
@@ -323,7 +319,7 @@ const LOCAL_DELIVERABLES: LocalDeliverable[] = [
 ];
 
 function Overview({ projectId }: { projectId: string }) {
-  const projects = useStore((s) => s.projects);
+  const projects = useProjects();
   const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
   const allTasks = useStore((s) => s.tasks);
   const t = useMemo(() => allTasks.filter((x) => x.projectId === projectId), [allTasks, projectId]);
@@ -335,202 +331,6 @@ function Overview({ projectId }: { projectId: string }) {
     if (!client) return undefined;
     return users.find((u) => u.role === "client" && (u.email === client.contactEmail || u.name === client.contact));
   }, [users, client]);
-
-  // Documents list for dropdown select
-  const documents = useStore((s) => s.documents);
-  const projectDocs = useMemo(() => documents.filter((doc) => doc.projectId === projectId), [documents, projectId]);
-  
-  // Folders list derived from project documents
-  const projectStorageMappings = useStore((s) => s.projectStorageMappings);
-  const projectFolders = useMemo(() => {
-    const list = Array.from(new Set(projectDocs.map((d) => d.folder)));
-    projectStorageMappings.forEach((m) => {
-      if (m.projectId === projectId && !list.includes(m.folderName)) list.push(m.folderName);
-    });
-    return list;
-  }, [projectDocs, projectStorageMappings, projectId]);
-
-  const [deliverables, setDeliverables] = useState<LocalDeliverable[]>([]);
-  useEffect(() => {
-    setDeliverables(LOCAL_DELIVERABLES.filter((d) => d.projectId === projectId));
-  }, [projectId]);
-
-  // Edit deliverable modal state
-  const [editingDelivId, setEditingDelivId] = useState<string | null>(null);
-  const editingDeliv = useMemo(() => deliverables.find((d) => d.id === editingDelivId), [deliverables, editingDelivId]);
-  const [editForm, setEditForm] = useState({
-    title: "",
-    type: "file" as "file" | "folder" | "url",
-    fileSource: "upload" as "upload" | "app",
-    fileName: "",
-    fileSize: "",
-    folderName: "",
-    url: "",
-  });
-
-  const startEdit = (d: LocalDeliverable) => {
-    setEditingDelivId(d.id);
-    setEditForm({
-      title: d.title,
-      type: d.type,
-      fileSource: d.fileSource || "upload",
-      fileName: d.fileName || "",
-      fileSize: d.fileSize || "",
-      folderName: d.folderName || "",
-      url: d.url || "",
-    });
-  };
-
-  const handleEditSubmit = () => {
-    if (!editingDelivId) return;
-    if (!editForm.title.trim()) return toast.error("Title is required");
-
-    let fName = "";
-    let fSize = "";
-    let fldName = "";
-    let targetUrl = "";
-
-    if (editForm.type === "file") {
-      if (!editForm.fileName.trim()) return toast.error("Please specify or select a file");
-      fName = editForm.fileName.trim();
-      if (editForm.fileSource === "app") {
-        const matchingDoc = projectDocs.find((doc) => doc.name === editForm.fileName);
-        if (matchingDoc) fSize = matchingDoc.size;
-      } else {
-        fSize = editForm.fileSize || "Uploaded";
-      }
-    } else if (editForm.type === "folder") {
-      if (!editForm.folderName.trim()) return toast.error("Please select a project folder");
-      fldName = editForm.folderName;
-    } else if (editForm.type === "url") {
-      if (!editForm.url.trim()) return toast.error("Website URL is required");
-      targetUrl = editForm.url.trim();
-    }
-
-    setDeliverables((prev) =>
-      prev.map((d) =>
-        d.id === editingDelivId
-          ? {
-              ...d,
-              title: editForm.title.trim(),
-              type: editForm.type,
-              updatedAt: "Just now",
-              fileSource: editForm.type === "file" ? editForm.fileSource : undefined,
-              fileName: editForm.type === "file" ? fName : undefined,
-              fileSize: editForm.type === "file" ? fSize : undefined,
-              folderName: editForm.type === "folder" ? fldName : undefined,
-              url: editForm.type === "url" ? targetUrl : undefined,
-            }
-          : d
-      )
-    );
-    setEditingDelivId(null);
-    toast.success("Deliverable updated");
-  };
-
-  const removeDeliverable = (id: string) => {
-    setDeliverables((prev) => prev.filter((d) => d.id !== id));
-    toast.success("Deliverable removed");
-  };
-
-  // View notes details modal state
-  const [selectedDelivId, setSelectedDelivId] = useState<string | null>(null);
-  const [viewNotes, setViewNotes] = useState("");
-  const selectedDeliv = useMemo(() => deliverables.find((d) => d.id === selectedDelivId), [deliverables, selectedDelivId]);
-
-  const openViewDeliv = (d: LocalDeliverable) => {
-    setSelectedDelivId(d.id);
-    setViewNotes(d.notes || "");
-  };
-
-  const saveNotes = () => {
-    if (!selectedDelivId) return;
-    setDeliverables((prev) =>
-      prev.map((d) => (d.id === selectedDelivId ? { ...d, notes: viewNotes } : d))
-    );
-    toast.success("Notes saved");
-  };
-
-  // Add deliverable modal state
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState({
-    title: "",
-    type: "file" as "file" | "folder" | "url",
-    fileSource: "upload" as "upload" | "app",
-    fileName: "",
-    fileSize: "",
-    folderName: "",
-    url: "",
-    notes: "",
-  });
-
-  const handleAddSubmit = () => {
-    if (!addForm.title.trim()) return toast.error("Title is required");
-    
-    let fName = "";
-    let fSize = "";
-    let fldName = "";
-    let targetUrl = "";
-
-    if (addForm.type === "file") {
-      if (!addForm.fileName.trim()) return toast.error("Please specify or select a file");
-      fName = addForm.fileName.trim();
-      
-      // If selected from project documents, pull size
-      if (addForm.fileSource === "app") {
-        const matchingDoc = projectDocs.find((d) => d.name === addForm.fileName);
-        if (matchingDoc) fSize = matchingDoc.size;
-      } else {
-        fSize = addForm.fileSize || "Uploaded";
-      }
-    } else if (addForm.type === "folder") {
-      if (!addForm.folderName.trim()) return toast.error("Please select a project folder");
-      fldName = addForm.folderName;
-    } else if (addForm.type === "url") {
-      if (!addForm.url.trim()) return toast.error("Website URL is required");
-      targetUrl = addForm.url.trim();
-    }
-
-    const newDeliv: LocalDeliverable = {
-      id: `local-d-${Date.now()}`,
-      projectId,
-      title: addForm.title.trim(),
-      type: addForm.type,
-      updatedAt: "Just now",
-      notes: addForm.notes || "<p>No notes written yet.</p>",
-      fileSource: addForm.type === "file" ? addForm.fileSource : undefined,
-      fileName: addForm.type === "file" ? fName : undefined,
-      fileSize: addForm.type === "file" && fSize ? fSize : undefined,
-      folderName: addForm.type === "folder" ? fldName : undefined,
-      url: addForm.type === "url" ? targetUrl : undefined,
-    };
-    
-    setDeliverables((prev) => [newDeliv, ...prev]);
-    setIsAddOpen(false);
-    setAddForm({
-      title: "",
-      type: "file",
-      fileSource: "upload",
-      fileName: "",
-      fileSize: "",
-      folderName: "",
-      url: "",
-      notes: "",
-    });
-    toast.success("Deliverable added");
-  };
-
-  const getTypeIcon = (type: "file" | "folder" | "url") => {
-    switch (type) {
-      case "folder":
-        return FolderOpen;
-      case "url":
-        return ExternalLink;
-      case "file":
-      default:
-        return FileText;
-    }
-  };
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -549,475 +349,6 @@ function Overview({ projectId }: { projectId: string }) {
             </p>
           )}
         </div>
-
-        <div className="panel p-6 bg-card/60 border-border/60 backdrop-blur-sm relative overflow-hidden">
-          <div className="absolute right-0 top-0 -mt-6 -mr-6 h-24 w-24 rounded-full bg-primary/5 blur-xl pointer-events-none" />
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Deliverables
-            </h3>
-            <button 
-              onClick={() => setIsAddOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add deliverable
-            </button>
-          </div>
-          
-          {deliverables.length > 0 ? (
-            <div className="divide-y divide-border/40">
-              {deliverables.map((d) => {
-                const Icon = getTypeIcon(d.type);
-                
-                return (
-                  <div 
-                    key={d.id} 
-                    onClick={() => openViewDeliv(d)}
-                    className="py-3 px-2 -mx-2 rounded-2xl flex items-center justify-between first:pt-2 last:pb-2 gap-4 group transition-colors select-none hover:bg-muted/40 cursor-pointer"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-muted-foreground shrink-0">
-                          <Icon className="h-4 w-4" />
-                        </span>
-                        <h4 className="text-sm font-semibold text-foreground truncate">{d.title}</h4>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {d.type === "url" ? (
-                          <span className="truncate max-w-[280px] inline-block align-bottom font-medium text-primary">
-                            Link: {d.url}
-                          </span>
-                        ) : d.type === "folder" ? (
-                          <span>Folder: {d.folderName}</span>
-                        ) : (
-                          <span>File: {d.fileName} {d.fileSize && `(${d.fileSize})`}</span>
-                        )}
-                        {` · Updated ${d.updatedAt}`}
-                      </p>
-                    </div>
-                    <div 
-                      className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button 
-                        onClick={() => startEdit(d)}
-                        className="rounded-xl border border-border/50 bg-background hover:bg-muted p-2 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                        title="Edit"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button 
-                        onClick={() => removeDeliverable(d.id)}
-                        className="rounded-xl border border-border/50 bg-background hover:text-destructive hover:bg-destructive/10 p-2 text-muted-foreground transition-all cursor-pointer"
-                        title="Remove"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      {d.type === "url" && d.url && (
-                        <a 
-                          href={d.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-xl border border-border/50 bg-background hover:bg-muted p-2 text-muted-foreground hover:text-foreground transition-all flex items-center justify-center"
-                          title="Open link"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground/60 italic leading-relaxed font-medium">
-              No deliverables uploaded for this project yet.
-            </p>
-          )}
-        </div>
-
-        {isAddOpen && (
-          <AppDialog
-            open
-            onOpenChange={(v) => !v && setIsAddOpen(false)}
-            title="Add deliverable"
-            description="Create a new deliverable resource. Depending on type, configure link settings below."
-            footer={
-              <div className="flex w-full justify-end gap-2">
-                <button 
-                  onClick={() => setIsAddOpen(false)}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleAddSubmit}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-                >
-                  Add
-                </button>
-              </div>
-            }
-          >
-            <FieldGroup className="space-y-4">
-              <TextField 
-                label="Deliverable Name" 
-                placeholder="e.g. Invoicing wireframes" 
-                value={addForm.title} 
-                onChange={(e) => setAddForm({ ...addForm, title: e.target.value })} 
-                autoFocus 
-              />
-              <div className={cn("grid gap-4", addForm.type === "file" ? "grid-cols-2" : "grid-cols-1")}>
-                <SelectField 
-                  label="Type" 
-                  value={addForm.type} 
-                  onChange={(e) => setAddForm({ ...addForm, type: e.target.value as any, fileName: "", folderName: "", url: "" })}
-                >
-                  <option value="file">File</option>
-                  <option value="folder">Folder</option>
-                  <option value="url">Website URL</option>
-                </SelectField>
-                
-                {addForm.type === "file" && (
-                  <SelectField 
-                    label="File Source" 
-                    value={addForm.fileSource} 
-                    onChange={(e) => setAddForm({ ...addForm, fileSource: e.target.value as any, fileName: "", fileSize: "" })}
-                  >
-                    <option value="upload">Upload new file</option>
-                    <option value="app">Choose from project files</option>
-                  </SelectField>
-                )}
-              </div>
-
-              {addForm.type === "file" && addForm.fileSource === "upload" && (
-                <div className="space-y-1.5">
-                  <FieldLabel>Upload File</FieldLabel>
-                  {addForm.fileName ? (
-                    <div className="flex items-center justify-between rounded-2xl border border-border bg-muted/40 p-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <FileText className="h-5 w-5 text-primary shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{addForm.fileName}</p>
-                          {addForm.fileSize && <p className="text-[11px] text-muted-foreground">{addForm.fileSize}</p>}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setAddForm({ ...addForm, fileName: "", fileSize: "" })}
-                        className="rounded-xl hover:bg-muted p-1.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                        type="button"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/85 bg-muted/20 p-5 text-center hover:bg-muted/40 hover:border-primary/50 transition-all">
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const sizeStr = file.size > 1024 * 1024
-                              ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-                              : `${(file.size / 1024).toFixed(0)} KB`;
-                            
-                            const titleUpdate = addForm.title.trim() 
-                              ? addForm.title 
-                              : file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-                            
-                            setAddForm({
-                              ...addForm,
-                              title: titleUpdate,
-                              fileName: file.name,
-                              fileSize: sizeStr,
-                            });
-                          }
-                        }}
-                      />
-                      <Upload className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-foreground">Click to upload file</span>
-                      <span className="text-[10px] text-muted-foreground">Any file up to 50MB</span>
-                    </label>
-                  )}
-                </div>
-              )}
-
-              {addForm.type === "file" && addForm.fileSource === "app" && (
-                <SelectField 
-                  label="Choose Project File" 
-                  value={addForm.fileName} 
-                  onChange={(e) => setAddForm({ ...addForm, fileName: e.target.value })}
-                >
-                  <option value="">-- Select a project file --</option>
-                  {projectDocs.map((doc) => (
-                    <option key={doc.id} value={doc.name}>{doc.name} ({doc.size})</option>
-                  ))}
-                </SelectField>
-              )}
-
-              {addForm.type === "folder" && (
-                <SelectField 
-                  label="Choose Project Folder" 
-                  value={addForm.folderName} 
-                  onChange={(e) => setAddForm({ ...addForm, folderName: e.target.value })}
-                >
-                  <option value="">-- Select a project folder --</option>
-                  {projectFolders.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </SelectField>
-              )}
-
-              {addForm.type === "url" && (
-                <TextField 
-                  label="Website URL" 
-                  placeholder="https://example.com" 
-                  value={addForm.url} 
-                  onChange={(e) => setAddForm({ ...addForm, url: e.target.value })} 
-                />
-              )}
-
-              <div>
-                <FieldLabel>Initial Notes</FieldLabel>
-                <RichEditor 
-                  value={addForm.notes} 
-                  onChange={(v) => setAddForm({ ...addForm, notes: v })} 
-                  minHeight={100} 
-                  placeholder="Goal, context, descriptions..." 
-                />
-              </div>
-            </FieldGroup>
-          </AppDialog>
-        )}
-
-        {editingDeliv && (
-          <AppDialog
-            open
-            onOpenChange={(v) => !v && setEditingDelivId(null)}
-            title="Edit deliverable"
-            description="Update this deliverable resource. Depending on type, configure settings below."
-            footer={
-              <div className="flex w-full justify-end gap-2">
-                <button 
-                  onClick={() => setEditingDelivId(null)}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleEditSubmit}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-                >
-                  Save Changes
-                </button>
-              </div>
-            }
-          >
-            <FieldGroup className="space-y-4">
-              <TextField 
-                label="Deliverable Name" 
-                placeholder="e.g. Invoicing wireframes" 
-                value={editForm.title} 
-                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} 
-                autoFocus 
-              />
-              <div className={cn("grid gap-4", editForm.type === "file" ? "grid-cols-2" : "grid-cols-1")}>
-                <SelectField 
-                  label="Type" 
-                  value={editForm.type} 
-                  onChange={(e) => setEditForm({ ...editForm, type: e.target.value as any, fileName: "", folderName: "", url: "" })}
-                >
-                  <option value="file">File</option>
-                  <option value="folder">Folder</option>
-                  <option value="url">Website URL</option>
-                </SelectField>
-                
-                {editForm.type === "file" && (
-                  <SelectField 
-                    label="File Source" 
-                    value={editForm.fileSource} 
-                    onChange={(e) => setEditForm({ ...editForm, fileSource: e.target.value as any, fileName: "", fileSize: "" })}
-                  >
-                    <option value="upload">Upload new file</option>
-                    <option value="app">Choose from project files</option>
-                  </SelectField>
-                )}
-              </div>
-
-              {editForm.type === "file" && editForm.fileSource === "upload" && (
-                <div className="space-y-1.5">
-                  <FieldLabel>Upload File</FieldLabel>
-                  {editForm.fileName ? (
-                    <div className="flex items-center justify-between rounded-2xl border border-border bg-muted/40 p-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <FileText className="h-5 w-5 text-primary shrink-0" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{editForm.fileName}</p>
-                          {editForm.fileSize && <p className="text-[11px] text-muted-foreground">{editForm.fileSize}</p>}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setEditForm({ ...editForm, fileName: "", fileSize: "" })}
-                        className="rounded-xl hover:bg-muted p-1.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                        type="button"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/85 bg-muted/20 p-5 text-center hover:bg-muted/40 hover:border-primary/50 transition-all">
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const sizeStr = file.size > 1024 * 1024
-                              ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-                              : `${(file.size / 1024).toFixed(0)} KB`;
-                            
-                            const titleUpdate = editForm.title.trim() 
-                              ? editForm.title 
-                              : file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-                            
-                            setEditForm({
-                              ...editForm,
-                              title: titleUpdate,
-                              fileName: file.name,
-                              fileSize: sizeStr,
-                            });
-                          }
-                        }}
-                      />
-                      <Upload className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-xs font-semibold text-foreground">Click to upload file</span>
-                      <span className="text-[10px] text-muted-foreground">Any file up to 50MB</span>
-                    </label>
-                  )}
-                </div>
-              )}
-
-              {editForm.type === "file" && editForm.fileSource === "app" && (
-                <SelectField 
-                  label="Choose Project File" 
-                  value={editForm.fileName} 
-                  onChange={(e) => setEditForm({ ...editForm, fileName: e.target.value })}
-                >
-                  <option value="">-- Select a project file --</option>
-                  {projectDocs.map((doc) => (
-                    <option key={doc.id} value={doc.name}>{doc.name} ({doc.size})</option>
-                  ))}
-                </SelectField>
-              )}
-
-              {editForm.type === "folder" && (
-                <SelectField 
-                  label="Choose Project Folder" 
-                  value={editForm.folderName} 
-                  onChange={(e) => setEditForm({ ...editForm, folderName: e.target.value })}
-                >
-                  <option value="">-- Select a project folder --</option>
-                  {projectFolders.map((f) => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </SelectField>
-              )}
-
-              {editForm.type === "url" && (
-                <TextField 
-                  label="Website URL" 
-                  placeholder="https://example.com" 
-                  value={editForm.url} 
-                  onChange={(e) => setEditForm({ ...editForm, url: e.target.value })} 
-                />
-              )}
-            </FieldGroup>
-          </AppDialog>
-        )}
-
-        {selectedDeliv && (
-          <AppDialog
-            open
-            onOpenChange={(v) => !v && setSelectedDelivId(null)}
-            title={selectedDeliv.title}
-            description={`Deliverable details — Type: ${selectedDeliv.type.toUpperCase()}`}
-            footer={
-              <div className="flex w-full justify-end gap-2">
-                <button 
-                  onClick={() => setSelectedDelivId(null)}
-                  className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => {
-                    saveNotes();
-                    setSelectedDelivId(null);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-                >
-                  Save notes
-                </button>
-              </div>
-            }
-          >
-            <div className="space-y-5">
-              <div className="rounded-2xl border border-border bg-muted/30 p-4">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                  Linked Resource
-                </div>
-                
-                {selectedDeliv.type === "file" && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <FileText className="h-5 w-5 text-primary shrink-0" />
-                    <span className="font-semibold truncate">{selectedDeliv.fileName || "No file linked"}</span>
-                    {selectedDeliv.fileSize && (
-                      <span className="text-xs text-muted-foreground">({selectedDeliv.fileSize})</span>
-                    )}
-                  </div>
-                )}
-                
-                {selectedDeliv.type === "folder" && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <FolderOpen className="h-5 w-5 text-primary shrink-0" />
-                    <span className="font-semibold truncate">Folder: {selectedDeliv.folderName || "No folder selected"}</span>
-                  </div>
-                )}
-                
-                {selectedDeliv.type === "url" && (
-                  <div className="flex items-center justify-between gap-4 text-sm">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <ExternalLink className="h-5 w-5 text-primary shrink-0" />
-                      <span className="font-semibold truncate">{selectedDeliv.url || "No URL provided"}</span>
-                    </div>
-                    {selectedDeliv.url && (
-                      <a 
-                        href={selectedDeliv.url} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-xs text-primary font-semibold inline-flex items-center gap-1 shrink-0"
-                      >
-                        Visit site <ArrowUpRight className="h-3 w-3" />
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <FieldLabel>Rich Text Notes</FieldLabel>
-                <RichEditor 
-                  value={viewNotes} 
-                  onChange={setViewNotes} 
-                  minHeight={180} 
-                  placeholder="Write rich text notes about this deliverable..." 
-                />
-              </div>
-            </div>
-          </AppDialog>
-        )}
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <StatBox
@@ -1061,7 +392,7 @@ function Overview({ projectId }: { projectId: string }) {
           />
           <StatBox
             label="Billing Type"
-            value={project.type === "fixed" ? "Fixed Price" : "Hourly"}
+            value={{ fixed: "Fixed", hourly: "Hourly", retainer: "Retainer" }[project.type] ?? project.type}
             description="Billing structure"
             icon={Briefcase}
             colorCls={{
@@ -2000,7 +1331,7 @@ function TaskDetailsDrawer({
 }) {
   const tasks = useStore((s) => s.tasks);
   const task = useMemo(() => tasks.find((t) => t.id === taskId), [tasks, taskId]);
-  const projects = useStore((s) => s.projects);
+  const projects = useProjects();
   const project = useMemo(() => projects.find((p) => p.id === task?.projectId), [projects, task?.projectId]);
   const updateTask = useStore((s) => s.updateTask);
   const users = useStore((s) => s.users);
@@ -2601,6 +1932,19 @@ function DocumentsTab({ projectId }: { projectId: string }) {
   const [editingDocName, setEditingDocName] = useState("");
   const [validationError, setValidationError] = useState(false);
 
+  // Selections & Bulk Actions
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  
+  useEffect(() => {
+    setSelectedFileIds([]);
+  }, [fileQuery, selectedFolder]);
+
+  const toggleSelectFile = (fileId: string) => {
+    setSelectedFileIds(prev => 
+      prev.includes(fileId) ? prev.filter(id => id !== fileId) : [...prev, fileId]
+    );
+  };
+
   const folders = useMemo(() => {
     const list = Array.from(new Set(documents.map((d) => d.folder)));
     projectStorageMappings.forEach((m) => {
@@ -2673,229 +2017,88 @@ function DocumentsTab({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
-      {/* Folder sidebar */}
-      <div className="panel p-4 lg:col-span-1 bg-card border-border/60 h-fit">
-        <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Directories</div>
-        <div className="space-y-1 text-sm">
-          <button
-            onClick={() => setSelectedFolder(null)}
-            className={cn(
-              "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left font-medium transition-colors cursor-pointer",
-              selectedFolder === null ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <span className="inline-flex items-center gap-2"><FolderOpen className="h-4 w-4" /> All Files</span>
-            <span>{allFiles.length}</span>
-          </button>
-          
-          {folders.map((f) => {
-            const isSelected = selectedFolder === f;
-            const count = allFiles.filter((x) => x.folder === f).length;
-            const isExternal = projectStorageMappings.some((m) => m.folderName === f);
-            if (isExternal) return null;
-
-            return (
-              <div
-                key={f}
-                className={cn(
-                  "group/folder relative flex items-center justify-between rounded-xl px-3 py-2 text-left font-medium transition-colors cursor-pointer text-sm pr-18",
-                  isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted text-muted-foreground hover:text-foreground"
-                )}
-                onClick={() => setSelectedFolder(f)}
-              >
-                <span className="inline-flex items-center gap-2 truncate max-w-[60%]">
-                  <FolderOpen className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{f}</span>
-                </span>
-                
-                <span className="text-xs text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2">{count}</span>
-                
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    open("doc.folder.rename", { projectId, folder: f });
-                  }}
-                  className="absolute right-13 top-1/2 -translate-y-1/2 opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-muted-foreground/10 rounded text-muted-foreground hover:text-foreground cursor-pointer transition-opacity"
-                  title="Rename folder"
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                </button>
-                
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    open("doc.folder.delete", { projectId, folder: f });
-                  }}
-                  className="absolute right-8 top-1/2 -translate-y-1/2 opacity-0 group-hover/folder:opacity-100 p-0.5 hover:bg-rose-500/10 rounded text-muted-foreground hover:text-rose-600 cursor-pointer transition-opacity"
-                  title="Delete folder"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Connected Storage */}
-        <div className="mt-6 border-t border-border/40 pt-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">Connected Storage</span>
-            <button
-              onClick={() => open("project.storage.connect", { projectId })}
-              className="rounded-full border border-border/50 bg-background/30 px-2.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/5 transition-all cursor-pointer"
-            >
-              + Connect
-            </button>
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-card/40 p-2.5 rounded-2xl border border-border/40">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={fileQuery}
+              onChange={(e) => setFileQuery(e.target.value)}
+              placeholder="Search files..."
+              className="h-9 w-48 rounded-full border border-border bg-card pl-9 pr-3 text-xs focus:border-primary focus:outline-none"
+            />
           </div>
           
-          {projectStorageMappings.length === 0 ? (
-            <div className="text-xs text-muted-foreground/70 bg-muted/15 rounded-2xl p-4 border border-dashed border-border/70 leading-relaxed text-center font-medium">
-              No cloud directories connected. Connect Google Drive, Dropbox, or OneDrive to sync assets.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {projectStorageMappings.map((mapping) => {
-                const providerMeta = {
-                  gdrive: {
-                    name: "Google Drive",
-                    color: "text-blue-500 bg-blue-500/10 border-blue-500/20",
-                    icon: Cloud
-                  },
-                  dropbox: {
-                    name: "Dropbox",
-                    color: "text-sky-500 bg-sky-500/10 border-sky-500/20",
-                    icon: FolderOpen
-                  },
-                  box: {
-                    name: "Box.com",
-                    color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
-                    icon: HardDrive
-                  },
-                  onedrive: {
-                    name: "OneDrive",
-                    color: "text-blue-600 bg-blue-600/10 border-blue-600/20",
-                    icon: Cloud
-                  }
-                }[mapping.provider] || {
-                  name: mapping.provider,
-                  color: "text-muted-foreground bg-muted border-border",
-                  icon: Cloud
-                };
+          <div className="flex border border-border rounded-full p-0.5 bg-card">
+            <button
+              onClick={() => setViewType("grid")}
+              className={cn("rounded-full px-2.5 py-1 text-xs font-semibold cursor-pointer", viewType === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setViewType("list")}
+              className={cn("rounded-full px-2.5 py-1 text-xs font-semibold cursor-pointer", viewType === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+            >
+              List
+            </button>
+          </div>
+        </div>
 
-                const isSelected = selectedFolder === mapping.folderName;
-
-                return (
-                  <div
-                    key={mapping.id}
-                    className={cn(
-                      "group/mapping relative flex items-center gap-3 rounded-2xl border p-3 transition-all cursor-pointer text-xs",
-                      isSelected
-                        ? "border-primary/45 bg-primary/[0.03] text-primary"
-                        : "border-border/50 bg-card hover:bg-muted/40 hover:border-border/80 text-muted-foreground hover:text-foreground"
-                    )}
-                    onClick={() => setSelectedFolder(mapping.folderName)}
-                  >
-                    {/* Brand Icon Wrapper */}
-                    <div className={cn(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-sm font-bold transition-all duration-300",
-                      providerMeta.color
-                    )}>
-                      <providerMeta.icon className="h-4.5 w-4.5" />
-                    </div>
-
-                    {/* Meta Details */}
-                    <div className="min-w-0 flex-1 pr-6">
-                      <div className="font-semibold text-foreground truncate leading-tight">
-                        {mapping.folderName}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground/80 truncate mt-0.5 font-medium leading-none">
-                        {providerMeta.name} · {mapping.email}
-                      </div>
-                      <div className="mt-1 flex items-center gap-1.5 text-[9px] text-muted-foreground/75 leading-none">
-                        <span className="inline-block h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">Connected</span>
-                      </div>
-                    </div>
-
-                    {/* Disconnect Action Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        unmapProjectStorage(mapping.id);
-                        if (isSelected) setSelectedFolder(null);
-                        toast.info("External directory disconnected");
-                      }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-0 group-hover/mapping:opacity-100 p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all cursor-pointer"
-                      aria-label="Disconnect storage"
-                      title="Disconnect storage"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+        <div className="flex items-center gap-2">
+          {selectedFileIds.length > 0 && (
+            <button
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete ${selectedFileIds.length} selected files?`)) {
+                  selectedFileIds.forEach(id => deleteDocument(id));
+                  setSelectedFileIds([]);
+                  toast.success("Selected files deleted successfully");
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-2 text-xs font-semibold text-rose-50 hover:bg-rose-700 transition-colors cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Selected ({selectedFileIds.length})
+            </button>
           )}
+          <button
+            onClick={() => open("doc.upload", { projectId })}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+          >
+            <Upload className="h-3.5 w-3.5" /> Upload file
+          </button>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="lg:col-span-3 space-y-4">
-        {/* Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-card/40 p-2.5 rounded-2xl border border-border/40">
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={fileQuery}
-                onChange={(e) => setFileQuery(e.target.value)}
-                placeholder="Search files..."
-                className="h-9 w-48 rounded-full border border-border bg-card pl-9 pr-3 text-xs focus:border-primary focus:outline-none"
-              />
-            </div>
-            
-            <div className="flex border border-border rounded-full p-0.5 bg-card">
-              <button
-                onClick={() => setViewType("grid")}
-                className={cn("rounded-full px-2.5 py-1 text-xs font-semibold cursor-pointer", viewType === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
-              >
-                Grid
-              </button>
-              <button
-                onClick={() => setViewType("list")}
-                className={cn("rounded-full px-2.5 py-1 text-xs font-semibold cursor-pointer", viewType === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
-              >
-                List
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => open("doc.folder.new", { projectId })}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-muted transition-colors cursor-pointer"
-            >
-              <FolderOpen className="h-3.5 w-3.5" /> New folder
-            </button>
-            <button
-              onClick={() => open("doc.upload", { projectId })}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              <Upload className="h-3.5 w-3.5" /> Upload file
-            </button>
-          </div>
+      {/* Files Grid / List */}
+      {filteredFiles.length === 0 ? (
+        <div className="panel p-12 text-center text-muted-foreground bg-card/50">
+          No files available in this directory. Click 'Upload file' to manually add assets.
         </div>
-
-        {/* Files Grid / List */}
-        {filteredFiles.length === 0 ? (
-          <div className="panel p-12 text-center text-muted-foreground bg-card/50">
-            No files available in this directory. Click 'Upload file' to manually add assets.
-          </div>
-        ) : viewType === "grid" ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+      ) : viewType === "grid" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {filteredFiles.map((file) => (
-              <div key={file.id} className="panel overflow-hidden bg-card border-border/60 flex flex-col justify-between group">
+              <div
+                key={file.id}
+                className={cn(
+                  "panel overflow-hidden bg-card flex flex-col justify-between group relative transition-all",
+                  selectedFileIds.includes(file.id) ? "border-primary/50 ring-1 ring-primary/20 bg-primary/[0.01]" : "border-border/60"
+                )}
+              >
+                {/* Checkbox wrapper */}
+                <div className={cn(
+                  "absolute top-2.5 left-2.5 z-10 transition-opacity",
+                  selectedFileIds.includes(file.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                )}>
+                  <input
+                    type="checkbox"
+                    checked={selectedFileIds.includes(file.id)}
+                    onChange={() => toggleSelectFile(file.id)}
+                    className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
+                  />
+                </div>
+
                 <div className="h-28 bg-muted/40 flex items-center justify-center relative select-none overflow-hidden">
                   {file.previewUrl ? (
                     <img
@@ -2906,7 +2109,6 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                   ) : (
                     getFileIcon(file.name, "h-10 w-10")
                   )}
-                  <span className="absolute top-2 right-2 text-[9px] font-semibold bg-background border border-border px-1.5 py-0.5 rounded text-muted-foreground">{file.folder}</span>
                 </div>
                 
                 <div className="p-4 flex-1 flex flex-col justify-between">
@@ -2977,13 +2179,6 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
                       <button
-                        onClick={() => open("doc.move", { documentId: file.id })}
-                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
-                        title="Move folder"
-                      >
-                        <ArrowRightLeft className="h-3.5 w-3.5" />
-                      </button>
-                      <button
                         onClick={() => open("doc.delete", { documentId: file.id })}
                         className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded transition-all cursor-pointer"
                         title="Delete"
@@ -3001,6 +2196,20 @@ function DocumentsTab({ projectId }: { projectId: string }) {
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground bg-muted/20">
                 <tr className="border-b border-border">
+                  <th className="px-4 py-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredFiles.length > 0 && selectedFileIds.length === filteredFiles.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedFileIds(filteredFiles.map(f => f.id));
+                        } else {
+                          setSelectedFileIds([]);
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
+                    />
+                  </th>
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Directory</th>
                   <th className="px-4 py-3 font-medium">Size</th>
@@ -3013,7 +2222,21 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                 {filteredFiles.map((file) => {
                   const u = users.find((x) => x.id === file.uploadedBy);
                   return (
-                    <tr key={file.id} className="border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors">
+                    <tr
+                      key={file.id}
+                      className={cn(
+                        "border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors",
+                        selectedFileIds.includes(file.id) && "bg-primary/[0.01]"
+                      )}
+                    >
+                      <td className="px-4 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedFileIds.includes(file.id)}
+                          onChange={() => toggleSelectFile(file.id)}
+                          className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-3 font-medium text-foreground truncate max-w-xs">
                         {editingDocId === file.id ? (
                           <div className="flex items-center gap-1">
@@ -3086,13 +2309,6 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => open("doc.move", { documentId: file.id })}
-                            className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
-                            title="Move folder"
-                          >
-                            <ArrowRightLeft className="h-3.5 w-3.5" />
-                          </button>
-                          <button
                             onClick={() => open("doc.delete", { documentId: file.id })}
                             className="p-1 text-rose-500 hover:text-rose-700 rounded transition-colors cursor-pointer"
                             title="Delete"
@@ -3109,7 +2325,6 @@ function DocumentsTab({ projectId }: { projectId: string }) {
           </div>
         )}
       </div>
-    </div>
   );
 }
 
@@ -3119,13 +2334,25 @@ function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id
   const [activeThreadId, setActiveThreadId] = useState<string>(projectId);
   const [chatSearch, setChatSearch] = useState("");
   
-  const projects = useStore((s) => s.projects);
+  const projects = useProjects();
   const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
   const allTasks = useStore((s) => s.tasks);
   const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const comments = useStore((s) => s.comments);
   const createComment = useStore((s) => s.createComment);
   const users = useStore((s) => s.users);
+
+  const messageLogRef = useRef<HTMLDivElement>(null);
+
+  const activeComments = useMemo(() => {
+    return comments.filter((c) => c.threadId === activeThreadId);
+  }, [comments, activeThreadId]);
+
+  useEffect(() => {
+    if (messageLogRef.current) {
+      messageLogRef.current.scrollTop = messageLogRef.current.scrollHeight;
+    }
+  }, [activeThreadId, activeComments]);
   
   // File Upload states for chat attachments
   const uploadDocument = useStore((s) => s.uploadDocument);
@@ -3133,9 +2360,6 @@ function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id
   const [attachFileName, setAttachFileName] = useState("");
   const [attachFileIsInternal, setAttachFileIsInternal] = useState(false);
 
-  const activeComments = useMemo(() => {
-    return comments.filter((c) => c.threadId === activeThreadId);
-  }, [comments, activeThreadId]);
 
   const activeTitle = useMemo(() => {
     if (activeThreadId === projectId) {
@@ -3185,7 +2409,7 @@ function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id
       {/* Left Sidebar */}
       <div className="border-r border-border md:col-span-1 flex flex-col h-full bg-muted/10">
         <div className="p-4 border-b border-border flex flex-col gap-3 bg-card/60">
-          <h3 className="text-sm font-bold text-foreground tracking-tight select-none">Discussions</h3>
+          <h3 className="text-sm font-bold text-foreground tracking-tight select-none">Conversations</h3>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -3271,7 +2495,7 @@ function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id
         </div>
 
         {/* Message Log */}
-        <div className="flex-1 max-h-[360px] overflow-y-auto p-6 space-y-4 scrollbar-thin">
+        <div ref={messageLogRef} className="flex-1 max-h-[360px] overflow-y-auto p-6 space-y-4 scrollbar-thin">
           {activeComments.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <MessageCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/45" />
@@ -3419,7 +2643,7 @@ function ChatInputBox({ threadId, onAttachClick }: { threadId: string; onAttachC
 function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: (id: string) => void }) {
   const allTimeEntries = useStore((s) => s.timeEntries);
   const projectEntries = useMemo(() => allTimeEntries.filter((t) => t.projectId === projectId), [allTimeEntries, projectId]);
-  const projects = useStore((s) => s.projects);
+  const projects = useProjects();
   const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
   const users = useStore((s) => s.users);
   const tasks = useStore((s) => s.tasks);
@@ -3552,34 +2776,34 @@ function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: 
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 bg-muted/20 border-b border-border/60">
-                    <th className="px-4 py-3 font-semibold">Date</th>
-                    <th className="px-4 py-3 font-semibold">Teammate</th>
-                    <th className="px-4 py-3 font-semibold">Note / Work Done</th>
-                    <th className="px-4 py-3 font-semibold text-right">Hours</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 text-right"></th>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-muted-foreground">
+                  <tr className="border-b border-border">
+                    <th className="px-5 py-3 font-medium">Date</th>
+                    <th className="px-5 py-3 font-medium">Team</th>
+                    <th className="px-5 py-3 font-medium">Note / Work Done</th>
+                    <th className="px-5 py-3 font-medium text-right">Hours</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/40">
+                <tbody>
                   {filteredEntries.map((e) => {
                     const u = users.find((x) => x.id === e.userId)!;
                     if (!u) return null;
                     return (
-                      <tr key={e.id} className="hover:bg-muted/10 transition-colors group">
-                        <td className="px-4 py-3.5 text-xs text-muted-foreground whitespace-nowrap">{e.date}</td>
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-2">
-                            <UserAvatar user={u} size={22} />
-                            <span className="font-semibold text-foreground/90 text-xs whitespace-nowrap">{u.name}</span>
+                      <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                        <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{e.date}</td>
+                        <td className="px-5 py-3 text-muted-foreground">
+                          <div className="flex items-center gap-2.5">
+                            <UserAvatar user={u} size={24} />
+                            <span className="text-foreground font-semibold">{u.name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <div className="text-xs text-foreground/80 max-w-[220px] md:max-w-[320px] truncate" title={e.note}>
-                            {e.note || <span className="italic text-muted-foreground/30">No note provided</span>}
+                        <td className="px-5 py-3 text-muted-foreground font-medium">
+                          <div>
+                            {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
                           </div>
                           {(() => {
                             const assocTask = e.taskId ? tasks.find((t) => t.id === e.taskId) : null;
@@ -3587,7 +2811,7 @@ function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: 
                             return (
                               <button
                                 onClick={() => onTaskClick?.(assocTask.id)}
-                                className="mt-1.5 flex items-center gap-1.5 text-[9px] font-bold text-primary cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
+                                className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-primary cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
                               >
                                 <span className="h-1.2 w-1.2 rounded-full bg-primary" />
                                 Task: {assocTask.title}
@@ -3595,41 +2819,42 @@ function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: 
                             );
                           })()}
                         </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <span className="inline-flex items-center justify-center font-bold px-2 py-0.5 rounded-lg text-xs bg-muted text-foreground/80 font-mono">
-                            {e.hours.toFixed(1)}h
+                        <td className="px-5 py-3 text-right text-muted-foreground font-semibold">
+                          {e.hours.toFixed(1)}h
+                        </td>
+                        <td className="px-5 py-3 whitespace-nowrap">
+                          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", e.billable ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-500/20" : "bg-slate-50 text-slate-700 dark:bg-slate-500/10 dark:text-slate-400 border border-slate-500/10")}>
+                            {e.billable ? "Billable" : "Non-billable"}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap">
-                          {e.billable ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                              <span className="h-1 w-1 rounded-full bg-emerald-500" />
-                              Billable
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-500/10 px-2 py-0.5 text-[9px] font-bold text-slate-500 dark:text-slate-400 border border-slate-500/10">
-                              <span className="h-1 w-1 rounded-full bg-slate-400" />
-                              Non-billable
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => open("time.edit", { timeId: e.id })}
-                              className="p-1 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                              title="Edit time log"
-                            >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              onClick={() => open("time.delete", { timeId: e.id })}
-                              className="p-1 hover:bg-destructive/10 rounded-md text-muted-foreground hover:text-destructive transition-all cursor-pointer"
-                              title="Delete time log"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                        <td className="px-5 py-3 text-right whitespace-nowrap">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="rounded-full border border-border/50 bg-background/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-32 border border-border bg-card">
+                              <DropdownMenuItem
+                                onSelect={(ev) => {
+                                  ev.preventDefault();
+                                  setTimeout(() => open("time.edit", { timeId: e.id }), 100);
+                                }}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                <span>Edit</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={(ev) => {
+                                  ev.preventDefault();
+                                  setTimeout(() => deleteTimeEntry(e.id), 100);
+                                }}
+                                className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                              >
+                                <span>Delete</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     );

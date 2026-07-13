@@ -314,17 +314,16 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value as "fixed" | "hourly" | "retainer" })}
             >
-              <option value="fixed">Fixed bid</option>
-              <option value="hourly">Hourly rate</option>
-              <option value="retainer">Monthly retainer</option>
+              <option value="fixed">Fixed</option>
+              <option value="hourly">Hourly</option>
+              <option value="retainer">Retainer</option>
             </SelectField>
           </div>
         </div>
 
-        {/* Section 2: Parameters (Timeline & Budget) - Styled Container */}
-        <div className="rounded-3xl border border-border/60 bg-muted/20 p-5 space-y-4">
+        {/* Section 2: Parameters (Timeline & Budget) */}
+        <div className="border-t border-border/50 pt-5 space-y-4">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <TrendingUp className="h-3.5 w-3.5 text-primary" />
             <span>Timeline & Budget Settings</span>
           </div>
           
@@ -355,39 +354,20 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
                   value={form.hoursEstimate}
                   onChange={(e) => setForm({ ...form, hoursEstimate: Number(e.target.value) })}
                 />
-                <SelectField
-                  label="Status"
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}
-                >
-                  {Object.entries(PROJECT_STATUS_META).map(([v, m]) => (
-                    <option key={v} value={v}>{m.label}</option>
-                  ))}
-                </SelectField>
+                <TextField
+                  label="Target launch"
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                />
               </div>
             );
           })()}
-          
-          <div className="grid grid-cols-2 gap-4">
-            <TextField
-              label="Start date"
-              type="date"
-              value={form.startDate}
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            />
-            <TextField
-              label="Target launch"
-              type="date"
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-            />
-          </div>
         </div>
 
         {/* Section 3: Staffing */}
         <div className="border-t border-border/50 pt-5 space-y-3">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <UserPlus className="h-3.5 w-3.5 text-primary" />
             <span>Team Staffing</span>
           </div>
           <MultiUserPicker
@@ -400,7 +380,6 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
         {/* Section 4: Brief */}
         <div className="border-t border-border/50 pt-5 space-y-3">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <FileText className="h-3.5 w-3.5 text-primary" />
             <span>Project Brief & Scope</span>
           </div>
           <RichEditor
@@ -421,7 +400,9 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
   const clients = useStore((s) => s.clients);
   const teamUsers = useStore((s) => s.users).filter((u) => u.role !== "client");
   const updateProject = useStore((s) => s.updateProject);
+  const deleteProject = useStore((s) => s.deleteProject);
   const { busy, run } = useAsyncAction();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState(() => ({
     name: project?.name ?? "",
     clientId: project?.clientId ?? "",
@@ -460,9 +441,27 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
       icon={<Briefcase className="h-5 w-5" />}
       size="lg"
       footer={
-        <div className="flex w-full justify-end gap-2">
-          <GhostButton onClick={close}>Cancel</GhostButton>
-          <PrimaryButton onClick={submit} loading={busy}>Save changes</PrimaryButton>
+        <div className="flex w-full justify-between items-center">
+          <div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (confirmDelete) {
+                  await run(() => deleteProject(projectId), `${project.name} deleted`);
+                  close();
+                } else {
+                  setConfirmDelete(true);
+                }
+              }}
+              className="text-sm font-medium text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+            >
+              {confirmDelete ? "Confirm Delete" : "Delete Project"}
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <GhostButton onClick={() => { setConfirmDelete(false); close(); }}>Cancel</GhostButton>
+            <PrimaryButton onClick={submit} loading={busy}>Save changes</PrimaryButton>
+          </div>
         </div>
       }
     >
@@ -479,17 +478,16 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value as "fixed" | "hourly" | "retainer" })}
             >
-              <option value="fixed">Fixed bid</option>
-              <option value="hourly">Hourly rate</option>
-              <option value="retainer">Monthly retainer</option>
+              <option value="fixed">Fixed</option>
+              <option value="hourly">Hourly</option>
+              <option value="retainer">Retainer</option>
             </SelectField>
           </div>
         </div>
 
         {/* Section 2: Parameters (Timeline & Budget) */}
-        <div className="rounded-3xl border border-border/60 bg-muted/20 p-5 space-y-4">
+        <div className="border-t border-border/50 pt-5 space-y-4">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <TrendingUp className="h-3.5 w-3.5 text-primary" />
             <span>Timeline & Budget Settings</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -502,7 +500,6 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
         {/* Section 3: Staffing */}
         <div className="border-t border-border/50 pt-5 space-y-3">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <UserPlus className="h-3.5 w-3.5 text-primary" />
             <span>Team Staffing</span>
           </div>
           <MultiUserPicker
@@ -515,7 +512,6 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
         {/* Section 4: Brief */}
         <div className="border-t border-border/50 pt-5 space-y-3">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <FileText className="h-3.5 w-3.5 text-primary" />
             <span>Project Brief & Scope</span>
           </div>
           <RichEditor value={form.description} onChange={(html) => setForm({ ...form, description: html })} minHeight={140} />
@@ -4705,6 +4701,10 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
   const updateProject = useStore((s) => s.updateProject);
   const deleteProject = useStore((s) => s.deleteProject);
 
+  const client = clients.find((c) => c.id === project?.clientId);
+  const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
+  const [copied, setCopied] = useState(false);
+
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -4715,7 +4715,6 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
       name: "",
       description: "",
       clientId: "",
-      status: "planning" as const,
       startDate: "",
       endDate: "",
     };
@@ -4723,7 +4722,6 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
       name: project.name,
       description: project.description,
       clientId: project.clientId,
-      status: project.status,
       startDate: project.startDate,
       endDate: project.endDate,
     };
@@ -4731,16 +4729,32 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
 
   if (!project) return null;
 
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const accessLink = `${origin}/client/projects/${project.id}?token=${clientShareToken}`;
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(accessLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const regenerateToken = () => {
+    const newToken = Math.random().toString(36).substring(2, 10);
+    setClientShareToken(newToken);
+  };
+
   const handleSave = async () => {
     await run(() => {
       updateProject(project.id, {
         name: form.name,
         description: form.description,
         clientId: form.clientId,
-        status: form.status,
         startDate: form.startDate,
         endDate: form.endDate,
       });
+      if (client) {
+        useStore.getState().updateClient(client.id, { clientShareToken });
+      }
     }, "Settings saved successfully");
     close();
   };
@@ -4770,11 +4784,27 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
       size="lg"
       footer={
         <div className="flex w-full justify-between items-center">
-          <div className="text-xs text-muted-foreground truncate max-w-xs">
-            Changes apply to project: <span className="font-semibold text-foreground">{project.name}</span>
+          <div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (confirmDelete) {
+                  await run(() => {
+                    deleteProject(project.id);
+                    window.location.href = `/owner/projects`;
+                  }, "Project deleted");
+                  close();
+                } else {
+                  setConfirmDelete(true);
+                }
+              }}
+              className="text-sm font-medium text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+            >
+              {confirmDelete ? "Confirm Delete" : "Delete Project"}
+            </button>
           </div>
           <div className="flex gap-2 shrink-0">
-            <GhostButton onClick={close}>Cancel</GhostButton>
+            <GhostButton onClick={() => { setConfirmDelete(false); close(); }}>Cancel</GhostButton>
             <PrimaryButton onClick={handleSave} loading={busy}>
               Save Changes
             </PrimaryButton>
@@ -4783,183 +4813,108 @@ function ProjectSettingsModal({ close, payload }: { close: () => void; payload?:
       }
     >
       <div className="space-y-5">
-        {/* Project Name */}
-        <div>
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-            Project Name
-          </label>
-          <input
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all text-foreground"
-          />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-            Description
-          </label>
-          <RichEditor
-            value={form.description}
-            onChange={(html) => setForm({ ...form, description: html })}
-            minHeight={120}
-            placeholder="Describe your project, goals, key milestones..."
-          />
-        </div>
-
-        {/* Client & Status */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-              Client
-            </label>
-            <div className="relative">
-              <select
-                value={form.clientId}
-                onChange={(e) => setForm({ ...form, clientId: e.target.value })}
-                className="h-11 w-full rounded-2xl border border-border bg-background px-4 pr-10 text-sm font-medium text-foreground appearance-none outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all cursor-pointer text-foreground"
+        {/* Project Portal Access Link */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Project Access Link</h4>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                readOnly
+                value={accessLink}
+                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={copyToClipboard}
+                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
               >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-muted-foreground/80">
-                <ChevronDown className="h-4 w-4" />
-              </div>
+                {copied ? "Copied!" : "Copy Link"}
+              </button>
             </div>
+            <button
+              type="button"
+              onClick={regenerateToken}
+              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Regenerate
+            </button>
           </div>
-
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-              Project Status
-            </label>
-            <div className="relative">
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as any })}
-                className="h-11 w-full rounded-2xl border border-border bg-background px-4 pr-10 text-sm font-medium text-foreground appearance-none outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all cursor-pointer text-foreground"
-              >
-                <option value="planning">Planning</option>
-                <option value="in_progress">In Progress</option>
-                <option value="review">In Review</option>
-                <option value="completed">Completed</option>
-                <option value="on_hold">On Hold</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-muted-foreground/80">
-                <ChevronDown className="h-4 w-4" />
-              </div>
-            </div>
-          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Anyone with this link will be able to access this project's client portal view directly.
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="border-t border-border/50 pt-5 space-y-5">
+          {/* Project Name */}
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-              Start Date
+              Project Name
             </label>
-            <DateInput
-              value={form.startDate}
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all text-foreground"
             />
           </div>
 
+          {/* Description */}
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-              End Date
+              Description
             </label>
-            <DateInput
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            <RichEditor
+              value={form.description}
+              onChange={(html) => setForm({ ...form, description: html })}
+              minHeight={120}
+              placeholder="Describe your project, goals, key milestones..."
             />
           </div>
-        </div>
 
-        {/* Project Actions (formerly Danger Zone) */}
-        <div className="border-t border-border/60 pt-5 mt-6 space-y-4">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80">
-            Project Actions
-          </div>
-
-          <div className="space-y-3">
-            {/* Archive Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-muted/10">
-              <div className="space-y-1">
-                <div className="text-xs font-bold text-foreground">Archive Project</div>
-                <p className="text-[10px] text-muted-foreground max-w-md leading-relaxed">
-                  Move project to On Hold. Hides it from active dashboards but retains all data. You can restore it anytime.
-                </p>
-              </div>
-
-              <div className="shrink-0 sm:ml-4">
-                {confirmArchive ? (
-                  <div className="flex items-center gap-2 animate-in fade-in duration-200">
-                    <button
-                      type="button"
-                      onClick={handleArchive}
-                      className="h-9 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-xs font-bold text-white transition-colors cursor-pointer"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmArchive(false)}
-                      className="h-9 px-3.5 rounded-xl border border-border bg-background hover:bg-muted text-xs font-semibold text-muted-foreground transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmArchive(true)}
-                    className="h-9 px-4 rounded-xl border border-border bg-background hover:bg-muted text-xs font-bold text-foreground transition-colors cursor-pointer"
-                  >
-                    Archive Project
-                  </button>
-                )}
+          {/* Client & Dates */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
+                Client
+              </label>
+              <div className="relative">
+                <select
+                  value={form.clientId}
+                  onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                  className="h-11 w-full rounded-2xl border border-border bg-background px-4 pr-10 text-sm font-medium text-foreground appearance-none outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all cursor-pointer text-foreground"
+                >
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-muted-foreground/80">
+                  <ChevronDown className="h-4 w-4" />
+                </div>
               </div>
             </div>
 
-            {/* Delete Row */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-muted/10">
-              <div className="space-y-1">
-                <div className="text-xs font-bold text-foreground">Delete Project</div>
-                <p className="text-[10px] text-muted-foreground max-w-md leading-relaxed">
-                  Permanently delete this project and all associated tasks, files, and comments. This action cannot be undone.
-                </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
+                  Start Date
+                </label>
+                <DateInput
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                />
               </div>
 
-              <div className="shrink-0 sm:ml-4">
-                {confirmDelete ? (
-                  <div className="flex items-center gap-2 animate-in fade-in duration-200">
-                    <button
-                      type="button"
-                      onClick={handleDelete}
-                      className="h-9 px-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white transition-colors cursor-pointer"
-                    >
-                      Confirm Delete
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDelete(false)}
-                      className="h-9 px-3.5 rounded-xl border border-border bg-background hover:bg-muted text-xs font-semibold text-muted-foreground transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete(true)}
-                    className="h-9 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-bold text-white transition-colors cursor-pointer"
-                  >
-                    Delete Project
-                  </button>
-                )}
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
+                  End Date
+                </label>
+                <DateInput
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                />
               </div>
             </div>
           </div>

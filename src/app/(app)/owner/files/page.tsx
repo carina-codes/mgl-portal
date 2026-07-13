@@ -24,6 +24,11 @@ import {
   Settings,
   RefreshCw,
   Search,
+  Pen,
+  FileArchive,
+  FileCode,
+  Check,
+  X,
 } from "lucide-react";
 import React, { useState, useMemo, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -54,16 +59,20 @@ function FilesView() {
   const projects = useStore((s) => s.projects);
   const users = useStore((s) => s.users);
   const clients = useStore((s) => s.clients);
+  const tasks = useStore((s) => s.tasks);
   const storageConnections = useStore((s) => s.storageConnections);
   const connectStorage = useStore((s) => s.connectStorage);
   const disconnectStorage = useStore((s) => s.disconnectStorage);
   const uploadDocument = useStore((s) => s.uploadDocument);
   const deleteDocument = useStore((s) => s.deleteDocument);
+  const renameDocument = useStore((s) => s.renameDocument);
+  const toggleDocumentShared = useStore((s) => s.toggleDocumentShared);
 
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [view, setView] = useState<"list" | "grid">("grid");
+
 
   // Connection Dialog states
   const [connectingProvider, setConnectingProvider] = useState<"gdrive" | "dropbox" | "onedrive" | "box" | null>(null);
@@ -73,449 +82,350 @@ function FilesView() {
 
   const searchParams = useSearchParams();
   const clientParam = searchParams.get("client");
+  const projectParam = searchParams.get("project");
+  const memberParam = searchParams.get("member");
 
   // Folder Explorer states
-  const [path, setPath] = useState<string[]>(["client-portal"]);
-
-  useEffect(() => {
-    if (clientParam && clients.length > 0) {
-      const clientObj = clients.find((c) => c.id === clientParam);
-      if (clientObj) {
-        setPath(["client-portal", clientObj.name]);
-      }
-    }
-  }, [clientParam, clients]);
-
-  const activeConn = useMemo(() => {
-    if (!mounted) return null;
-    return storageConnections.find((c) => c.connected) || null;
-  }, [storageConnections, mounted]);
-
-  const activeFolderDisplayPath = useMemo(() => {
-    return path.join("/");
-  }, [path]);
-
-  // Find active context (if we are in a client/project directory)
-  const activeClientName = path.length >= 2 ? path[1] : null;
+  // Active Client & Projects Calculation
   const activeClient = useMemo(() => {
-    return clients.find((c) => c.name === activeClientName);
-  }, [clients, activeClientName]);
+    return clients.find((c) => c.id === clientParam);
+  }, [clients, clientParam]);
 
-  const activeProjectName = path.length >= 3 ? path[2] : null;
-  const activeProject = useMemo(() => {
-    if (!activeClient) return null;
-    return projects.find((p) => p.name === activeProjectName && p.clientId === activeClient.id);
-  }, [projects, activeProjectName, activeClient]);
+  const activeMember = useMemo(() => {
+    return users.find((u) => u.id === memberParam);
+  }, [users, memberParam]);
 
-  // Folder and Files generation in explorer
-  const { subfolders, explorerFiles } = useMemo(() => {
-    const foldersList: string[] = [];
-    const filesList: typeof documents = [];
+  const clientProjects = useMemo(() => {
+    if (!clientParam) return [];
+    return projects.filter((p) => p.clientId === clientParam);
+  }, [projects, clientParam]);
 
-    if (path.length === 1) {
-      // Root level: client-portal
-      foldersList.push("internal");
-      clients.forEach((c) => {
-        if (!foldersList.includes(c.name)) foldersList.push(c.name);
-      });
-      documents.forEach((d) => {
-        if (d.folder === "client-portal" && d.name !== ".keep") {
-          filesList.push(d);
-        }
-      });
-    } else if (path.length === 2) {
-      const parentFolder = path[1];
-      if (parentFolder === "internal") {
-        // client-portal/internal
-        documents.forEach((d) => {
-          if (d.folder === "client-portal/internal" && d.name !== ".keep") {
-            filesList.push(d);
-          }
-        });
-      } else {
-        // client-portal/[clientName]
-        foldersList.push("internal");
-        if (activeClient) {
-          const clientProjects = projects.filter((p) => p.clientId === activeClient.id);
-          clientProjects.forEach((p) => {
-            if (!foldersList.includes(p.name)) foldersList.push(p.name);
-          });
-        }
-        documents.forEach((d) => {
-          if (d.folder === `client-portal/${parentFolder}` && d.name !== ".keep") {
-            filesList.push(d);
-          }
-        });
-      }
-    } else if (path.length === 3) {
-      const clientName = path[1];
-      const targetFolder = path[2];
-      if (activeClient) {
-        if (targetFolder === "internal") {
-          // client-portal/[clientName]/internal
-          const clientProjects = projects.filter((p) => p.clientId === activeClient.id);
-          const projectIds = clientProjects.map((p) => p.id);
-          documents.forEach((d) => {
-            if (
-              (projectIds.includes(d.projectId) && !d.shared && d.name !== ".keep") ||
-              (d.folder === `client-portal/${clientName}/internal` && d.name !== ".keep")
-            ) {
-              filesList.push(d);
-            }
-          });
-        } else {
-          // client-portal/[clientName]/[projectName]
-          if (activeProject) {
-            documents.forEach((d) => {
-              if (d.projectId === activeProject.id && d.name !== ".keep") {
-                filesList.push(d);
-              }
-            });
-          }
-        }
-      }
+  const clientProjectIds = useMemo(() => {
+    return clientProjects.map((p) => p.id);
+  }, [clientProjects]);
+
+  const clientFiles = useMemo(() => {
+    if (clientParam) {
+      return documents.filter((d) => clientProjectIds.includes(d.projectId) && d.name !== ".keep");
     }
-
-    return { subfolders: foldersList, explorerFiles: filesList };
-  }, [path, clients, projects, documents, activeClient, activeProject]);
-
-  const filteredSubfolders = useMemo(() => {
-    if (!search) return subfolders;
-    return subfolders.filter((f) => f.toLowerCase().includes(search.toLowerCase()));
-  }, [subfolders, search]);
+    if (memberParam) {
+      return documents.filter((d) => d.uploadedBy === memberParam && d.name !== ".keep");
+    }
+    return documents.filter((d) => d.name !== ".keep");
+  }, [documents, clientParam, clientProjectIds, memberParam]);
 
   const filteredFiles = useMemo(() => {
-    if (!search) return explorerFiles;
-    return explorerFiles.filter((d) => d.name.toLowerCase().includes(search.toLowerCase()));
-  }, [explorerFiles, search]);
+    return clientFiles.filter((d) => d.name.toLowerCase().includes(search.toLowerCase()));
+  }, [clientFiles, search]);
 
-  // Folder Click
-  const handleFolderClick = (folderName: string) => {
-    setPath([...path, folderName]);
+  // Selections & Bulk Actions
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  
+  useEffect(() => {
+    setSelectedFileIds([]);
+  }, [search, clientParam, memberParam]);
+
+  const toggleSelectFile = (fileId: string) => {
+    setSelectedFileIds(prev => 
+      prev.includes(fileId) ? prev.filter(id => id !== fileId) : [...prev, fileId]
+    );
   };
 
-  // Upload/New Folder Mock Logic
+  // Upload Logic
   const handleUploadMock = () => {
     const name = prompt("Enter file name to upload:");
     if (!name) return;
-    const isInternal = activeFolderDisplayPath.includes("internal");
+    const size = `${(Math.random() * 3 + 0.5).toFixed(1)} MB`;
+    const targetProjId = clientProjectIds[0] || "";
+    
     uploadDocument({
-      projectId: activeProject?.id || "",
+      projectId: targetProjId,
       name,
-      folder: activeFolderDisplayPath,
-      shared: !isInternal,
+      folder: activeClient ? activeClient.name : "All Files",
+      size,
+      shared: true,
     });
     toast.success(`Uploaded ${name} successfully!`);
   };
 
-  const handleNewFolderMock = () => {
-    const name = prompt("Enter new folder name:");
-    if (!name) return;
-    uploadDocument({
-      projectId: activeProject?.id || "",
-      name: ".keep",
-      folder: `${activeFolderDisplayPath}/${name}`,
-      shared: true,
-    });
-    toast.success(`Created folder ${name} successfully!`);
+  // Inline Renaming States
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
+  const [editingDocName, setEditingDocName] = useState("");
+  const [validationError, setValidationError] = useState(false);
+
+  const startEditing = (id: string, name: string) => {
+    setEditingDocId(id);
+    setEditingDocName(name);
+    setValidationError(false);
   };
 
-  // Disconnected view
-  if (!activeConn) {
-    return (
-      <AppShell title="Files" subtitle="Manage your studio files and cloud storage connections">
-        <div className="mx-auto max-w-4xl py-10">
-          <div className="text-center space-y-2 mb-10">
-            <h2 className="text-2xl font-bold tracking-tight">Connect External Storage</h2>
-            <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-              Choose a cloud storage provider to centralize your client deliverables, project files, and internal assets.
-            </p>
-          </div>
+  const handleCancelRename = () => {
+    setEditingDocId(null);
+    setEditingDocName("");
+    setValidationError(false);
+  };
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {PROVIDER_METAS.map((prov) => {
-              const Icon = prov.logo;
-              return (
-                <div key={prov.id} className="panel p-6 bg-card border-border/60 flex flex-col justify-between items-start gap-4 hover:border-primary/30 transition-all duration-300">
-                  <div className="space-y-3 w-full">
-                    <div className={cn("flex h-12 w-12 items-center justify-center rounded-2xl border", prov.color)}>
-                      <Icon className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold">{prov.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{prov.desc}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setConnectingProvider(prov.id as any)}
-                    className="w-full rounded-full bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer text-center"
-                  >
-                    Connect
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+  const handleSaveRename = (id: string) => {
+    if (!editingDocName.trim()) {
+      setValidationError(true);
+      toast.error("File name cannot be empty");
+      return;
+    }
+    renameDocument(id, editingDocName.trim());
+    toast.success("File renamed successfully");
+    setEditingDocId(null);
+    setEditingDocName("");
+    setValidationError(false);
+  };
 
-        {/* Connection Dialog */}
-        <AppDialog
-          open={!!connectingProvider}
-          onOpenChange={(v) => !v && setConnectingProvider(null)}
-          title={`Connect ${PROVIDER_METAS.find((p) => p.id === connectingProvider)?.name || ""}`}
-          description="Enter your administrator email address to initialize the storage link."
-        >
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!email || !connectingProvider) return;
-              connectStorage(connectingProvider, email);
-              toast.success(`Connected ${PROVIDER_METAS.find((p) => p.id === connectingProvider)?.name} successfully!`);
-              setConnectingProvider(null);
-              setEmail("");
-            }}
-            className="space-y-4 p-6"
-          >
-            <FieldGroup>
-              <TextField
-                label="Storage Account Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@kristal.com"
-                required
-              />
-            </FieldGroup>
+  const getFileIcon = (name: string) => {
+    const ext = name.split(".").pop()?.toLowerCase();
+    if (ext === "zip" || ext === "rar" || ext === "tar" || ext === "gz") {
+      return FileArchive;
+    }
+    if (["js", "ts", "tsx", "jsx", "html", "css", "py", "go", "rs", "json", "md"].includes(ext || "")) {
+      return FileCode;
+    }
+    return FileText;
+  };
 
-            <div className="flex justify-end gap-2 pt-4 border-t border-border/60">
-              <button
-                type="button"
-                onClick={() => setConnectingProvider(null)}
-                className="rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
-              >
-                Confirm Link
-              </button>
-            </div>
-          </form>
-        </AppDialog>
-      </AppShell>
-    );
-  }
-
-  const ConnIcon = PROVIDERS[activeConn.provider]?.icon || Cloud;
+  const getAssociatedTask = (fileName: string, projectId: string) => {
+    const projectTasks = tasks.filter(t => t.projectId === projectId);
+    if (projectTasks.length === 0) return null;
+    const nameLower = fileName.toLowerCase();
+    
+    if (nameLower.includes("sow") || nameLower.includes("contract")) {
+      const match = projectTasks.find(t => t.title.toLowerCase().includes("api") || t.title.toLowerCase().includes("copywriting"));
+      if (match) return match;
+    }
+    if (nameLower.includes("assets") || nameLower.includes("color") || nameLower.includes("icon")) {
+      const match = projectTasks.find(t => t.title.toLowerCase().includes("color") || t.title.toLowerCase().includes("icon") || t.title.toLowerCase().includes("avatar"));
+      if (match) return match;
+    }
+    if (nameLower.includes("research") || nameLower.includes("interview") || nameLower.includes("notes")) {
+      const match = projectTasks.find(t => t.title.toLowerCase().includes("audit") || t.title.toLowerCase().includes("states"));
+      if (match) return match;
+    }
+    if (nameLower.includes("sitemap") || nameLower.includes("design") || nameLower.includes("prototype")) {
+      const match = projectTasks.find(t => t.title.toLowerCase().includes("prototype") || t.title.toLowerCase().includes("navigation") || t.title.toLowerCase().includes("wireframe"));
+      if (match) return match;
+    }
+    
+    return projectTasks[0] || null;
+  };
 
   return (
-    <AppShell
-      title="Files"
-      subtitle={`${documents.filter((d) => d.name !== ".keep").length} files managed in external cloud storage`}
-      actions={
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-muted transition-colors cursor-pointer text-foreground"
-          >
-            <Settings className="h-3.5 w-3.5 text-muted-foreground" /> Settings
-          </button>
-          <button
-            onClick={handleNewFolderMock}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-muted transition-colors cursor-pointer text-foreground"
-          >
-            <FolderPlus className="h-3.5 w-3.5 text-muted-foreground" /> New folder
-          </button>
-          <button
-            onClick={handleUploadMock}
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
-          >
-            <Upload className="h-3.5 w-3.5" /> Upload file
-          </button>
-        </div>
-      }
-    >
-      {/* Active Storage connection info banner */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 p-4 rounded-3xl border border-border bg-card/40 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className={cn("grid h-10 w-10 place-items-center rounded-xl border", PROVIDERS[activeConn.provider]?.color)}>
-            <ConnIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-foreground">
-              Connected to {PROVIDERS[activeConn.provider]?.label}
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              Syncing account: <span className="font-semibold">{activeConn.email}</span>
-            </div>
+    <AppShell>
+      {/* Custom Header Layout */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">
+            {activeClient ? `${activeClient.name} files` : (activeMember ? `${activeMember.name} files` : "All files")}
+          </h1>
+          <div className="mt-1 text-sm text-muted-foreground">
+            {filteredFiles.length} files
           </div>
         </div>
-
         <div className="flex items-center gap-2">
+          {selectedFileIds.length > 0 && (
+            <button
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete ${selectedFileIds.length} selected files?`)) {
+                  selectedFileIds.forEach(id => deleteDocument(id));
+                  setSelectedFileIds([]);
+                  toast.success("Selected files deleted successfully");
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-2 text-xs font-semibold text-rose-50 hover:bg-rose-700 transition-colors cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Selected ({selectedFileIds.length})
+            </button>
+          )}
           <div className="flex rounded-full border border-border bg-card p-0.5">
             <button
               onClick={() => setView("grid")}
-              className={cn("flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium cursor-pointer transition-all", view === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium cursor-pointer transition-all",
+                view === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
             >
               <LayoutGrid className="h-3.5 w-3.5" /> Grid
             </button>
             <button
               onClick={() => setView("list")}
-              className={cn("flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium cursor-pointer transition-all", view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium cursor-pointer transition-all",
+                view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
             >
               <ListIcon className="h-3.5 w-3.5" /> List
             </button>
           </div>
+          <button
+            onClick={handleUploadMock}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer"
+          >
+            <Upload className="h-4 w-4" /> Upload file
+          </button>
         </div>
       </div>
 
-      {/* Explorer Breadcrumbs and Search */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          {path.length > 1 && (
-            <button
-              onClick={() => setPath(path.slice(0, -1))}
-              className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card hover:bg-muted text-foreground transition-all cursor-pointer mr-1"
-              aria-label="Back"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          )}
-
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 px-4 py-2 rounded-full border border-border/40 w-fit">
-            {path.map((crumb, idx) => (
-              <div key={idx} className="flex items-center gap-1.5">
-                {idx > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />}
-                <button
-                  onClick={() => setPath(path.slice(0, idx + 1))}
-                  className={cn(
-                    "hover:text-foreground font-semibold transition-colors cursor-pointer",
-                    idx === path.length - 1 ? "text-foreground font-bold" : ""
-                  )}
-                >
-                  {crumb}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      {/* Search Input - No Filters */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <input
+            placeholder="Search files..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search directory…"
-            className="h-9 w-52 rounded-full border border-border bg-card pl-9 pr-3 text-xs focus:border-primary focus:outline-none"
+            className="h-10 w-72 rounded-full border border-border bg-card pl-10 pr-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
           />
         </div>
       </div>
 
-      {/* File Explorer Display */}
+      {/* Grid or List Display */}
       <div>
         {view === "grid" ? (
           <div className="space-y-6">
-            {/* Subfolders Grid */}
-            {filteredSubfolders.length > 0 && (
+            {filteredFiles.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {filteredSubfolders.map((folder) => (
-                  <div
-                    key={folder}
-                    onClick={() => handleFolderClick(folder)}
-                    className="panel p-4 bg-card/50 hover:bg-card hover:border-primary/20 cursor-pointer flex items-center justify-between group transition-all duration-300"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <Folder className="h-4.5 w-4.5" />
+                {filteredFiles.map((file) => {
+                  const FileIcon = getFileIcon(file.name);
+                  const project = projects.find((p) => p.id === file.projectId);
+                  const associatedTask = getAssociatedTask(file.name, file.projectId);
+                  return (
+                    <div
+                      key={file.id}
+                      className={cn(
+                        "panel overflow-hidden bg-card flex flex-col justify-between group relative transition-all border-border/60",
+                        selectedFileIds.includes(file.id) ? "border-primary/50 ring-1 ring-primary/20 bg-primary/[0.01]" : ""
+                      )}
+                    >
+                      <div className={cn(
+                        "absolute top-2.5 left-2.5 z-10 transition-opacity",
+                        selectedFileIds.includes(file.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )}>
+                        <input
+                          type="checkbox"
+                          checked={selectedFileIds.includes(file.id)}
+                          onChange={() => toggleSelectFile(file.id)}
+                          className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
+                        />
                       </div>
-                      <div>
-                        <div className="text-sm font-bold text-foreground group-hover:text-primary transition-colors truncate max-w-[130px]">
-                          {folder}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">Directory</div>
-                      </div>
-                    </div>
-                    {folder === "internal" && (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-500/10 px-2 py-0.5 text-[9px] font-bold text-slate-500 border border-slate-500/10">
-                        <Lock className="h-2.5 w-2.5" /> Private
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {/* Files Grid */}
-            {filteredFiles.length > 0 && (
-              <div>
-                {filteredSubfolders.length > 0 && (
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-3">Files</h4>
-                )}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  {filteredFiles.map((file) => (
-                    <div key={file.id} className="panel p-4 bg-card/50 hover:bg-card hover:border-primary/20 transition-all duration-300 flex flex-col justify-between h-36">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-muted/60 text-foreground">
-                            <FileText className="h-4 w-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-foreground truncate" title={file.name}>
-                              {file.name}
+                      <div className="h-28 bg-muted/40 flex items-center justify-center relative select-none overflow-hidden">
+                        <FileIcon className="h-10 w-10 text-foreground" />
+                      </div>
+
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          {editingDocId === file.id ? (
+                            <div className="flex items-center gap-1 mt-1">
+                              <input
+                                value={editingDocName}
+                                onChange={(e) => setEditingDocName(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleSaveRename(file.id)}
+                                className={cn(
+                                  "w-full px-2 py-1 text-xs border rounded-xl bg-background outline-none",
+                                  validationError ? "border-rose-500 ring-1 ring-rose-500" : "border-border focus:ring-1 focus:ring-primary"
+                                )}
+                                autoFocus
+                              />
+                              <button onClick={() => handleSaveRename(file.id)} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer">
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={handleCancelRename} className="p-1 text-muted-foreground hover:bg-muted rounded-lg cursor-pointer">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5">{file.size}</div>
+                          ) : (
+                            <h4
+                              className="text-xs font-bold text-foreground truncate cursor-pointer"
+                              title="Double-click to rename"
+                              onDoubleClick={() => startEditing(file.id, file.name)}
+                            >
+                              {file.name}
+                            </h4>
+                          )}
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {file.size} · {file.uploadedAt}
+                          </p>
+                          {(project || associatedTask) && (
+                            <div className="mt-2.5 space-y-1 border-t border-border/20 pt-2 text-[10px]">
+                              {project && (
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Folder className="h-3.5 w-3.5 text-primary shrink-0 opacity-70" />
+                                  <span className="truncate text-foreground/80 font-medium">{project.name}</span>
+                                </div>
+                              )}
+                              {associatedTask && (
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-70" />
+                                  <span className="truncate text-foreground/70">{associatedTask.title}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3">
+                          <button
+                            onClick={() => {
+                              toggleDocumentShared(file.id);
+                              toast.success(`Visibility updated for ${file.name}`, {
+                                description: !file.shared ? "Changed to Client Shared" : "Changed to Internal Only"
+                              });
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] hover:bg-muted/80 px-2 py-0.5 rounded-full transition-all cursor-pointer border border-transparent hover:border-border/60"
+                            title="Click to toggle visibility"
+                          >
+                            {file.shared ? (
+                              <span className="inline-flex items-center gap-0.5 text-emerald-600 font-semibold">
+                                <Eye className="h-3 w-3" /> Client Shared
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-0.5 text-muted-foreground font-semibold">
+                                <Lock className="h-3 w-3" /> Internal Only
+                              </span>
+                            )}
+                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                toast.success("Download started", { description: file.name });
+                              }}
+                              className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
+                              title="Download"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => startEditing(file.id, file.name)}
+                              className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
+                              title="Rename"
+                            >
+                              <Pen className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => open("doc.delete", { documentId: file.id })}
+                              className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded transition-all cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-0.5">
-                          <button
-                            onClick={() => {
-                              toast.info(`Downloading ${file.name}...`);
-                            }}
-                            className="rounded-full p-1 text-muted-foreground hover:bg-muted cursor-pointer"
-                            title="Download"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              deleteDocument(file.id);
-                              toast.success(`Deleted ${file.name}`);
-                            }}
-                            className="rounded-full p-1 text-rose-600 hover:bg-rose-500/5 cursor-pointer"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-border/40 pt-3 text-[10px] text-muted-foreground">
-                        <span>Uploaded {file.uploadedAt}</span>
-                        {file.shared ? (
-                          <span className="inline-flex items-center gap-0.5 text-emerald-600">
-                            <Eye className="h-2.5 w-2.5" /> Client
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-0.5 text-slate-500">
-                            <Lock className="h-2.5 w-2.5" /> Internal
-                          </span>
-                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
-
-            {filteredSubfolders.length === 0 && filteredFiles.length === 0 && (
+            ) : (
               <div className="panel p-12 text-center text-muted-foreground bg-card/50">
-                <Folder className="h-10 w-10 text-muted-foreground/60 mx-auto mb-3" />
-                <div className="text-sm font-semibold text-foreground">Empty Directory</div>
+                <FileText className="h-10 w-10 text-muted-foreground/60 mx-auto mb-3" />
+                <div className="text-sm font-semibold text-foreground">No Files Found</div>
                 <div className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                  No files or directories match your current view. Click 'Upload file' to manually add assets.
+                  Upload files to start managing assets for this view.
                 </div>
               </div>
             )}
@@ -526,6 +436,20 @@ function FilesView() {
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-muted-foreground">
                   <tr className="border-b border-border">
+                    <th className="px-5 py-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={filteredFiles.length > 0 && selectedFileIds.length === filteredFiles.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedFileIds(filteredFiles.map(f => f.id));
+                          } else {
+                            setSelectedFileIds([]);
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
+                      />
+                    </th>
                     <th className="px-5 py-3 font-medium">Name</th>
                     <th className="px-5 py-3 font-medium">Type</th>
                     <th className="px-5 py-3 font-medium">Size</th>
@@ -535,40 +459,22 @@ function FilesView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Folders List in Table */}
-                  {filteredSubfolders.map((folder) => (
-                    <tr
-                      key={folder}
-                      onClick={() => handleFolderClick(folder)}
-                      className="border-b border-border last:border-0 hover:bg-muted/40 cursor-pointer group"
-                    >
-                      <td className="px-5 py-3 font-medium">
-                        <span className="inline-flex items-center gap-2.5">
-                          <Folder className="h-4 w-4 text-primary" />
-                          <span className="group-hover:text-primary transition-colors">{folder}</span>
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground">Directory</td>
-                      <td className="px-5 py-3 text-muted-foreground">—</td>
-                      <td className="px-5 py-3 text-muted-foreground">—</td>
-                      <td className="px-5 py-3">
-                        {folder === "internal" ? (
-                          <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-500/10 px-2 py-0.5 text-[9px] font-bold text-slate-500 border border-slate-500/10">
-                            <Lock className="h-2.5 w-2.5" /> Private
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 border border-emerald-500/20">
-                            <Eye className="h-2.5 w-2.5" /> Public
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3"></td>
-                    </tr>
-                  ))}
-
-                  {/* Files List in Table */}
                   {filteredFiles.map((file) => (
-                    <tr key={file.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                    <tr
+                      key={file.id}
+                      className={cn(
+                        "border-b border-border last:border-0 hover:bg-muted/40 transition-colors",
+                        selectedFileIds.includes(file.id) && "bg-primary/[0.01]"
+                      )}
+                    >
+                      <td className="px-5 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedFileIds.includes(file.id)}
+                          onChange={() => toggleSelectFile(file.id)}
+                          className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary cursor-pointer"
+                        />
+                      </td>
                       <td className="px-5 py-3 font-medium">
                         <span className="inline-flex items-center gap-2.5">
                           <FileText className="h-4 w-4 text-muted-foreground" />
@@ -615,10 +521,10 @@ function FilesView() {
                     </tr>
                   ))}
 
-                  {filteredSubfolders.length === 0 && filteredFiles.length === 0 && (
+                  {filteredFiles.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-5 py-12 text-center text-sm text-muted-foreground">
-                        No files or directories match your search query.
+                      <td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                        No files found matching your search.
                       </td>
                     </tr>
                   )}
@@ -628,96 +534,6 @@ function FilesView() {
           </div>
         )}
       </div>
-
-      {/* Storage Settings Dialog */}
-      <AppDialog
-        open={showSettings}
-        onOpenChange={setShowSettings}
-        title="Storage Configuration"
-        description="Configure your linked external storage, mappings, and synchronization status."
-      >
-        <div className="space-y-6 p-6">
-          {/* Provider Details */}
-          <div className="flex items-center gap-4 border-b border-border/40 pb-4">
-            <div className={cn("grid h-12 w-12 place-items-center rounded-2xl border", PROVIDERS[activeConn.provider]?.color)}>
-              <ConnIcon className="h-6 w-6" />
-            </div>
-            <div>
-              <h4 className="font-bold text-foreground">{PROVIDERS[activeConn.provider]?.label} Linked</h4>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {activeConn.email} · Linked on {activeConn.connectedAt || "Just now"}
-              </p>
-            </div>
-          </div>
-
-          {/* Usage Quota */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-semibold">
-              <span className="text-muted-foreground">Linked storage quota usage:</span>
-              <span className="text-foreground">4.8 GB of 100 GB (4.8%)</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary rounded-full" style={{ width: "4.8%" }} />
-            </div>
-          </div>
-
-          {/* Sync Status */}
-          <div className="flex items-center justify-between text-xs border-t border-border/40 pt-4">
-            <span className="text-muted-foreground font-medium">Sync status:</span>
-            <span className="text-emerald-500 font-bold flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Active & In Sync
-            </span>
-          </div>
-
-          {/* Sync Time */}
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground font-medium">Last sync run:</span>
-            <span className="text-foreground font-medium">Just now</span>
-          </div>
-
-          {/* Settings Options (Sharing defaults) */}
-          <div className="space-y-3 border-t border-border/40 pt-4">
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sharing defaults</div>
-            <label className="flex items-center gap-3 text-xs text-foreground cursor-pointer">
-              <input type="checkbox" defaultChecked className="h-3.5 w-3.5 rounded border-border bg-card accent-primary" />
-              <span>Auto-share new client project files with clients</span>
-            </label>
-            <label className="flex items-center gap-3 text-xs text-foreground cursor-pointer">
-              <input type="checkbox" defaultChecked className="h-3.5 w-3.5 rounded border-border bg-card accent-primary" />
-              <span>Allow team members to manage private internal directories</span>
-            </label>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2 border-t border-border/60 pt-4">
-            <button
-              onClick={() => {
-                setSyncing(true);
-                setTimeout(() => {
-                  setSyncing(false);
-                  toast.success("Force storage sync completed!");
-                }, 600);
-              }}
-              disabled={syncing}
-              className="rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted cursor-pointer transition-all flex items-center gap-1.5"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", syncing ? "animate-spin" : "")} />
-              {syncing ? "Syncing..." : "Re-sync storage"}
-            </button>
-            <button
-              onClick={() => {
-                disconnectStorage(activeConn.provider);
-                setShowSettings(false);
-                toast.success(`Disconnected ${PROVIDERS[activeConn.provider]?.label} storage`);
-              }}
-              className="rounded-full bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2 text-xs font-semibold hover:bg-rose-100 cursor-pointer transition-all"
-            >
-              Disconnect
-            </button>
-          </div>
-        </div>
-      </AppDialog>
     </AppShell>
   );
 }
