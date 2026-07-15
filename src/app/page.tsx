@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Sparkles, LayoutDashboard, Users, MessageSquare, Clock } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutDashboard, Users, UserCog, MessageSquare, Clock } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "MGL Portal",
@@ -19,12 +19,6 @@ export default function Landing() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/client"
-            className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            Client portal
-          </Link>
           <Link
             href="/login"
             className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -58,6 +52,12 @@ export default function Landing() {
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-muted"
           >
             <Users className="h-4 w-4" /> Preview client portal
+          </Link>
+          <Link
+            href="/team"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-muted"
+          >
+            <UserCog className="h-4 w-4" /> Preview team portal
           </Link>
         </div>
 

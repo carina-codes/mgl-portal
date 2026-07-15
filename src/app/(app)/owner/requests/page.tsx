@@ -180,7 +180,7 @@ function RequestsView() {
             onClick={() => open("request.new")}
             className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 cursor-pointer"
           >
-            <Plus className="h-4 w-4" /> Log request
+            <Plus className="h-4 w-4" /> Add request
           </button>
         </>
       }

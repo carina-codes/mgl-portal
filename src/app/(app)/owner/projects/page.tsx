@@ -86,7 +86,7 @@ function ProjectsView() {
             </button>
           </div>
           <button onClick={() => open("project.new")} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-            <Plus className="h-4 w-4" /> New project
+            <Plus className="h-4 w-4" /> Add project
           </button>
         </>
       }

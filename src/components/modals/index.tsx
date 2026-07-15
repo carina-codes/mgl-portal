@@ -2822,7 +2822,7 @@ function NewRequestModal({ close, payload }: { close: () => void; payload?: Moda
     <AppDialog
       open
       onOpenChange={(v) => !v && close()}
-      title="Log a request"
+      title="New request"
       description="Capture a client ask so it shows up in the queue and on the right project."
       icon={<Inbox className="h-5 w-5" />}
       size="lg"
@@ -3598,7 +3598,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
       onOpenChange={(v) => !v && close()}
       title={
         <div>
-          <div className="text-lg font-semibold tracking-tight">Add team member</div>
+          <div className="text-lg font-semibold tracking-tight">New team member</div>
           <div className="text-sm text-muted-foreground font-normal">Add a new member to the agency team workspace.</div>
         </div>
       }
