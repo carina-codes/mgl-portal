@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Building2,
   Users,
-  CreditCard,
   Bell,
   Palette,
   Check,
@@ -38,7 +37,6 @@ const SECTIONS = [
   { id: "profile", label: "My profile", icon: User },
   { id: "workspace", label: "Workspace", icon: Building2 },
   { id: "team", label: "Role Access", icon: Users },
-  { id: "billing", label: "Billing", icon: CreditCard },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "accessibility", label: "Accessibility", icon: Accessibility },
 ] as const;
@@ -63,7 +61,7 @@ function SettingsPage() {
   }, [sectionParam]);
 
   return (
-    <AppShell title="Settings" subtitle="Workspace, billing, integrations and access">
+    <AppShell title="Settings" subtitle="Workspace, integrations and access">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
         <nav className="panel p-3 space-y-1 text-sm h-fit lg:sticky lg:top-6">
           {SECTIONS.map(({ id, label, icon: Icon }) => (
@@ -85,7 +83,6 @@ function SettingsPage() {
           {active === "profile" && <ProfileSection />}
           {active === "workspace" && <WorkspaceSection />}
           {active === "team" && <TeamSection />}
-          {active === "billing" && <BillingSection />}
           {active === "notifications" && <NotificationsSection />}
           {active === "accessibility" && <AccessibilitySection />}
         </div>
@@ -280,86 +277,6 @@ function TeamSection() {
           </div>
         </AppDialog>
       )}
-    </>
-  );
-}
-
-/* ---------- Billing ---------- */
-
-function BillingSection() {
-  return (
-    <>
-      <Section title="Current plan" description="You're on the Studio plan.">
-        <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 to-transparent p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-semibold">Studio</span>
-                <Badge>Current</Badge>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">Unlimited projects · 25 team seats · Client portal</p>
-              <div className="mt-3 text-2xl font-bold">$149<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Button onClick={() => toast.success("Upgrade flow opened")}>Upgrade</Button>
-              <Button variant="ghost" size="sm" onClick={() => toast("Plan comparison opened")}>Change plan</Button>
-            </div>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
-          <div className="rounded-xl border border-border p-3">
-            <div className="text-xs text-muted-foreground">Seats used</div>
-            <div className="mt-1 font-semibold">12 / 25</div>
-          </div>
-          <div className="rounded-xl border border-border p-3">
-            <div className="text-xs text-muted-foreground">Storage</div>
-            <div className="mt-1 font-semibold">42 GB / 500 GB</div>
-          </div>
-          <div className="rounded-xl border border-border p-3">
-            <div className="text-xs text-muted-foreground">Next invoice</div>
-            <div className="mt-1 font-semibold">Jul 1, 2026</div>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Payment method" action={<Button variant="outline" onClick={() => toast("Card update form opened")}>Update</Button>}>
-        <div className="flex items-center gap-3 rounded-xl border border-border p-4">
-          <div className="grid h-10 w-14 place-items-center rounded-md bg-foreground text-background text-xs font-bold">VISA</div>
-          <div className="flex-1">
-            <div className="text-sm font-medium">•••• •••• •••• 4242</div>
-            <div className="text-xs text-muted-foreground">Expires 09/27 · Maya Larsson</div>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Invoices">
-        <div className="overflow-hidden rounded-xl border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2.5 text-left font-medium">Date</th>
-                <th className="px-4 py-2.5 text-left font-medium">Amount</th>
-                <th className="px-4 py-2.5 text-left font-medium">Status</th>
-                <th className="px-4 py-2.5"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { date: "Jun 1, 2026", amount: "$149.00", status: "Paid" },
-                { date: "May 1, 2026", amount: "$149.00", status: "Paid" },
-                { date: "Apr 1, 2026", amount: "$149.00", status: "Paid" },
-              ].map((inv) => (
-                <tr key={inv.date} className="border-t border-border">
-                  <td className="px-4 py-3">{inv.date}</td>
-                  <td className="px-4 py-3 font-medium">{inv.amount}</td>
-                  <td className="px-4 py-3"><Badge variant="secondary">{inv.status}</Badge></td>
-                  <td className="px-4 py-3 text-right"><Button variant="ghost" size="sm" onClick={() => toast.success(`Invoice ${inv.date} downloaded`)}>Download</Button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
     </>
   );
 }

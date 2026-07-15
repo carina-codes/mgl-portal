@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Sparkles, LayoutDashboard, Users, MessageSquare } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutDashboard, Users, MessageSquare, Clock } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "MGL Portal",
@@ -73,9 +73,9 @@ export default function Landing() {
             body="Magic-link portal with project visibility, request intake, and conversation threads."
           />
           <Feature
-            icon={Sparkles}
-            title="AI that actually does work"
-            body="An assistant that summarizes projects, drafts client replies and creates tasks — with every action logged."
+            icon={Clock}
+            title="Time and billing, handled"
+            body="Log hours per project, watch margins in real time, and export clean reports ready for invoicing."
           />
         </div>
       </section>
