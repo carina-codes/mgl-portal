@@ -157,9 +157,48 @@ const DEFAULT_WORKSPACE = {
   name: "Carina Studio",
   subdomain: "carina.clientplatform.app",
   currency: "USD",
-  timezone: "Europe / Berlin",
+  timezone: "Europe/Berlin",
   hours: "Mon–Fri · 9am–6pm CET",
 };
+
+const TIMEZONE_OPTIONS = [
+  { tz: "Pacific/Honolulu", label: "Honolulu (HST)" },
+  { tz: "America/Los_Angeles", label: "Los Angeles (Pacific)" },
+  { tz: "America/Denver", label: "Denver (Mountain)" },
+  { tz: "America/Chicago", label: "Chicago (Central)" },
+  { tz: "America/New_York", label: "New York (Eastern)" },
+  { tz: "America/Sao_Paulo", label: "São Paulo" },
+  { tz: "UTC", label: "UTC" },
+  { tz: "Europe/London", label: "London" },
+  { tz: "Europe/Berlin", label: "Berlin / Paris" },
+  { tz: "Europe/Athens", label: "Athens" },
+  { tz: "Europe/Moscow", label: "Moscow" },
+  { tz: "Asia/Dubai", label: "Dubai" },
+  { tz: "Asia/Kolkata", label: "Mumbai / New Delhi" },
+  { tz: "Asia/Singapore", label: "Singapore" },
+  { tz: "Asia/Tokyo", label: "Tokyo" },
+  { tz: "Australia/Sydney", label: "Sydney" },
+  { tz: "Pacific/Auckland", label: "Auckland" },
+];
+
+function TimezoneField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const hasMatch = TIMEZONE_OPTIONS.some((t) => t.tz === value);
+  return (
+    <div>
+      <div className="text-xs font-medium text-muted-foreground">Timezone</div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+      >
+        {!hasMatch && <option value={value}>{value}</option>}
+        {TIMEZONE_OPTIONS.map((t) => (
+          <option key={t.tz} value={t.tz}>{t.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 function WorkspaceSection() {
   const workspaceName = useStore((s) => s.workspaceName);
@@ -169,10 +208,20 @@ function WorkspaceSection() {
     name: workspaceName,
     subdomain: "carina.clientplatform.app",
     currency: "USD",
-    timezone: "Europe / Berlin",
+    timezone: "Europe/Berlin",
     hours: "Mon–Fri · 9am–6pm CET",
   });
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Default the timezone field to the device's actual timezone on first load.
+  useEffect(() => {
+    try {
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (detected) setForm((f) => ({ ...f, timezone: detected }));
+    } catch {
+      // Intl not available — keep the fallback default.
+    }
+  }, []);
 
   const handleSave = () => {
     updateWorkspaceName(form.name);
@@ -187,7 +236,7 @@ function WorkspaceSection() {
           <Field label="Subdomain" value={form.subdomain} onChange={set("subdomain")} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Default currency" value={form.currency} onChange={set("currency")} />
-            <Field label="Timezone" value={form.timezone} onChange={set("timezone")} />
+            <TimezoneField value={form.timezone} onChange={set("timezone")} />
           </div>
           <Field label="Working hours" value={form.hours} onChange={set("hours")} />
         </div>

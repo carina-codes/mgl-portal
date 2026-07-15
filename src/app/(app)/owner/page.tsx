@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { UserAvatar } from "@/components/user-avatar";
 import { useModals } from "@/components/modals";
+import { useCurrentUser } from "@/lib/role-context";
 import {
   clients,
   requests,
@@ -46,8 +48,24 @@ const MESSAGE_INBOX = [
   { id: "msg-3", user: "Ava Lindgren", project: "Arcadia Marketing Site Refresh", text: "@carina the wireframes for the user onboarding are complete.", time: "1d ago" },
 ];
 
+function useGreeting() {
+  const [greeting, setGreeting] = useState("Good morning");
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good morning");
+    else if (hour < 18) setGreeting("Good afternoon");
+    else setGreeting("Good evening");
+  }, []);
+
+  return greeting;
+}
+
 export default function Dashboard() {
   const { open } = useModals();
+  const user = useCurrentUser();
+  const firstName = user?.name?.split(" ")[0] ?? "there";
+  const greeting = useGreeting();
   const activeProjects = projects.filter((p) => p.status !== "completed").length;
   const openRequests = requests.filter((r) => ["submitted", "under_review"].includes(r.status)).length;
   const submittedRequestsCount = requests.filter((r) => r.status === "submitted").length;
@@ -55,7 +73,7 @@ export default function Dashboard() {
 
   return (
     <AppShell
-      title="Good morning, Carina"
+      title={`${greeting}, ${firstName}`}
       subtitle="Here's what's moving across the studio today"
       actions={
         <button
