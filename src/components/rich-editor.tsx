@@ -15,8 +15,6 @@ import { TableHeader } from "@tiptap/extension-table-header";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import { all, createLowlight } from "lowlight";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
-import data from "@emoji-mart/data";
-import Picker from "@emoji-mart/react";
 import {
   Bold,
   Italic,
@@ -27,7 +25,6 @@ import {
   Code,
   Link as LinkIcon,
   Paperclip,
-  Smile,
   AtSign,
   CheckSquare,
   Trash2,
@@ -95,6 +92,10 @@ export interface RichEditorProps {
   onInternalChange?: (val: boolean) => void;
   projectId?: string;
   clientId?: string;
+  /** Hide the inline attachment tray below the editor — useful when the
+   * attachments are already surfaced elsewhere (e.g. a task's Attachments
+   * section) and showing them again here would be a duplicate. */
+  showAttachmentsList?: boolean;
 }
 
 function CodeBlockComponent({ node }: any) {
@@ -141,6 +142,7 @@ export function RichEditor({
   onInternalChange,
   projectId,
   clientId,
+  showAttachmentsList = true,
 }: RichEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -210,8 +212,6 @@ export function RichEditor({
   const setAtts = onAttachmentsChange ?? setInternalAttachments;
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [emojiOpen, setEmojiOpen] = React.useState(false);
-  const emojiRef = React.useRef<HTMLDivElement>(null);
 
   // Link Form State
   const [linkPopoverOpen, setLinkPopoverOpen] = React.useState(false);
@@ -377,16 +377,6 @@ export function RichEditor({
     }
   }, [value, editor]);
 
-  // Close emoji on outside click
-  React.useEffect(() => {
-    if (!emojiOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!emojiRef.current?.contains(e.target as Node)) setEmojiOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [emojiOpen]);
-
   // Close highlight picker on outside click
   React.useEffect(() => {
     if (!highlightOpen) return;
@@ -479,11 +469,6 @@ export function RichEditor({
     toast.success("Link removed");
   }
 
-  function insertEmoji(emoji: { native?: string }) {
-    if (editor && emoji.native) editor.chain().focus().insertContent(emoji.native).run();
-    setEmojiOpen(false);
-  }
-
   function insertMentionTrigger() {
     if (editor) editor.chain().focus().insertContent("@").run();
   }
@@ -561,14 +546,6 @@ export function RichEditor({
           <ToolDivider />
           <ToolBtn active={editor.isActive("link")} onClick={handleLinkClick} label="Link"><LinkIcon className="h-3.5 w-3.5" /></ToolBtn>
           <ToolBtn onClick={insertMentionTrigger} label="Mention"><AtSign className="h-3.5 w-3.5" /></ToolBtn>
-          <div className="relative hidden" ref={emojiRef}>
-            <ToolBtn onClick={() => setEmojiOpen((v) => !v)} active={emojiOpen} label="Emoji"><Smile className="h-3.5 w-3.5" /></ToolBtn>
-            {emojiOpen && (
-              <div className="absolute right-0 bottom-full z-50 mb-1.5">
-                <Picker data={data} onEmojiSelect={insertEmoji} theme="light" previewPosition="none" skinTonePosition="none" />
-              </div>
-            )}
-          </div>
           <ToolBtn onClick={() => fileInputRef.current?.click()} label="Attach from Device"><Paperclip className="h-3.5 w-3.5" /></ToolBtn>
           <ToolBtn onClick={() => setIsAppFileModalOpen(true)} label="Attach from Files"><FolderOpen className="h-3.5 w-3.5" /></ToolBtn>
 
@@ -650,7 +627,7 @@ export function RichEditor({
         />
       </div>
 
-      {atts.length > 0 && (
+      {showAttachmentsList && atts.length > 0 && (
         <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-2 border-t border-border/60 p-3 bg-muted/5 max-h-48 overflow-y-auto scrollbar-thin", !(footer || onSend) && "rounded-b-2xl")}>
           {atts.map((a) => (
             <FileAttachmentCard

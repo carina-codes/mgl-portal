@@ -43,7 +43,7 @@ export default function Landing() {
         </h1>
         <p className="mt-4 max-w-2xl text-base text-muted-foreground lg:text-lg">
           MGL Portal centralizes project execution, client requests, time
-          tracking and reporting — so the studio stops living in inboxes and starts shipping faster.
+          tracking and reporting — so the workspace stops living in inboxes and starts shipping faster.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -64,7 +64,7 @@ export default function Landing() {
         <div className="mt-14 grid gap-4 lg:grid-cols-3">
           <Feature
             icon={LayoutDashboard}
-            title="One place to run the studio"
+            title="One place to run the workspace"
             body="Dashboards, projects, Kanban, time and reporting — built on a shared design language."
           />
           <Feature

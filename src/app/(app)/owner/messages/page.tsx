@@ -453,7 +453,7 @@ function MessagesPage() {
                 onChange={setBody}
                 attachments={attachments}
                 onAttachmentsChange={setAttachments}
-                placeholder="Reply… use @ to mention, attach files, drop in emoji"
+                placeholder="Reply… use @ to mention, attach files"
                 minHeight={90}
                 onSend={send}
                 sendDisabled={body.replace(/<[^>]+>/g, "").trim().length === 0 && attachments.length === 0}

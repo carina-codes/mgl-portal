@@ -80,7 +80,7 @@ function TeamPage() {
   return (
     <AppShell
       title="Team"
-      subtitle={`${team.length} members across the studio`}
+      subtitle={`${team.length} members across the workspace`}
       actions={
         <>
           <div className="flex rounded-full border border-border bg-card p-0.5">

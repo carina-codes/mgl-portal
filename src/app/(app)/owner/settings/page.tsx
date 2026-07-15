@@ -28,6 +28,7 @@ import { Button as BaseButton } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import { useCurrentUser } from "@/lib/role-context";
 import { AppDialog } from "@/components/ui/app-dialog";
+import { TIMEZONE_OPTIONS, detectTimezone } from "@/lib/timezones";
 
 function Button({ className, ...props }: React.ComponentProps<typeof BaseButton>) {
   return <BaseButton className={cn("rounded-full font-semibold", className)} {...props} />;
@@ -154,32 +155,12 @@ function confirmDanger(message: string, onYes: () => void) {
 /* ---------- Workspace ---------- */
 
 const DEFAULT_WORKSPACE = {
-  name: "Carina Studio",
+  name: "Carina Workspace",
   subdomain: "carina.clientplatform.app",
   currency: "USD",
   timezone: "Europe/Berlin",
   hours: "Mon–Fri · 9am–6pm CET",
 };
-
-const TIMEZONE_OPTIONS = [
-  { tz: "Pacific/Honolulu", label: "Honolulu (HST)" },
-  { tz: "America/Los_Angeles", label: "Los Angeles (Pacific)" },
-  { tz: "America/Denver", label: "Denver (Mountain)" },
-  { tz: "America/Chicago", label: "Chicago (Central)" },
-  { tz: "America/New_York", label: "New York (Eastern)" },
-  { tz: "America/Sao_Paulo", label: "São Paulo" },
-  { tz: "UTC", label: "UTC" },
-  { tz: "Europe/London", label: "London" },
-  { tz: "Europe/Berlin", label: "Berlin / Paris" },
-  { tz: "Europe/Athens", label: "Athens" },
-  { tz: "Europe/Moscow", label: "Moscow" },
-  { tz: "Asia/Dubai", label: "Dubai" },
-  { tz: "Asia/Kolkata", label: "Mumbai / New Delhi" },
-  { tz: "Asia/Singapore", label: "Singapore" },
-  { tz: "Asia/Tokyo", label: "Tokyo" },
-  { tz: "Australia/Sydney", label: "Sydney" },
-  { tz: "Pacific/Auckland", label: "Auckland" },
-];
 
 function TimezoneField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const hasMatch = TIMEZONE_OPTIONS.some((t) => t.tz === value);
@@ -215,12 +196,7 @@ function WorkspaceSection() {
 
   // Default the timezone field to the device's actual timezone on first load.
   useEffect(() => {
-    try {
-      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (detected) setForm((f) => ({ ...f, timezone: detected }));
-    } catch {
-      // Intl not available — keep the fallback default.
-    }
+    setForm((f) => ({ ...f, timezone: detectTimezone() }));
   }, []);
 
   const handleSave = () => {
@@ -230,7 +206,7 @@ function WorkspaceSection() {
 
   return (
     <>
-      <Section title="Workspace" description="Tune how the studio appears to clients.">
+      <Section title="Workspace" description="Tune how the workspace appears to clients.">
         <div className="space-y-4">
           <Field label="Workspace name" value={form.name} onChange={set("name")} />
           <Field label="Subdomain" value={form.subdomain} onChange={set("subdomain")} />
@@ -457,7 +433,7 @@ function IntegrationsSection() {
 const ACCENTS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#0ea5e9", "#ef4444"];
 
 function BrandingSection() {
-  const [brand, setBrand] = useState({ name: "Carina Studio", tagline: "Studio for ambitious brands" });
+  const [brand, setBrand] = useState({ name: "Carina Workspace", tagline: "Workspace for ambitious brands" });
   const [accent, setAccent] = useState(ACCENTS[0]);
   return (
     <>

@@ -74,7 +74,7 @@ export default function Dashboard() {
   return (
     <AppShell
       title={`${greeting}, ${firstName}`}
-      subtitle="Here's what's moving across the studio today"
+      subtitle="Here's what's moving across the workspace today"
       actions={
         <button
           onClick={() => open("project.new")}

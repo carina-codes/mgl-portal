@@ -162,6 +162,7 @@ export type Task = {
   dueDate: string;
   assignees: string[];
   attachments: number;
+  attachmentDocIds?: string[];
   comments: number;
   startDate?: string;
   tags?: string[];
@@ -745,7 +746,7 @@ export const channels: Channel[] = [
   { id: "ch3", name: "Northwind Brand", projectId: "p4", clientId: "c2", unread: 1, lastMessage: "Elena: love the kerning round 2", lastAt: "Yest" },
   { id: "ch4", name: "Lumen Rebrand", projectId: "p6", clientId: "c3", unread: 2, lastMessage: "Sofia: any update on signage spec?", lastAt: "Yest" },
   { id: "ch5", name: "Field & Form Site", projectId: "p7", clientId: "c4", unread: 0, lastMessage: "Devon: shipped homepage to staging", lastAt: "2d" },
-  { id: "ch6", name: "Studio — design crit", unread: 0, lastMessage: "Ava: anyone up for crit Thursday?", lastAt: "2d" },
+  { id: "ch6", name: "Workspace — design crit", unread: 0, lastMessage: "Ava: anyone up for crit Thursday?", lastAt: "2d" },
 ];
 
 export const messages: Message[] = [

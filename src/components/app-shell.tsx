@@ -376,7 +376,7 @@ export function AppShell({
                 <Link
                   href="/client"
                   onClick={() => setRole("client")}
-                  className="hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
+                  className="invisible hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
                 >
                   Switch to client
                 </Link>

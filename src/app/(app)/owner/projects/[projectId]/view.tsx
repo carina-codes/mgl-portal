@@ -330,7 +330,22 @@ function Overview({ projectId }: { projectId: string }) {
   const client = useMemo(() => clients.find((c) => c.id === project.clientId), [clients, project.clientId]);
   const clientUser = useMemo(() => {
     if (!client) return undefined;
-    return users.find((u) => u.role === "client" && (u.email === client.contactEmail || u.name === client.contact));
+    // Prefer a linked user record if one exists (keeps avatar/identity consistent
+    // across the app), but always fall back to the client's own contact info so
+    // the Team panel reflects whichever client is currently assigned — even for
+    // clients that don't have a matching entry in the users list.
+    const linked = users.find((u) => u.role === "client" && (u.email === client.contactEmail || u.name === client.contact));
+    if (linked) return linked;
+    const initials = client.contact.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2);
+    return {
+      id: `client-contact-${client.id}`,
+      name: client.contact,
+      email: client.contactEmail,
+      role: "client" as const,
+      title: client.contactRole || client.name,
+      avatar: initials,
+      color: client.logoColor,
+    };
   }, [users, client]);
 
   return (
@@ -545,10 +560,6 @@ function Overview({ projectId }: { projectId: string }) {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Due date</span>
               <span className="font-medium">{project.endDate}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Next milestone</span>
-              <span className="font-medium">Client demo · Jun 20</span>
             </div>
           </div>
         </div>
@@ -858,7 +869,15 @@ function KanbanBoardView({
                 {meta.label}
                 <span className="ml-1 rounded-full bg-white/60 dark:bg-black/20 px-1.5 py-0.5 text-[10px]">{stageTasks.length}</span>
               </div>
-              <button className="text-muted-foreground hover:text-foreground cursor-pointer"><MoreHorizontal className="h-4 w-4" /></button>
+              <button
+                onClick={() => {
+                  setNewTaskStage(stage);
+                  setNewTaskOpen(true);
+                }}
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
             </div>
             <div className="space-y-3">
               {stageTasks.map((task) => (
@@ -1320,6 +1339,26 @@ function formatToMockDate(dateStr: string): string {
   return dateStr;
 }
 
+function parseSizeToBytes(size: string): number {
+  const match = size.match(/^([\d.]+)\s*(KB|MB|GB|B)?$/i);
+  if (!match) return 1024;
+  const num = parseFloat(match[1]);
+  const unit = (match[2] || "").toUpperCase();
+  if (unit === "KB") return num * 1024;
+  if (unit === "MB") return num * 1024 * 1024;
+  if (unit === "GB") return num * 1024 * 1024 * 1024;
+  return num;
+}
+
+function guessMimeType(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
+    return `image/${ext === "jpg" ? "jpeg" : ext}`;
+  }
+  if (ext === "pdf") return "application/pdf";
+  return "application/octet-stream";
+}
+
 export function TaskDetailsDrawer({
   taskId,
   onClose,
@@ -1339,6 +1378,8 @@ export function TaskDetailsDrawer({
   const allComments = useStore((s) => s.comments);
   const comments = useMemo(() => allComments.filter((c) => c.threadId === taskId), [allComments, taskId]);
   const documents = useStore((s) => s.documents);
+  const deleteDocument = useStore((s) => s.deleteDocument);
+  const uploadDocument = useStore((s) => s.uploadDocument);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -1361,8 +1402,10 @@ export function TaskDetailsDrawer({
   const taskDocuments = useMemo(() => {
     if (!task) return [];
     const commentDocIds = comments.reduce((acc, c) => [...acc, ...(c.attachments ?? [])], [] as string[]);
-    const fromComments = documents.filter((d) => commentDocIds.includes(d.id));
-    if (fromComments.length > 0) return fromComments;
+    const directDocIds = task.attachmentDocIds ?? [];
+    const realDocIds = Array.from(new Set([...directDocIds, ...commentDocIds]));
+    const fromStore = documents.filter((d) => realDocIds.includes(d.id));
+    if (fromStore.length > 0) return fromStore;
 
     const mockFiles: Document[] = [];
     const count = task.attachments ?? 0;
@@ -1380,6 +1423,71 @@ export function TaskDetailsDrawer({
     }
     return mockFiles;
   }, [task, comments, documents]);
+
+  const handleRemoveAttachment = (doc: Document) => {
+    if (!task) return;
+
+    const isSyntheticMock = doc.id.startsWith(`mock-doc-${task.id}-`);
+
+    if (isSyntheticMock) {
+      // These placeholder attachments are re-derived purely from task.attachments
+      // (a count) every render — they have no stable id beyond their position in
+      // that loop. Removing one by just decrementing the count reshuffles the
+      // remaining slots, so it can look like the wrong file got removed.
+      // Fix: materialize the ones that should survive into real documents with
+      // stable ids, so future removals target the exact file clicked.
+      const remaining = taskDocuments.filter((d) => d.id !== doc.id);
+      const materializedIds = remaining.map(
+        (d) =>
+          uploadDocument({
+            projectId: task.projectId,
+            name: d.name,
+            folder: d.folder,
+            size: d.size,
+            uploadedBy: d.uploadedBy,
+            shared: d.shared,
+          }).id,
+      );
+      updateTask(task.id, { attachmentDocIds: materializedIds, attachments: materializedIds.length });
+      toast.success(`Removed ${doc.name}`);
+      return;
+    }
+
+    // Real documents live in the global documents store.
+    if (documents.some((d) => d.id === doc.id)) {
+      deleteDocument(doc.id);
+    }
+    const nextIds = (task.attachmentDocIds ?? []).filter((id) => id !== doc.id);
+    updateTask(task.id, {
+      attachmentDocIds: nextIds,
+      attachments: Math.max(0, (task.attachments ?? 0) - 1),
+    });
+    toast.success(`Removed ${doc.name}`);
+  };
+
+  const descriptionAttachments = useMemo<RichAttachment[]>(() => {
+    if (!task) return [];
+    const ids = task.attachmentDocIds ?? [];
+    return documents
+      .filter((d) => ids.includes(d.id))
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        size: parseSizeToBytes(d.size),
+        type: guessMimeType(d.name),
+        url: d.previewUrl || "#",
+      }));
+  }, [task, documents]);
+
+  const handleDescriptionAttachmentsChange = (next: RichAttachment[]) => {
+    if (!task) return;
+    // Only files that resolved to a real Document (e.g. picked via "Attach
+    // from Files", or uploaded to a connected storage folder) get persisted
+    // into the task's Attachments section below — local-only blob previews
+    // stay in the description editor's own tray.
+    const ids = next.filter((a) => documents.some((d) => d.id === a.id)).map((a) => a.id);
+    updateTask(task.id, { attachmentDocIds: ids, attachments: ids.length });
+  };
 
   const logTime = useStore((s) => s.logTime);
   const deleteTimeEntry = useStore((s) => s.deleteTimeEntry);
@@ -1596,6 +1704,10 @@ export function TaskDetailsDrawer({
             onChange={(v) => updateTask(task.id, { note: v })}
             placeholder="Add detailed description notes here..."
             minHeight={120}
+            projectId={task.projectId}
+            attachments={descriptionAttachments}
+            onAttachmentsChange={handleDescriptionAttachmentsChange}
+            showAttachmentsList={false}
           />
         </div>
 
@@ -1613,7 +1725,7 @@ export function TaskDetailsDrawer({
               {taskDocuments.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between bg-card hover:bg-muted/20 border border-border/40 p-2.5 rounded-xl transition-all group">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] uppercase">
+                    <div className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] uppercase">
                       {doc.name.split(".").pop()}
                     </div>
                     <div className="min-w-0">
@@ -1625,17 +1737,27 @@ export function TaskDetailsDrawer({
                       </div>
                     </div>
                   </div>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toast.success(`Downloading ${doc.name}...`);
-                    }}
-                    className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
-                    title="Download file"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toast.success(`Downloading ${doc.name}...`);
+                      }}
+                      className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                      title="Download file"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(doc)}
+                      className="p-1.5 hover:bg-rose-500/10 rounded-md text-muted-foreground hover:text-rose-500 transition-all cursor-pointer"
+                      title="Remove attachment"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1745,7 +1867,7 @@ export function TaskDetailsDrawer({
               <span>Thread Discussion</span>
               <span className="text-xs text-muted-foreground font-normal capitalize tracking-normal">{comments.length} comments</span>
             </h4>
-            <div className="space-y-3 mb-4 max-h-[260px] overflow-y-auto pr-1.5 scrollbar-thin">
+            <div className="space-y-3 mb-4 max-h-[260px] overflow-y-auto pr-1.5 scrollbar-thin" style={{ margin: 0, paddingBottom: 20 }}>
               {comments.length === 0 ? (
                 <div className="text-xs text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-xl">
                   No discussion comments yet. Write one below!

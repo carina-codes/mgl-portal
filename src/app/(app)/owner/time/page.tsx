@@ -155,7 +155,7 @@ function TimePage() {
   return (
     <AppShell
       title="Time tracking"
-      subtitle="Hours across the studio"
+      subtitle="Hours across the workspace"
       actions={
         <div className="flex items-center gap-2">
           <button

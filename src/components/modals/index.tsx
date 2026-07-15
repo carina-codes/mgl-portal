@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { DateInput } from "@/components/ui/date-input";
 import { RichEditor } from "@/components/rich-editor";
 import { useStore } from "@/lib/store";
+import { TIMEZONE_OPTIONS, detectTimezone } from "@/lib/timezones";
 import {
   PROJECT_STATUS_META,
   STAGE_META,
@@ -697,7 +698,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
     country: "United States",
     state: "",
     city: "",
-    timezone: "America/New_York",
+    timezone: detectTimezone(),
     address: "",
     mapDirectionsLink: "",
     workingHours: "9:00 AM - 5:00 PM EST",
@@ -976,7 +977,14 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
             </div>
             <div className="grid grid-cols-2 gap-3">
               <TextField label="Zip Code" placeholder="10005" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
-              <TextField label="Time Zone" placeholder="America/New_York" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+              <SelectField label="Time Zone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
+                {!TIMEZONE_OPTIONS.some((t) => t.tz === form.timezone) && (
+                  <option value={form.timezone}>{form.timezone}</option>
+                )}
+                {TIMEZONE_OPTIONS.map((t) => (
+                  <option key={t.tz} value={t.tz}>{t.label}</option>
+                ))}
+              </SelectField>
             </div>
           </div>
           <div>
@@ -1403,7 +1411,14 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
             </div>
             <div className="grid grid-cols-2 gap-3">
               <TextField label="Zip Code" placeholder="10005" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
-              <TextField label="Time Zone" placeholder="America/New_York" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+              <SelectField label="Time Zone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
+                {!TIMEZONE_OPTIONS.some((t) => t.tz === form.timezone) && (
+                  <option value={form.timezone}>{form.timezone}</option>
+                )}
+                {TIMEZONE_OPTIONS.map((t) => (
+                  <option key={t.tz} value={t.tz}>{t.label}</option>
+                ))}
+              </SelectField>
             </div>
           </div>
           <div>
