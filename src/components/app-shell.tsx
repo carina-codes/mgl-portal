@@ -342,7 +342,7 @@ export function AppShell({
               </div>
               <div className="hidden sm:block">
                 <div className="text-sm font-semibold tracking-tight leading-none">{workspaceName || "MGL Agency"}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-none">{workspaceLabel}</div>
+                <div className="text-[10px] text-muted-foreground mt-1 leading-none">{workspaceLabel}</div>
               </div>
             </div>
 
