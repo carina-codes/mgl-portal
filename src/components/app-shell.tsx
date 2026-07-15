@@ -192,7 +192,7 @@ export function AppShell({
   const router = useRouter();
   const NAV = NAV_BY_ROLE[role];
   const settingsHref = role === "owner" ? "/owner/settings" : role === "client" ? "/client/settings" : "/team";
-  const workspaceLabel = role === "client" ? "Client Portal" : role === "team" ? "Team Workspace" : "Internal Workspace";
+  const workspaceLabel = role === "client" ? "Client Workspace" : role === "team" ? "Team Workspace" : "Owner Workspace";
   const { open } = useModals();
   const [theme, setTheme] = useState<"light" | "dark">(globalMounted ? globalTheme : "light");
   const [status, setStatus] = useState<"online" | "away" | "dnd">("online");
