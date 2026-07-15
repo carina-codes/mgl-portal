@@ -14,6 +14,12 @@ import { useStore } from "@/lib/store";
 import { toast } from "sonner";
 import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/[projectId]/view";
 
+const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
+  owner: { label: "Owner", cls: "bg-violet-100 dark:bg-violet-950/45 text-violet-800 dark:text-violet-300" },
+  manager: { label: "Manager", cls: "bg-indigo-100 dark:bg-indigo-950/45 text-indigo-800 dark:text-indigo-300" },
+  team: { label: "Team", cls: "bg-blue-100 dark:bg-blue-950/45 text-blue-800 dark:text-blue-300" },
+};
+
 function MessagesPage() {
   const comments = useStore((s) => s.comments);
   const projects = useStore((s) => s.projects);
@@ -417,14 +423,13 @@ function MessagesPage() {
                       )}>
                         <div className="mb-1 flex items-center gap-2 text-xs">
                           <span className="font-bold text-foreground">{u.name}</span>
-                          {isClient && (
+                          {isClient ? (
                             <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-950/45 px-2 py-0.25 text-[9px] font-bold text-emerald-800 dark:text-emerald-300">
                               Client
                             </span>
-                          )}
-                          {!isClient && (
-                            <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-950/45 px-2 py-0.25 text-[9px] font-bold text-blue-800 dark:text-blue-300">
-                              Team
+                          ) : (
+                            <span className={cn("inline-flex items-center rounded-full px-2 py-0.25 text-[9px] font-bold", (ROLE_BADGE[u.role] ?? ROLE_BADGE.team).cls)}>
+                              {(ROLE_BADGE[u.role] ?? ROLE_BADGE.team).label}
                             </span>
                           )}
                           <span className="text-muted-foreground">{m.createdAt}</span>

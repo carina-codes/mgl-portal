@@ -3561,7 +3561,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
     name: "",
     email: "",
     title: "Designer",
-    role: "team" as "team" | "owner" | "manager" | "client",
+    role: "team" as "team" | "owner" | "manager",
     city: "",
     state: "",
     zipCode: "",
@@ -3634,7 +3634,6 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
               <option value="team">Team</option>
               <option value="manager">Manager</option>
               <option value="owner">Owner</option>
-              <option value="client">Client</option>
             </SelectField>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -3875,7 +3874,6 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
               <option value="team">Team</option>
               <option value="manager">Manager</option>
               <option value="owner">Owner</option>
-              <option value="client">Client</option>
             </SelectField>
           </div>
           <div className="grid grid-cols-2 gap-3">

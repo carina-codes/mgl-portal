@@ -149,6 +149,7 @@ export function RichEditor({
       StarterKit.configure({
         heading: { levels: [2, 3] }, // keep heading extension for parsing, but remove toggle button
         codeBlock: false, // disable default code block in starter kit
+        link: false, // we configure our own Link extension below with custom styling
       }),
       Placeholder.configure({ placeholder }),
       Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-primary underline underline-offset-2 font-medium" } }),

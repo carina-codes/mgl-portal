@@ -93,8 +93,14 @@ export function AppDialog(props: AppDialogProps) {
             )}
             <div className="flex-1">
               <DialogTitle className="text-lg font-semibold tracking-tight">{title}</DialogTitle>
-              {description && (
+              {description ? (
                 <DialogDescription className="mt-1 text-sm text-muted-foreground">{description}</DialogDescription>
+              ) : (
+                // Radix requires DialogContent to always have an accessible description
+                // target; fall back to a screen-reader-only one when none is passed.
+                <DialogDescription className="sr-only">
+                  {typeof title === "string" ? title : "Dialog"}
+                </DialogDescription>
               )}
             </div>
           </div>

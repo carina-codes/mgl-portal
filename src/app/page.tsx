@@ -12,10 +12,10 @@ export default function Landing() {
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">C</div>
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">M</div>
           <div>
-            <div className="text-sm font-semibold">Carina</div>
-            <div className="text-[11px] text-muted-foreground -mt-0.5">Client Platform</div>
+            <div className="text-sm font-semibold">MGL Agency</div>
+            <div className="text-[11px] text-muted-foreground -mt-0.5">Workspace Portal</div>
           </div>
         </div>
         <div className="flex items-center gap-2">
