@@ -10,18 +10,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Carina Client Platform",
+  title: "MGL Portal",
   description:
     "Client execution platform — projects, requests, time and client collaboration in one place.",
   openGraph: {
-    title: "Carina Client Platform",
+    title: "MGL Portal",
     description:
       "Client execution platform — projects, requests, time and client collaboration in one place.",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "Carina Client Platform",
+    title: "MGL Portal",
     description:
       "Client execution platform — projects, requests, time and client collaboration in one place.",
   },

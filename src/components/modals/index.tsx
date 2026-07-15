@@ -1,5 +1,5 @@
 /**
- * Modals — central modal system for the Carina Client Platform.
+ * Modals — central modal system for the MGL Portal.
  *
  * Every workflow modal in the app is registered here. Trigger any modal
  * from anywhere via the `useModals()` hook, e.g.:
@@ -3439,7 +3439,7 @@ function ConnectProjectStorageModal({ close, payload }: { close: () => void; pay
         <FieldGroup>
           <TextField
             label="Account Email"
-            placeholder="e.g. storage@kristal-brand.com"
+            placeholder="e.g. storage@mgl-portal-brand.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"

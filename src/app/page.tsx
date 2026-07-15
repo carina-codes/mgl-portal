@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Sparkles, LayoutDashboard, Users, MessageSquare } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Carina Client Platform",
+  title: "MGL Portal",
   description: "The operating system for a high-end digital agency.",
 };
 
@@ -42,7 +42,7 @@ export default function Landing() {
           The operating system for a high-end digital agency.
         </h1>
         <p className="mt-4 max-w-2xl text-base text-muted-foreground lg:text-lg">
-          Carina Client Platform centralizes project execution, client requests, time
+          MGL Portal centralizes project execution, client requests, time
           tracking and reporting — so the studio stops living in inboxes and starts shipping faster.
         </p>
 

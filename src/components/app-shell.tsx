@@ -66,15 +66,28 @@ import { AppDialog } from "@/components/ui/app-dialog";
 import { SearchDropdown } from "./search-dropdown";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
-const NAV = [
-  { to: "/owner", label: "Overview", icon: Home, exact: true },
-  { to: "/owner/clients", label: "Clients", icon: Users },
-  { to: "/owner/projects", label: "Projects", icon: FolderOpen },
-  { to: "/owner/tasks", label: "Tasks", icon: ListTodo },
-  { to: "/owner/messages", label: "Messages", icon: MessageSquare },
-  { to: "/owner/requests", label: "Requests", icon: Send },
-  { to: "/owner/team", label: "Team", icon: UserCog },
-];
+type AppRole = "owner" | "client" | "team";
+
+const NAV_BY_ROLE: Record<AppRole, { to: string; label: string; icon: typeof Home; exact?: boolean }[]> = {
+  owner: [
+    { to: "/owner", label: "Overview", icon: Home, exact: true },
+    { to: "/owner/clients", label: "Clients", icon: Users },
+    { to: "/owner/projects", label: "Projects", icon: FolderOpen },
+    { to: "/owner/tasks", label: "Tasks", icon: ListTodo },
+    { to: "/owner/messages", label: "Messages", icon: MessageSquare },
+    { to: "/owner/requests", label: "Requests", icon: Send },
+    { to: "/owner/team", label: "Team", icon: UserCog },
+  ],
+  client: [
+    { to: "/client", label: "Overview", icon: Home, exact: true },
+    { to: "/client/projects", label: "Projects", icon: FolderOpen },
+    { to: "/client/messages", label: "Messages", icon: MessageSquare },
+    { to: "/client/requests", label: "Requests", icon: Send },
+  ],
+  team: [
+    { to: "/team", label: "Overview", icon: Home, exact: true },
+  ],
+};
 
 const statusConfig = {
   online: { color: "bg-emerald-500", label: "Online" },
@@ -164,17 +177,22 @@ export function AppShell({
   title,
   subtitle,
   actions,
+  role = "owner",
 }: {
   children: ReactNode;
   title?: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
+  role?: AppRole;
 }) {
   const pathname = usePathname() || "";
-  const { role, setRole } = useRole();
+  const { setRole } = useRole();
   const user = useCurrentUser();
   const workspaceName = useStore((s) => s.workspaceName);
   const router = useRouter();
+  const NAV = NAV_BY_ROLE[role];
+  const settingsHref = role === "owner" ? "/owner/settings" : role === "client" ? "/client/settings" : "/team";
+  const workspaceLabel = role === "client" ? "Client Portal" : role === "team" ? "Team Workspace" : "Internal Workspace";
   const { open } = useModals();
   const [theme, setTheme] = useState<"light" | "dark">(globalMounted ? globalTheme : "light");
   const [status, setStatus] = useState<"online" | "away" | "dnd">("online");
@@ -210,6 +228,8 @@ export function AppShell({
         setIsShortcutsOpen(false);
         return;
       }
+
+      if (role !== "owner") return;
 
       if (key === "p") {
         e.preventDefault();
@@ -263,7 +283,7 @@ export function AppShell({
       window.removeEventListener("keydown", handleKeyDown);
       clearTimeout(keyTimeout);
     };
-  }, [router, open]);
+  }, [router, open, role]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -318,11 +338,11 @@ export function AppShell({
             {/* Left: Logo */}
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
-                {workspaceName ? workspaceName.slice(0, 1).toUpperCase() : "C"}
+                {workspaceName ? workspaceName.slice(0, 1).toUpperCase() : "M"}
               </div>
               <div className="hidden sm:block">
-                <div className="text-sm font-semibold tracking-tight leading-none">{workspaceName || "Carina"}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 leading-none">Internal Workspace</div>
+                <div className="text-sm font-semibold tracking-tight leading-none">{workspaceName || "MGL Agency"}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 leading-none">{workspaceLabel}</div>
               </div>
             </div>
 
@@ -352,13 +372,26 @@ export function AppShell({
             </nav>
 
             <div className="flex items-center gap-2">
-              <Link
-                href="/client"
-                className="hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
-              >
-                Switch to client
-              </Link>
-              <Link href="/owner/settings" className="hover:opacity-90 transition-opacity cursor-pointer flex shrink-0">
+              {role === "owner" ? (
+                <Link
+                  href="/client"
+                  onClick={() => setRole("client")}
+                  className="hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
+                >
+                  Switch to client
+                </Link>
+              ) : (
+                <button
+                  onClick={() => {
+                    setRole("owner");
+                    router.push("/owner");
+                  }}
+                  className="hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
+                >
+                  Switch to internal
+                </button>
+              )}
+              <Link href={settingsHref} className="hover:opacity-90 transition-opacity cursor-pointer flex shrink-0">
                 <UserAvatar user={user} size={36} />
               </Link>
             </div>

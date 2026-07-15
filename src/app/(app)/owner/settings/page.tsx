@@ -603,9 +603,9 @@ function ApiSection() {
     { name: "Zapier integration", key: "carina_live_••••••••••••••1d3b", created: "Mar 22, 2026" },
   ]);
   const [hooks, setHooks] = useState<Hook[]>([
-    { url: "https://hooks.carina.studio/projects", events: 4, status: "Active" },
+    { url: "https://hooks.mglagency.com/projects", events: 4, status: "Active" },
     { url: "https://api.client.com/carina/webhook", events: 2, status: "Active" },
-    { url: "https://staging.carina.studio/test", events: 1, status: "Paused" },
+    { url: "https://staging.mglagency.com/test", events: 1, status: "Paused" },
   ]);
 
   const newKey = () => {
@@ -736,7 +736,7 @@ function ProfileSection() {
 
   const [profile, setProfile] = useState({
     name: user?.name ?? "Maya Larsson",
-    email: user?.email ?? "maya@carina.studio",
+    email: user?.email ?? "maya@mglagency.com",
     title: user?.title ?? "Creative Director & Owner",
     phone: user?.phone ?? "+1 (555) 019-2834",
     language: "en-US",

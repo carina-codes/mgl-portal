@@ -1,5 +1,5 @@
 /**
- * Mock data layer for the Carina Client Platform prototype.
+ * Mock data layer for the MGL Portal prototype.
  *
  * All data is in-memory. The shape mirrors what a future Supabase / Next.js
  * backend would return, so screens can be wired up to real services with
@@ -257,12 +257,12 @@ export type Channel = {
 // ─────────────────────────────────────────────────────────── Users / Team
 
 export const users: User[] = [
-  { id: "u1", name: "Carina Rivera", email: "carina@carina.studio", role: "owner", title: "Founder & Strategy Lead", color: "#0049FE", avatar: "CR", city: "Los Angeles", state: "CA", hourlyRate: 150 },
-  { id: "u2", name: "Mia Tanaka", email: "mia@carina.studio", role: "team", title: "Design Director", color: "#FF7A59", avatar: "MT", city: "San Francisco", state: "CA", hourlyRate: 125 },
-  { id: "u3", name: "Devon Patel", email: "devon@carina.studio", role: "team", title: "Senior Engineer", color: "#10B981", avatar: "DP", city: "New York", state: "NY", hourlyRate: 140 },
-  { id: "u4", name: "Ava Lindgren", email: "ava@carina.studio", role: "team", title: "Brand Designer", color: "#A855F7", avatar: "AL", city: "Austin", state: "TX", hourlyRate: 95 },
-  { id: "u5", name: "Noah Carter", email: "noah@carina.studio", role: "team", title: "Producer", color: "#F59E0B", avatar: "NC", city: "Chicago", state: "IL", hourlyRate: 110 },
-  { id: "u6", name: "Priya Shah", email: "priya@carina.studio", role: "team", title: "Motion Designer", color: "#EC4899", avatar: "PS", city: "Miami", state: "FL", hourlyRate: 105 },
+  { id: "u1", name: "Carina Rivera", email: "carina@mglagency.com", role: "owner", title: "Founder & Strategy Lead", color: "#0049FE", avatar: "CR", city: "Los Angeles", state: "CA", hourlyRate: 150 },
+  { id: "u2", name: "Mia Tanaka", email: "mia@mglagency.com", role: "team", title: "Design Director", color: "#FF7A59", avatar: "MT", city: "San Francisco", state: "CA", hourlyRate: 125 },
+  { id: "u3", name: "Devon Patel", email: "devon@mglagency.com", role: "team", title: "Senior Engineer", color: "#10B981", avatar: "DP", city: "New York", state: "NY", hourlyRate: 140 },
+  { id: "u4", name: "Ava Lindgren", email: "ava@mglagency.com", role: "team", title: "Brand Designer", color: "#A855F7", avatar: "AL", city: "Austin", state: "TX", hourlyRate: 95 },
+  { id: "u5", name: "Noah Carter", email: "noah@mglagency.com", role: "team", title: "Producer", color: "#F59E0B", avatar: "NC", city: "Chicago", state: "IL", hourlyRate: 110 },
+  { id: "u6", name: "Priya Shah", email: "priya@mglagency.com", role: "team", title: "Motion Designer", color: "#EC4899", avatar: "PS", city: "Miami", state: "FL", hourlyRate: 105 },
   // Client-side users
   { id: "u7", name: "Elena Brooks", email: "elena@northwind.io", role: "client", title: "VP Marketing, Northwind", color: "#0EA5E9", avatar: "EB" },
   { id: "u8", name: "Marcus Hale", email: "marcus@arcadia.com", role: "client", title: "CMO, Arcadia Solutions", color: "#84CC16", avatar: "MH" },

@@ -12,7 +12,7 @@ import { ChevronLeft } from "lucide-react";
 import { DateInput } from "./date-input";
 
 /**
- * AppDialog — the unified modal primitive for the Carina Client Platform.
+ * AppDialog — the unified modal primitive for the MGL Portal.
  *
  * - Consistent spacing, typography, radius, and footer alignment
  * - Optional multi-step flow (steps with Back / Next)

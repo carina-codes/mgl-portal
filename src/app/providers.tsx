@@ -9,7 +9,7 @@ import { useStore } from "@/lib/store";
 
 function TabNotificationHandler() {
   useEffect(() => {
-    const nextTitle = "Carina Client Platform";
+    const nextTitle = "MGL Portal";
     if (document.title !== nextTitle) {
       document.title = nextTitle;
     }

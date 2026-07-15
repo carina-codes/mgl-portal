@@ -1,5 +1,5 @@
 /**
- * Reactive in-memory store for the Carina Client Platform.
+ * Reactive in-memory store for the MGL Portal.
  *
  * Wraps the seed data from mock-data.ts in a Zustand store so modals,
  * filters, and pages can read and mutate the same source of truth.
@@ -208,9 +208,9 @@ export const useStore = create<State>((set, get) => ({
     { provider: "box", connected: false },
   ],
   projectStorageMappings: [
-    { id: "psm-1", projectId: "p1", provider: "gdrive", email: "marketing-ops@kristal.com", folderName: "Marketing Assets", connectedAt: "Yesterday · 10:15 AM" }
+    { id: "psm-1", projectId: "p1", provider: "gdrive", email: "marketing-ops@mgl-portal.com", folderName: "Marketing Assets", connectedAt: "Yesterday · 10:15 AM" }
   ],
-  workspaceName: "Carina",
+  workspaceName: "MGL Agency",
 
   /* Clients */
   createClient: (input) => {

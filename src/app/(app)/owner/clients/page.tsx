@@ -104,7 +104,7 @@ const getClientUserIds = (c: any, users: any[]) => {
         ids.add(u.id);
       }
     } else {
-      if (link.userId.includes("@") && !link.userId.endsWith("@carina.studio")) {
+      if (link.userId.includes("@") && !link.userId.endsWith("@mglagency.com")) {
         ids.add(link.userId);
       }
     }
