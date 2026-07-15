@@ -671,6 +671,9 @@ function ProfileSection() {
       email: profile.email,
       title: profile.title,
       phone: profile.phone,
+      // Keep the initials-based avatar (header, avatar stacks, etc.) in sync with
+      // the name — but don't clobber an uploaded photo.
+      ...(isImageAvatar ? {} : { avatar: initials || "?" }),
     });
     toast.success("Profile saved successfully");
   };
