@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { LucideIcon, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
@@ -19,6 +20,8 @@ export interface KpiCardProps {
   sparklineData?: number[]; // list of numbers for sparkline graph
   className?: string;
   delay?: number; // Entry animation stagger delay in ms
+  /** If provided, the whole card becomes a link to this destination. */
+  href?: string;
 }
 
 const colorMap = {
@@ -101,8 +104,11 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   sparklineData,
   className,
   delay = 0,
+  href,
 }) => {
   const config = colorMap[color];
+  const Wrapper = href ? Link : "div";
+  const wrapperProps = href ? { href } : {};
 
   // Generate SVG path for sparkline
   const sparklinePath = useMemo(() => {
@@ -132,9 +138,11 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   const uniqueGradId = `sparkline-grad-${color}-${id.replace(/:/g, "")}`;
 
   return (
-    <div
+    <Wrapper
+      {...wrapperProps}
       className={cn(
         "group relative flex flex-col rounded-3xl border border-border/50 bg-card p-6 shadow-sm transition-all duration-500 ease-out hover:-translate-y-1.5 hover:scale-[1.015] hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20",
+        href && "cursor-pointer",
         config.border,
         className
       )}
@@ -262,6 +270,6 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           )}
         </div>
       )}
-    </div>
+    </Wrapper>
   );
 };

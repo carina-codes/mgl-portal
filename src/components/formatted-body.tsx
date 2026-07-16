@@ -88,7 +88,7 @@ export function CommentAttachmentsList({ attachmentIds }: { attachmentIds?: stri
           id={doc.id}
           name={doc.name}
           size={doc.size}
-          url="#"
+          url={doc.previewUrl || "#"}
         />
       ))}
     </div>

@@ -1,6 +1,7 @@
 import { Search, X, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { DateInput } from "@/components/ui/date-input";
 
 /**
  * Unified Filter Bar — used across Projects, Requests,
@@ -143,7 +144,7 @@ function FilterDropdown({
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1.5 w-56 overflow-hidden rounded-2xl border border-border bg-card p-1.5">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-xl p-1.5">
           <div className="max-h-64 overflow-y-auto">
             {def.options.map((o) => {
               const active = selected.includes(o.value);
@@ -196,13 +197,20 @@ function DateRangeDropdown({
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  const formatShort = (dateStr: string) => {
+    const date = new Date(dateStr + "T00:00:00");
+    if (isNaN(date.getTime())) return dateStr;
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  };
+
   const label =
     value.from && value.to
-      ? `${value.from} → ${value.to}`
+      ? `${formatShort(value.from)} → ${formatShort(value.to)}`
       : value.from
-        ? `From ${value.from}`
+        ? `From ${formatShort(value.from)}`
         : value.to
-          ? `Until ${value.to}`
+          ? `Until ${formatShort(value.to)}`
           : "Date range";
 
   function preset(days: number) {
@@ -228,24 +236,24 @@ function DateRangeDropdown({
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-40 mt-1.5 w-72 overflow-hidden rounded-2xl border border-border bg-card p-3">
+        <div className="absolute left-0 top-full z-50 mt-1.5 w-[420px] overflow-hidden rounded-2xl border border-border bg-card shadow-xl p-3">
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               From
-              <input
-                type="date"
+              <DateInput
                 value={value.from ?? ""}
                 onChange={(e) => onChange({ ...value, from: e.target.value || undefined })}
-                className="mt-1 block h-9 w-full rounded-xl border border-border bg-background px-2 text-xs font-normal normal-case tracking-normal text-foreground"
+                className="mt-1"
+                inputClassName="h-9 rounded-xl px-2 text-xs font-normal normal-case tracking-normal"
               />
             </label>
             <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               To
-              <input
-                type="date"
+              <DateInput
                 value={value.to ?? ""}
                 onChange={(e) => onChange({ ...value, to: e.target.value || undefined })}
-                className="mt-1 block h-9 w-full rounded-xl border border-border bg-background px-2 text-xs font-normal normal-case tracking-normal text-foreground"
+                className="mt-1"
+                inputClassName="h-9 rounded-xl px-2 text-xs font-normal normal-case tracking-normal"
               />
             </label>
           </div>

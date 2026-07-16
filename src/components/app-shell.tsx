@@ -29,6 +29,7 @@ import {
   ListTodo,
 } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
+import { useActiveClient } from "@/hooks/use-active-client";
 import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
@@ -187,11 +188,30 @@ export function AppShell({
 }) {
   const pathname = usePathname() || "";
   const { setRole } = useRole();
-  const user = useCurrentUser();
+  const currentUser = useCurrentUser();
+  const { client: activeClient } = useActiveClient();
   const workspaceName = useStore((s) => s.workspaceName);
   const router = useRouter();
   const NAV = NAV_BY_ROLE[role];
   const settingsHref = role === "owner" ? "/owner/settings" : role === "client" ? "/client/settings" : "/team";
+
+  // On the client portal, the header should reflect the active client's own
+  // contact profile — not the internal role-context identity, which is a
+  // separate, unrelated bit of app-wide state.
+  const user =
+    role === "client"
+      ? {
+          id: activeClient.id,
+          name: activeClient.contact,
+          email: activeClient.contactEmail,
+          role: "client" as const,
+          title: activeClient.contactRole || activeClient.name,
+          avatar:
+            activeClient.contactAvatar ||
+            activeClient.contact.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2),
+          color: activeClient.logoColor,
+        }
+      : currentUser;
   const workspaceLabel = role === "client" ? "Client Workspace" : role === "team" ? "Team Workspace" : "Owner Workspace";
   const { open } = useModals();
   const [theme, setTheme] = useState<"light" | "dark">(globalMounted ? globalTheme : "light");
@@ -386,7 +406,7 @@ export function AppShell({
                     setRole("owner");
                     router.push("/owner");
                   }}
-                  className="hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
+                  className="invisible hidden rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground md:inline"
                 >
                   Switch to internal
                 </button>

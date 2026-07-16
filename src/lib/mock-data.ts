@@ -43,6 +43,7 @@ export type Client = {
   logoColor: string;
   contact: string;
   contactEmail: string;
+  contactAvatar?: string; // initials or image data URL for the client contact's profile photo
   status: "active" | "paused" | "archived";
   retainer: string;
   since: string;
@@ -53,8 +54,10 @@ export type Client = {
   // Expanded fields:
   website?: string;
   phone?: string;
+  businessEmail?: string;
   timezone?: string;
   address?: string;
+  zipCode?: string;
   description?: string;
   country?: string;
   state?: string;
@@ -185,7 +188,8 @@ export type RequestStatus =
   | "under_review"
   | "closed"
   | "approved"
-  | "convert";
+  | "convert"
+  | "withdrawn";
 
 export type ClientRequest = {
   id: string;
@@ -197,6 +201,7 @@ export type ClientRequest = {
   status: RequestStatus;
   submittedAt: string;
   submittedBy: string; // user id
+  attachmentDocIds?: string[];
   estimatedHours?: number;
   priority: Priority;
 };
@@ -728,7 +733,7 @@ export const requests: ClientRequest[] = [
 // ─────────────────────────────────────────────────────────── Documents
 
 export const documents: Document[] = [
-  { id: "doc1", projectId: "p1", name: "NovaBoard SOW.pdf", folder: "Contracts", size: "428 KB", uploadedBy: "u1", uploadedAt: "May 1", shared: true },
+  { id: "doc1", projectId: "p1", name: "NovaBoard SOW.pdf", folder: "Contracts", size: "428 KB", uploadedBy: "u1", uploadedAt: "May 1", shared: true, previewUrl: "https://pdfobject.com/pdf/sample.pdf" },
   { id: "doc2", projectId: "p1", name: "Brand assets — primary.zip", folder: "Brand", size: "82 MB", uploadedBy: "u4", uploadedAt: "May 14", shared: true },
   { id: "doc3", projectId: "p1", name: "API contracts — internal.md", folder: "Engineering", size: "12 KB", uploadedBy: "u3", uploadedAt: "Jun 2", shared: false },
   { id: "doc4", projectId: "p1", name: "User research — interview notes.docx", folder: "Research", size: "1.2 MB", uploadedBy: "u2", uploadedAt: "May 22", shared: false },
@@ -818,6 +823,7 @@ export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; cls: st
   closed: { label: "Closed", cls: "bg-rose-100 text-rose-700" },
   approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700" },
   convert: { label: "Convert", cls: "bg-blue-100 text-blue-700" },
+  withdrawn: { label: "Withdrawn", cls: "bg-muted text-muted-foreground" },
 };
 
 export const REQUEST_TYPE_META: Record<RequestType, { label: string; icon: string }> = {

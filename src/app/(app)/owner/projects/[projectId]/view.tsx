@@ -16,6 +16,7 @@ import {
   type TaskStage,
   type Task,
   type Comment,
+  type Document,
 } from "@/lib/mock-data";
 import {
   ArrowLeft,
@@ -90,6 +91,7 @@ import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { celebrateFromElement } from "@/lib/confetti";
 import { RequestDetailsDrawer } from "../../requests/page";
+import { FilePreviewDialog, isImageFile, isPdfFile, isPreviewableFile } from "@/components/file-preview-dialog";
 import {
   Sheet,
   SheetContent,
@@ -200,7 +202,7 @@ function ProjectDetail() {
   
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as TabId;
-  const [tab, setTab] = useState<TabId>(() => tabParam || "tasks");
+  const [tab, setTab] = useState<TabId>(() => tabParam || "overview");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
@@ -1382,6 +1384,7 @@ export function TaskDetailsDrawer({
   const uploadDocument = useStore((s) => s.uploadDocument);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [previewFile, setPreviewFile] = useState<Document | null>(null);
 
   useEffect(() => {
     setConfirmDelete(false);
@@ -1524,6 +1527,7 @@ export function TaskDetailsDrawer({
   const pmeta = PRIORITY_META[task.priority] ?? PRIORITY_META.medium;
 
   return (
+    <>
     <Sheet open={!!taskId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="sm:max-w-[40rem] overflow-y-auto w-full p-6 bg-card border-l border-border/80">
         <SheetHeader className="text-left mb-6">
@@ -1549,7 +1553,7 @@ export function TaskDetailsDrawer({
             className="text-lg font-semibold bg-transparent border-0 outline-none w-full focus:ring-0 p-0 m-0 text-foreground"
           />
           {task.createdAt && (
-            <div className="text-xs text-muted-foreground mt-1.5 px-0">
+            <div className="text-xs text-muted-foreground mt-0 px-0">
               Created on{" "}
               {new Date(task.createdAt).toLocaleString(undefined, {
                 dateStyle: "medium",
@@ -1738,17 +1742,14 @@ export function TaskDetailsDrawer({
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toast.success(`Downloading ${doc.name}...`);
-                      }}
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFile(doc)}
                       className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all cursor-pointer"
-                      title="Download file"
+                      title="Preview"
                     >
-                      <Download className="h-3.5 w-3.5" />
-                    </a>
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveAttachment(doc)}
@@ -1924,6 +1925,12 @@ export function TaskDetailsDrawer({
         </div>
       </SheetContent>
     </Sheet>
+    <FilePreviewDialog
+      file={previewFile}
+      onClose={() => setPreviewFile(null)}
+      onDownload={(f) => toast.success(`Downloading ${f.name}...`)}
+    />
+    </>
   );
 }
 
@@ -2151,7 +2158,10 @@ function DocumentsTab({ projectId }: { projectId: string }) {
 
   // Selections & Bulk Actions
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
-  
+
+  // File preview
+  const [previewFile, setPreviewFile] = useState<{ id: string; name: string; size: string; folder: string; previewUrl?: string } | null>(null);
+
   useEffect(() => {
     setSelectedFileIds([]);
   }, [fileQuery, selectedFolder]);
@@ -2234,6 +2244,7 @@ function DocumentsTab({ projectId }: { projectId: string }) {
   };
 
   return (
+    <>
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card/40 p-2.5 rounded-2xl border border-border/40">
@@ -2316,8 +2327,15 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                   />
                 </div>
 
-                <div className="h-28 bg-muted/40 flex items-center justify-center relative select-none overflow-hidden">
-                  {file.previewUrl ? (
+                <div
+                  onClick={() => isPreviewableFile(file.name) && setPreviewFile(file)}
+                  className={cn(
+                    "h-28 bg-muted/40 flex items-center justify-center relative select-none overflow-hidden",
+                    isPreviewableFile(file.name) && "cursor-pointer",
+                  )}
+                  title={isPreviewableFile(file.name) ? "Click to preview" : undefined}
+                >
+                  {file.previewUrl && isImageFile(file.name) ? (
                     <img
                       src={file.previewUrl}
                       alt={file.name}
@@ -2380,6 +2398,15 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                     </button>
                     
                     <div className="flex items-center gap-1">
+                      {isPreviewableFile(file.name) && (
+                        <button
+                          onClick={() => setPreviewFile(file)}
+                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
+                          title="Preview"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           toast.success("Download started", { description: file.name });
@@ -2510,6 +2537,15 @@ function DocumentsTab({ projectId }: { projectId: string }) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-1.5 justify-end">
+                          {isPreviewableFile(file.name) && (
+                            <button
+                              onClick={() => setPreviewFile(file)}
+                              className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
+                              title="Preview"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               toast.success("Download started", { description: file.name });
@@ -2542,6 +2578,13 @@ function DocumentsTab({ projectId }: { projectId: string }) {
           </div>
         )}
       </div>
+
+      <FilePreviewDialog
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
+        onDownload={(f) => toast.success("Download started", { description: f.name })}
+      />
+    </>
   );
 }
 

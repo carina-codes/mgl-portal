@@ -94,6 +94,7 @@ export default function Dashboard() {
           color="purple"
           sparklineData={[12, 14, 13, 15, 17, 16, 18]}
           delay={0}
+          href="/owner/projects"
         />
         <KpiCard
           label="Open requests"
@@ -103,6 +104,7 @@ export default function Dashboard() {
           color="amber"
           sparklineData={[5, 4, 6, 3, 2, 4, 3]}
           delay={100}
+          href="/owner/requests"
         />
         <KpiCard
           label="Hours this week"
@@ -112,6 +114,7 @@ export default function Dashboard() {
           color="blue"
           sparklineData={[160, 165, 170, 180, 175, 182, 186]}
           delay={200}
+          href="/owner/time"
         />
       </div>
 

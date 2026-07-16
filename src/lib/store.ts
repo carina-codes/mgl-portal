@@ -98,6 +98,7 @@ type State = {
   createRequest: (input: Partial<ClientRequest> & Pick<ClientRequest, "clientId" | "title" | "type">) => ClientRequest;
   updateRequest: (id: string, patch: Partial<ClientRequest>) => void;
   setRequestStatus: (id: string, status: RequestStatus) => void;
+  deleteRequest: (id: string) => void;
   convertRequestToTask: (id: string, projectId: string) => Task | null;
   convertRequestToProject: (id: string, projectInput: Partial<Project>) => Project | null;
 
@@ -370,6 +371,11 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
   setRequestStatus: (id, status) =>
     set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status } : r)) })),
+  deleteRequest: (id) =>
+    set((s) => ({
+      requests: s.requests.filter((r) => r.id !== id),
+      comments: s.comments.filter((c) => c.threadId !== id),
+    })),
   convertRequestToTask: (id, projectId) => {
     const r = get().requests.find((x) => x.id === id);
     if (!r) return null;

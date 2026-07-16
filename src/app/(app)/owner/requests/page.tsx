@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
-import { REQUEST_STATUS_META, REQUEST_TYPE_META, PRIORITY_META } from "@/lib/mock-data";
+import { REQUEST_STATUS_META, REQUEST_TYPE_META, PRIORITY_META, type Document } from "@/lib/mock-data";
 import {
   Plus,
   Wand2,
@@ -23,7 +23,10 @@ import {
   Inbox,
   ArrowRightLeft,
   Calendar,
-  Lock
+  Lock,
+  Download,
+  Trash2,
+  Eye,
 } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
@@ -32,6 +35,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
+import { FilePreviewDialog } from "@/components/file-preview-dialog";
 
 const formatSubmissionTime = (submittedAt: string) => {
   if (!submittedAt) return "";
@@ -86,6 +90,26 @@ const TYPE_ICONS: Record<string, any> = {
   Upload,
   MessageCircleQuestion,
 };
+
+function parseSizeToBytes(size: string): number {
+  const match = size.match(/^([\d.]+)\s*(KB|MB|GB|B)?$/i);
+  if (!match) return 1024;
+  const num = parseFloat(match[1]);
+  const unit = (match[2] || "").toUpperCase();
+  if (unit === "KB") return num * 1024;
+  if (unit === "MB") return num * 1024 * 1024;
+  if (unit === "GB") return num * 1024 * 1024 * 1024;
+  return num;
+}
+
+function guessMimeType(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
+    return `image/${ext === "jpg" ? "jpeg" : ext}`;
+  }
+  if (ext === "pdf") return "application/pdf";
+  return "application/octet-stream";
+}
 
 function RequestsView() {
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -471,11 +495,50 @@ export function RequestDetailsDrawer({
   const client = useMemo(() => req ? clients.find((c) => c.id === req.clientId) : null, [req, clients]);
   const projects = useStore((s) => s.projects);
   const users = useStore((s) => s.users);
+  const documents = useStore((s) => s.documents);
+  const deleteDocument = useStore((s) => s.deleteDocument);
   const allComments = useStore((s) => s.comments);
   const comments = useMemo(() => allComments.filter((c) => c.threadId === requestId), [allComments, requestId]);
   const setStatus = useStore((s) => s.setRequestStatus);
   const { open } = useModals();
   const [busy, setBusy] = useState(false);
+  const [previewFile, setPreviewFile] = useState<Document | null>(null);
+
+  const requestDocuments = useMemo(() => {
+    if (!req) return [] as Document[];
+    const ids = req.attachmentDocIds ?? [];
+    return documents.filter((d) => ids.includes(d.id));
+  }, [req, documents]);
+
+  const descriptionAttachments = useMemo<RichAttachment[]>(() => {
+    if (!req) return [];
+    const ids = req.attachmentDocIds ?? [];
+    return documents
+      .filter((d) => ids.includes(d.id))
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        size: parseSizeToBytes(d.size),
+        type: guessMimeType(d.name),
+        url: d.previewUrl || "#",
+      }));
+  }, [req, documents]);
+
+  const handleDescriptionAttachmentsChange = (next: RichAttachment[]) => {
+    if (!req) return;
+    const ids = next.filter((a) => documents.some((d) => d.id === a.id)).map((a) => a.id);
+    useStore.getState().updateRequest(req.id, { attachmentDocIds: ids });
+  };
+
+  const handleRemoveAttachment = (doc: Document) => {
+    if (!req) return;
+    if (documents.some((d) => d.id === doc.id)) {
+      deleteDocument(doc.id);
+    }
+    const nextIds = (req.attachmentDocIds ?? []).filter((id) => id !== doc.id);
+    useStore.getState().updateRequest(req.id, { attachmentDocIds: nextIds });
+    toast.success(`Removed ${doc.name}`);
+  };
 
   if (!req || !client) return null;
 
@@ -497,6 +560,7 @@ export function RequestDetailsDrawer({
   };
 
   return (
+    <>
     <Sheet open={!!requestId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="sm:max-w-[40rem] overflow-y-auto w-full p-6 bg-card border-l border-border/80 flex flex-col justify-between h-full">
         <div className="space-y-6">
@@ -526,7 +590,7 @@ export function RequestDetailsDrawer({
               className="text-lg font-semibold bg-transparent border-0 outline-none w-full focus:ring-0 p-0 m-0 text-foreground"
             />
             {req.submittedAt && (
-              <div className="text-xs text-muted-foreground mt-1.5 px-0 font-medium">
+              <div className="text-xs text-muted-foreground mt-0 px-0 font-medium">
                 {formatSubmissionTime(req.submittedAt)}
               </div>
             )}
@@ -541,7 +605,7 @@ export function RequestDetailsDrawer({
                 onChange={(e) => setStatus(req.id, e.target.value as RequestStatus)}
                 className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
               >
-                {(["submitted", "under_review", "closed", "approved", "convert"] as RequestStatus[]).map((s) => (
+                {(["submitted", "under_review", "closed", "approved", "convert", "withdrawn"] as RequestStatus[]).map((s) => (
                   <option key={s} value={s}>{REQUEST_STATUS_META[s].label}</option>
                 ))}
               </select>
@@ -603,8 +667,62 @@ export function RequestDetailsDrawer({
               onChange={(v) => useStore.getState().updateRequest(req.id, { description: v })}
               placeholder="Add detailed description notes here..."
               minHeight={120}
+              projectId={req.projectId}
+              attachments={descriptionAttachments}
+              onAttachmentsChange={handleDescriptionAttachmentsChange}
+              showAttachmentsList={false}
             />
           </div>
+
+          {/* Attachments Section */}
+          {requestDocuments.length > 0 && (
+            <div className="border-t border-border/80 pt-6 mt-6 mb-6">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3 flex items-center justify-between">
+                <span>Attachments</span>
+                <span className="text-xs text-muted-foreground font-normal capitalize tracking-normal">
+                  {requestDocuments.length} {requestDocuments.length === 1 ? "file" : "files"}
+                </span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {requestDocuments.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between bg-card hover:bg-muted/20 border border-border/40 p-2.5 rounded-xl transition-all group">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] uppercase">
+                        {doc.name.split(".").pop()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-foreground truncate" title={doc.name}>
+                          {doc.name}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {doc.size}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile(doc)}
+                        className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                        title="Preview"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachment(doc)}
+                        className="p-1.5 hover:bg-rose-500/10 rounded-md text-muted-foreground hover:text-rose-500 transition-all cursor-pointer"
+                        title="Remove attachment"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Discussion Feed */}
           <div className="border-t border-border/80 pt-6">
@@ -685,6 +803,12 @@ export function RequestDetailsDrawer({
         </div>
       </SheetContent>
     </Sheet>
+    <FilePreviewDialog
+      file={previewFile}
+      onClose={() => setPreviewFile(null)}
+      onDownload={(f) => toast.success(`Downloading ${f.name}...`)}
+    />
+    </>
   );
 }
 
