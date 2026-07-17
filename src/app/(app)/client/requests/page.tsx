@@ -28,7 +28,7 @@ import {
   Eye,
 } from "lucide-react";
 import { useState, useMemo } from "react";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
 import { toast } from "sonner";
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
@@ -85,6 +85,10 @@ const formatSubmissionTime = (submittedAt: string) => {
   return `Submitted on ${dateFormatted} at ${hours12}:${mins}${ampm}`;
 };
 
+type RequestSortField = "title" | "status" | "priority" | "type" | "submitted";
+
+const REQUEST_PRIORITY_SORT: Record<string, number> = { low: 1, medium: 2, high: 3 };
+
 function PortalRequests() {
   const { client } = useActiveClient();
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -95,6 +99,17 @@ function PortalRequests() {
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<RequestSortField>("submitted");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: RequestSortField) => {
+    if (sortBy === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
 
   const myRequests = useMemo(() => allRequests.filter((r) => r.clientId === client.id), [allRequests, client.id]);
   const myProjects = useMemo(() => allProjects.filter((p) => p.clientId === client.id), [allProjects, client.id]);
@@ -108,14 +123,42 @@ function PortalRequests() {
     [],
   );
 
-  const filtered = myRequests.filter((r) => {
-    if (search && !r.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filters.status?.length && !filters.status.includes(r.status)) return false;
-    if (filters.type?.length && !filters.type.includes(r.type)) return false;
-    if (filters.priority?.length && !filters.priority.includes(r.priority)) return false;
-    if (!inRange(r.submittedAt, dateRange)) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const result = myRequests.filter((r) => {
+      if (search && !r.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filters.status?.length && !filters.status.includes(r.status)) return false;
+      if (filters.type?.length && !filters.type.includes(r.type)) return false;
+      if (filters.priority?.length && !filters.priority.includes(r.priority)) return false;
+      if (!inRange(r.submittedAt, dateRange)) return false;
+      return true;
+    });
+
+    return [...result].sort((a, b) => {
+      let valA: string | number;
+      let valB: string | number;
+
+      if (sortBy === "status") {
+        valA = REQUEST_STATUS_META[a.status]?.label || "";
+        valB = REQUEST_STATUS_META[b.status]?.label || "";
+      } else if (sortBy === "priority") {
+        valA = REQUEST_PRIORITY_SORT[a.priority] || 0;
+        valB = REQUEST_PRIORITY_SORT[b.priority] || 0;
+      } else if (sortBy === "type") {
+        valA = REQUEST_TYPE_META[a.type]?.label || "";
+        valB = REQUEST_TYPE_META[b.type]?.label || "";
+      } else if (sortBy === "submitted") {
+        valA = new Date(a.submittedAt).getTime() || 0;
+        valB = new Date(b.submittedAt).getTime() || 0;
+      } else {
+        valA = a.title;
+        valB = b.title;
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [myRequests, search, filters, dateRange, sortBy, sortOrder]);
 
   return (
     <AppShell
@@ -226,7 +269,7 @@ function PortalRequests() {
                   </div>
 
                   <div className="space-y-2.5">
-                    <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">{r.description}</p>
+                    <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">{stripHtml(r.description)}</p>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                       <Clock className="h-3 w-3 shrink-0" />
                       <span>{formatSubmissionTime(r.submittedAt)}</span>
@@ -248,11 +291,21 @@ function PortalRequests() {
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="px-5 py-3 font-medium">Request</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Priority</th>
-                <th className="px-5 py-3 font-medium">Type</th>
-                <th className="px-5 py-3 font-medium">Submitted</th>
+                <th onClick={() => handleSort("title")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Request {sortBy === "title" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("status")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Status {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("priority")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Priority {sortBy === "priority" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("type")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Type {sortBy === "type" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("submitted")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Submitted {sortBy === "submitted" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
               </tr>
             </thead>
             <tbody>

@@ -21,6 +21,7 @@ import {
   TextField,
   SelectField,
 } from "@/components/ui/app-dialog";
+import { FormattedBody } from "@/components/formatted-body";
 import { cn } from "@/lib/utils";
 import { DateInput } from "@/components/ui/date-input";
 import { RichEditor } from "@/components/rich-editor";
@@ -71,8 +72,6 @@ import {
   FolderOpen,
   HardDrive,
   FileText,
-  Share2,
-  Link2,
   Copy,
   Shield,
   Eye,
@@ -98,8 +97,6 @@ export type ModalKey =
   // Projects
   | "project.new"
   | "project.edit"
-  | "project.share"
-  | "project.settings"
   | "project.archive"
   | "project.status"
   | "project.delete"
@@ -415,25 +412,7 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
     team: project?.team ?? [],
   }));
 
-  const client = clients.find((c) => c.id === project?.clientId);
-  const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
-  const [copied, setCopied] = useState(false);
-
   if (!project) return null;
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const accessLink = `${origin}/client/projects/${project.id}?token=${clientShareToken}`;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(accessLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const regenerateToken = () => {
-    const newToken = Math.random().toString(36).substring(2, 10);
-    setClientShareToken(newToken);
-  };
 
   const budgetLabel = {
     fixed: "Budget (USD)",
@@ -448,12 +427,7 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
   }[form.type] ?? "Hours estimate";
 
   async function submit() {
-    await run(() => {
-      updateProject(projectId, form);
-      if (client) {
-        useStore.getState().updateClient(client.id, { clientShareToken });
-      }
-    }, "Project updated");
+    await run(() => updateProject(projectId, form), "Project updated");
     close();
   }
 
@@ -491,38 +465,6 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
       }
     >
       <FieldGroup className="space-y-6">
-        {/* Project Portal Access Link */}
-        <div className="border-b border-border/50 pb-5 space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Project Access Link</h4>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                readOnly
-                value={accessLink}
-                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
-              >
-                {copied ? "Copied!" : "Copy Link"}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={regenerateToken}
-              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerate
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            Anyone with this link will be able to access this project's client portal view directly.
-          </p>
-        </div>
-
         {/* Section 1: General Details */}
         <div className="space-y-4">
           <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -2937,7 +2879,7 @@ function ReviewRequestModal({ close, payload }: { close: () => void; payload?: M
         </div>
         <h3 className="text-lg font-semibold">{req.title}</h3>
         <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm leading-relaxed text-foreground/80">
-          {req.description}
+          <FormattedBody html={req.description} />
         </div>
         <div>
           <FieldLabel>Internal note</FieldLabel>
@@ -3893,7 +3835,6 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
           </div>
         </div>
 
-        {/* Financials Section */}
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financials</h4>
           <div className="grid grid-cols-2 gap-3">
@@ -3985,9 +3926,11 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
   const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const log = useStore((s) => s.logTime);
   const { busy, run } = useAsyncAction();
+  const lockedUserId = payload?.userId as string | undefined;
+  const availableProjects = lockedUserId ? projects.filter((p) => p.team.includes(lockedUserId)) : projects;
   const [form, setForm] = useState({
-    userId: "u1",
-    projectId: (payload?.projectId as string) ?? projects[0]?.id ?? "",
+    userId: lockedUserId ?? "u1",
+    projectId: (payload?.projectId as string) ?? availableProjects[0]?.id ?? "",
     date: new Date().toISOString().slice(0, 10),
     hours: 1,
     note: "",
@@ -4015,13 +3958,22 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
     >
       <FieldGroup>
         <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {availableProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </SelectField>
         <div className="grid grid-cols-2 gap-3">
           <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          <SelectField label="Team" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
-            {team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </SelectField>
+          {lockedUserId ? (
+            <div>
+              <FieldLabel>Team</FieldLabel>
+              <div className="mt-1 flex items-center rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                {team.find((u) => u.id === lockedUserId)?.name ?? "You"}
+              </div>
+            </div>
+          ) : (
+            <SelectField label="Team" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
+              {team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </SelectField>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <TextField label="Hours" type="number" step="0.25" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} />
@@ -4357,649 +4309,12 @@ function Dropzone({
   );
 }
 
-/* ─────────────────────────── Share, Invite & Settings Modals ─────────────────────────── */
-
-function ShareProjectModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
-  const projectId = payload?.projectId as string;
-  const project = useStore((s) => s.projects.find((p) => p.id === projectId));
-  const users = useStore((s) => s.users);
-  const clients = useStore((s) => s.clients);
-  const updateProject = useStore((s) => s.updateProject);
-
-  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [invitePermission, setInvitePermission] = useState<"admin" | "edit" | "comment" | "view">("view");
-
-  useEffect(() => {
-    if (!project) return;
-
-    // Get the client contact user
-    const client = clients.find((c) => c.id === project.clientId);
-    const clientUser = users.find((u) => u.email === client?.contactEmail);
-
-    // All user IDs that should have access:
-    // 1. All users in project.team
-    // 2. Client contact user (if found)
-    const activeUserIds = new Set<string>();
-    project.team.forEach((id) => activeUserIds.add(id));
-    if (clientUser) {
-      activeUserIds.add(clientUser.id);
-    }
-
-    const currentLinks = project.shareLinks || [];
-    const updatedLinks = [...currentLinks];
-    let changed = false;
-
-    activeUserIds.forEach((userId) => {
-      if (!currentLinks.some((link) => link.userId === userId)) {
-        const user = users.find((u) => u.id === userId);
-        if (user) {
-          const defaultPerm =
-            user.id === project.lead
-              ? "admin"
-              : user.role === "owner"
-              ? "admin"
-              : user.role === "team"
-              ? "edit"
-              : "view";
-
-          updatedLinks.push({
-            id: `link-${Math.random().toString(36).substring(2, 9)}`,
-            userId: user.id,
-            token: Math.random().toString(36).substring(2, 10),
-            status: "active",
-            permission: defaultPerm,
-            createdAt: new Date().toISOString().split("T")[0],
-          });
-          changed = true;
-        }
-      }
-    });
-
-    if (changed) {
-      updateProject(project.id, { shareLinks: updatedLinks });
-    }
-  }, [project?.id, project?.team, project?.clientId, project?.lead, users, clients, updateProject]);
-
-  if (!project) return null;
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-
-  const getFullUrl = (link: ProjectShareLink, role: string) => {
-    const path = role === "client" ? "client" : "owner";
-    return `${origin}/${path}/projects/${project.id}?token=${link.token}`;
-  };
-
-  const copyLink = (link: ProjectShareLink) => {
-    const user = users.find((u) => u.id === link.userId);
-    if (!user) return;
-    const fullUrl = getFullUrl(link, user.role);
-    navigator.clipboard.writeText(fullUrl);
-    setCopiedLinkId(link.id);
-    toast.success(`Share link copied for ${user.name}`);
-    setTimeout(() => setCopiedLinkId(null), 2000);
-  };
-
-  const handleToggleStatus = (link: ProjectShareLink) => {
-    const updated = (project.shareLinks || []).map((l) =>
-      l.id === link.id
-        ? { ...l, status: l.status === "active" ? ("disabled" as const) : ("active" as const) }
-        : l
-    );
-    updateProject(project.id, { shareLinks: updated });
-    toast.success(link.status === "active" ? "Link disabled" : "Link activated");
-  };
-
-  const handleRegenerateLink = (link: ProjectShareLink) => {
-    const newToken = Math.random().toString(36).substring(2, 10);
-    const updated = (project.shareLinks || []).map((l) =>
-      l.id === link.id
-        ? { ...l, token: newToken, createdAt: new Date().toISOString().split("T")[0] }
-        : l
-    );
-    updateProject(project.id, { shareLinks: updated });
-    toast.success("Link token regenerated");
-  };
-
-  const handleRemoveAccess = (link: ProjectShareLink) => {
-
-    // Remove link
-    const updatedLinks = (project.shareLinks || []).filter((l) => l.id !== link.id);
-
-    // Remove from project.team if it's a team member
-    const updatedTeam = project.team.filter((id) => id !== link.userId);
-
-    // Clean up member permissions
-    const updatedPermissions = { ...(project.memberPermissions || {}) };
-    delete updatedPermissions[link.userId];
-
-    updateProject(project.id, {
-      shareLinks: updatedLinks,
-      team: updatedTeam,
-      memberPermissions: updatedPermissions,
-    });
-
-    const user = users.find((u) => u.id === link.userId);
-    toast.success(user ? `Removed ${user.name} from project` : "Access removed");
-  };
-
-  const handleUpdatePermission = (
-    linkId: string,
-    permission: "owner" | "admin" | "edit" | "comment" | "view"
-  ) => {
-    const link = (project.shareLinks || []).find((l) => l.id === linkId);
-    if (!link) return;
-
-    const updatedLinks = (project.shareLinks || []).map((l) =>
-      l.id === linkId ? { ...l, permission } : l
-    );
-
-    const updatedPermissions = {
-      ...(project.memberPermissions || {}),
-      [link.userId]: permission === "owner" ? ("owner" as const) : permission,
-    };
-
-    updateProject(project.id, {
-      shareLinks: updatedLinks,
-      memberPermissions: updatedPermissions,
-    });
-
-    const user = users.find((u) => u.id === link.userId);
-    toast.success(
-      user ? `Updated ${user.name}'s permission to ${permission}` : "Permission updated"
-    );
-  };
-
-  const uninvitedUsers = useMemo(() => {
-    const existingUserIds = new Set((project.shareLinks || []).map((l) => l.userId));
-    return users.filter((u) => u.role !== "client" && !existingUserIds.has(u.id));
-  }, [users, project.shareLinks]);
-
-  const activeTeamShareLinks = useMemo(() => {
-    return (project.shareLinks || []).filter((link) => {
-      const user = users.find((u) => u.id === link.userId);
-      return user && user.role !== "client";
-    });
-  }, [project.shareLinks, users]);
-
-  const handleInvite = () => {
-    if (!selectedUserId) return;
-    const userToInvite = users.find((u) => u.id === selectedUserId);
-    if (!userToInvite) return;
-
-    const newLink: ProjectShareLink = {
-      id: `link-${Math.random().toString(36).substring(2, 9)}`,
-      userId: userToInvite.id,
-      token: Math.random().toString(36).substring(2, 10),
-      status: "active",
-      permission: invitePermission,
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-
-    const updatedLinks = [...(project.shareLinks || []), newLink];
-    const patch: Partial<Project> = { shareLinks: updatedLinks };
-
-    if (userToInvite.role !== "client") {
-      patch.team = [...project.team, userToInvite.id];
-    }
-
-    updateProject(project.id, patch);
-    toast.success(`Invited ${userToInvite.name} as ${invitePermission}`);
-    setSelectedUserId("");
-  };
-
-  return (
-    <AppDialog
-      open
-      onOpenChange={(v) => !v && close()}
-      title="Invite Team"
-      description="Manage access permissions and generate unique secure links for team members."
-      icon={<UserPlus className="h-5 w-5" />}
-      size="lg"
-      footer={
-        <div className="flex w-full justify-end">
-          <GhostButton onClick={close}>Close</GhostButton>
-        </div>
-      }
-    >
-      <div className="space-y-6">
-        {/* Invite Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 bg-muted/20 border border-border/50 rounded-2xl p-4">
-          <div className="flex-1 space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Invite Team Member
-            </label>
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="w-full h-10 rounded-xl border border-border bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer text-foreground"
-            >
-              {uninvitedUsers.length === 0 ? (
-                <option value="" disabled>
-                  All team members invited
-                </option>
-              ) : (
-                <>
-                  <option value="">Select team member...</option>
-                  {uninvitedUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} (Team)
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
-          </div>
-
-          <div className="sm:w-48 space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              Permission
-            </label>
-            <select
-              value={invitePermission}
-              onChange={(e) => setInvitePermission(e.target.value as any)}
-              className="w-full h-10 rounded-xl border border-border bg-background px-3 text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer text-foreground"
-            >
-              <option value="admin">Admin</option>
-              <option value="edit">Can edit</option>
-              <option value="comment">Can comment</option>
-              <option value="view">Can view</option>
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={handleInvite}
-              disabled={!selectedUserId}
-              className="w-full sm:w-auto h-10 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-all hover:bg-primary/95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Invite</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Project Access List */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <Users className="h-3.5 w-3.5 text-primary" />
-            <span>Team Access & Links</span>
-          </div>
-
-          <div className="divide-y divide-border border border-border rounded-2xl bg-card overflow-hidden">
-            {activeTeamShareLinks.length === 0 ? (
-              <div className="p-8 text-center text-xs text-muted-foreground">
-                No active share links. Invite someone above to get started.
-              </div>
-            ) : (
-              activeTeamShareLinks.map((link) => {
-                const user = users.find((u) => u.id === link.userId);
-                if (!user) return null;
-
-                return (
-                  <div
-                    key={link.id}
-                    className="p-4 hover:bg-muted/5 transition-colors space-y-3"
-                  >
-                    {/* Top Row: User Identity & Metadata */}
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <UserAvatar user={user} size={38} />
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold flex items-center gap-2 text-foreground">
-                            <span>{user.name}</span>
-                            {user.id === project.lead ? (
-                              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                                Project Lead
-                              </span>
-                            ) : user.role === "client" ? (
-                              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                Client
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                                Team
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground truncate">
-                            {user.email}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Metadata on the right of top row */}
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 shrink-0 bg-muted/30 px-2.5 py-1 rounded-lg border border-border/30">
-                        <Calendar className="h-3 w-3 text-muted-foreground/80" />
-                        <span>Created {link.createdAt}</span>
-                        <span className="text-muted-foreground/40">•</span>
-                        <span className={cn(
-                          "font-medium",
-                          link.lastUsedAt ? "text-foreground" : "text-muted-foreground/60"
-                        )}>
-                          {link.lastUsedAt ? `Used ${link.lastUsedAt}` : "Never used"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Bottom Row: Share Link and Controls */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-border/30">
-                      {/* Left: Individual Link display & copy */}
-                      <div className="flex items-center gap-2 bg-muted/40 border border-border/50 rounded-xl px-3 py-1.5 flex-1 min-w-0 max-w-md">
-                        <span className="text-[10px] text-muted-foreground font-mono truncate select-all flex-1">
-                          {getFullUrl(link, user.role)}
-                        </span>
-                        <button
-                          onClick={() => copyLink(link)}
-                          className="text-muted-foreground hover:text-foreground p-1 transition-colors rounded-lg hover:bg-muted/50 cursor-pointer shrink-0"
-                          title="Copy Link"
-                        >
-                          {copiedLinkId === link.id ? (
-                            <Check className="h-3.5 w-3.5 text-emerald-500" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Right: Permission select & actions */}
-                      <div className="flex items-center gap-3 justify-end shrink-0">
-                        <select
-                          value={link.permission === "owner" ? "admin" : link.permission}
-                          onChange={(e) => handleUpdatePermission(link.id, e.target.value as any)}
-                          className="h-8.5 rounded-xl border border-border bg-background px-3 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50 cursor-pointer hover:bg-muted/50 transition-colors text-foreground font-medium"
-                        >
-                          {user.role !== "client" && <option value="admin">Admin</option>}
-                          <option value="edit">Can edit</option>
-                          <option value="comment">Can comment</option>
-                          <option value="view">Can view</option>
-                        </select>
-
-                        <div className="flex items-center gap-1.5">
-                          {/* Status Toggle */}
-                          <button
-                            onClick={() => handleToggleStatus(link)}
-                            className={cn(
-                              "p-1.5 h-8.5 w-8.5 inline-flex items-center justify-center rounded-xl border transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
-                              link.status === "active"
-                                ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
-                                : "border-muted-foreground/20 bg-muted/10 text-muted-foreground hover:bg-muted-foreground/10"
-                            )}
-                            title={link.status === "active" ? "Disable Link" : "Enable Link"}
-                          >
-                            <Power className="h-3.5 w-3.5" />
-                          </button>
-
-                          {/* Regenerate Link */}
-                          <button
-                            onClick={() => handleRegenerateLink(link)}
-                            className="p-1.5 h-8.5 w-8.5 inline-flex items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
-                            title="Regenerate Link"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" />
-                          </button>
-
-                          {/* Remove Access */}
-                          <button
-                            onClick={() => handleRemoveAccess(link)}
-                            className="p-1.5 h-8.5 w-8.5 inline-flex items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer"
-                            title="Remove Access"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-    </AppDialog>
-  );
-}
-
-
-
-function ProjectSettingsModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
-  const projectId = payload?.projectId as string;
-  const project = useStore((s) => s.projects.find((p) => p.id === projectId));
-  const clients = useStore((s) => s.clients);
-  const updateProject = useStore((s) => s.updateProject);
-  const deleteProject = useStore((s) => s.deleteProject);
-
-  const client = clients.find((c) => c.id === project?.clientId);
-  const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
-  const [copied, setCopied] = useState(false);
-
-  const [confirmArchive, setConfirmArchive] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const { busy, run } = useAsyncAction();
-
-  const [form, setForm] = useState(() => {
-    if (!project) return {
-      name: "",
-      description: "",
-      clientId: "",
-      startDate: "",
-      endDate: "",
-    };
-    return {
-      name: project.name,
-      description: project.description,
-      clientId: project.clientId,
-      startDate: project.startDate,
-      endDate: project.endDate,
-    };
-  });
-
-  if (!project) return null;
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const accessLink = `${origin}/client/projects/${project.id}?token=${clientShareToken}`;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(accessLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const regenerateToken = () => {
-    const newToken = Math.random().toString(36).substring(2, 10);
-    setClientShareToken(newToken);
-  };
-
-  const handleSave = async () => {
-    await run(() => {
-      updateProject(project.id, {
-        name: form.name,
-        description: form.description,
-        clientId: form.clientId,
-        startDate: form.startDate,
-        endDate: form.endDate,
-      });
-      if (client) {
-        useStore.getState().updateClient(client.id, { clientShareToken });
-      }
-    }, "Settings saved successfully");
-    close();
-  };
-
-  const handleArchive = async () => {
-    await run(() => {
-      updateProject(project.id, { status: "on_hold" });
-    }, "Project archived");
-    close();
-  };
-
-  const handleDelete = async () => {
-    await run(() => {
-      deleteProject(project.id);
-      window.location.href = `/owner/projects`;
-    }, "Project deleted");
-    close();
-  };
-
-  return (
-    <AppDialog
-      open
-      onOpenChange={(v) => !v && close()}
-      title="Edit project"
-      description="Configure workspace variables, timeline, status and client properties."
-      icon={<Edit2 className="h-5 w-5" />}
-      size="lg"
-      footer={
-        <div className="flex w-full justify-between items-center">
-          <div>
-            <button
-              type="button"
-              onClick={async () => {
-                if (confirmDelete) {
-                  await run(() => {
-                    deleteProject(project.id);
-                    window.location.href = `/owner/projects`;
-                  }, "Project deleted");
-                  close();
-                } else {
-                  setConfirmDelete(true);
-                }
-              }}
-              className="text-sm font-medium text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
-            >
-              {confirmDelete ? "Confirm Delete" : "Delete Project"}
-            </button>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <GhostButton onClick={() => { setConfirmDelete(false); close(); }}>Cancel</GhostButton>
-            <PrimaryButton onClick={handleSave} loading={busy}>
-              Save Changes
-            </PrimaryButton>
-          </div>
-        </div>
-      }
-    >
-      <div className="space-y-5">
-        {/* Project Portal Access Link */}
-        <div className="space-y-4">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Project Access Link</h4>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                readOnly
-                value={accessLink}
-                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
-              >
-                {copied ? "Copied!" : "Copy Link"}
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={regenerateToken}
-              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerate
-            </button>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            Anyone with this link will be able to access this project's client portal view directly.
-          </p>
-        </div>
-
-        <div className="border-t border-border/50 pt-5 space-y-5">
-          {/* Project Name */}
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-              Project Name
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm font-medium text-foreground outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all text-foreground"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-              Description
-            </label>
-            <RichEditor
-              value={form.description}
-              onChange={(html) => setForm({ ...form, description: html })}
-              minHeight={120}
-              placeholder="Describe your project, goals, key milestones..."
-            />
-          </div>
-
-          {/* Client & Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-                Client
-              </label>
-              <div className="relative">
-                <select
-                  value={form.clientId}
-                  onChange={(e) => setForm({ ...form, clientId: e.target.value })}
-                  className="h-11 w-full rounded-2xl border border-border bg-background px-4 pr-10 text-sm font-medium text-foreground appearance-none outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all cursor-pointer text-foreground"
-                >
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-muted-foreground/80">
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-                  Start Date
-                </label>
-                <DateInput
-                  value={form.startDate}
-                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/90 block mb-1.5">
-                  End Date
-                </label>
-                <DateInput
-                  value={form.endDate}
-                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </AppDialog>
-  );
-}
 
 /* ─────────────────────────── Registry ─────────────────────────── */
 
 const REGISTRY: Record<ModalKey, React.FC<{ close: () => void; payload?: ModalPayload }>> = {
   "project.new": NewProjectModal,
   "project.edit": EditProjectModal,
-  "project.share": ShareProjectModal,
-  "project.settings": ProjectSettingsModal,
   "project.archive": ArchiveProjectModal,
   "project.status": ProjectStatusModal,
   "project.delete": DeleteProjectModal,

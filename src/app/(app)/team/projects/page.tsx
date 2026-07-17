@@ -5,18 +5,19 @@ import { AppShell } from "@/components/app-shell";
 import { AvatarStack } from "@/components/user-avatar";
 import { PROJECT_STATUS_META } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
-import { useActiveClient } from "@/hooks/use-active-client";
+import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { LayoutGrid, List as ListIcon } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
-type ProjectSortField = "name" | "status" | "progress" | "due";
+type ProjectSortField = "name" | "client" | "status" | "progress" | "due";
 
-function PortalProjects() {
-  const { client } = useActiveClient();
+function TeamProjects() {
+  const { member } = useActiveTeamMember();
   const [view, setView] = useState<"grid" | "list">("grid");
   const allProjects = useStore((s) => s.projects);
+  const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
@@ -33,7 +34,7 @@ function PortalProjects() {
     }
   };
 
-  const myProjects = useMemo(() => allProjects.filter((p) => p.clientId === client.id), [allProjects, client.id]);
+  const myProjects = useMemo(() => allProjects.filter((p) => p.team.includes(member.id)), [allProjects, member.id]);
 
   const filterDefs = useMemo(
     () => [
@@ -56,7 +57,10 @@ function PortalProjects() {
       let valA: string | number;
       let valB: string | number;
 
-      if (sortBy === "status") {
+      if (sortBy === "client") {
+        valA = clients.find((c) => c.id === a.clientId)?.name || "";
+        valB = clients.find((c) => c.id === b.clientId)?.name || "";
+      } else if (sortBy === "status") {
         valA = PROJECT_STATUS_META[a.status]?.label || "";
         valB = PROJECT_STATUS_META[b.status]?.label || "";
       } else if (sortBy === "progress") {
@@ -74,13 +78,13 @@ function PortalProjects() {
       if (valA > valB) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [myProjects, search, filters, dateRange, sortBy, sortOrder]);
+  }, [myProjects, search, filters, dateRange, sortBy, sortOrder, clients]);
 
   return (
     <AppShell
-      role="client"
+      role="team"
       title="Projects"
-      subtitle={`${myProjects.length} ${myProjects.length === 1 ? "project" : "projects"} with the ${client.name.split(" ")[0]} team`}
+      subtitle={`${myProjects.length} ${myProjects.length === 1 ? "project" : "projects"} you're working on`}
       actions={
         <div className="flex rounded-full border border-border bg-card p-0.5">
           <button onClick={() => setView("grid")} className={cn("flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium", view === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
@@ -106,6 +110,7 @@ function PortalProjects() {
       {view === "grid" ? (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((p) => {
+            const client = clients.find((c) => c.id === p.clientId);
             const accentCls = {
               todo: { cardHover: "hover:border-rose-500/25", glow: "bg-rose-500/5 group-hover:bg-rose-500/10", badge: "bg-todo text-todo-foreground border-todo-foreground/20", bar: "bg-rose-500", textHover: "group-hover:text-rose-600 dark:group-hover:text-rose-400" },
               progress: { cardHover: "hover:border-amber-500/25", glow: "bg-amber-500/5 group-hover:bg-amber-500/10", badge: "bg-progress text-progress-foreground border-progress-foreground/20", bar: "bg-amber-500", textHover: "group-hover:text-amber-600 dark:group-hover:text-amber-400" },
@@ -116,7 +121,7 @@ function PortalProjects() {
             return (
               <Link
                 key={p.id}
-                href={`/client/projects/${p.id}`}
+                href={`/team/projects/${p.id}`}
                 className={cn("group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-card/85", accentCls.cardHover)}
               >
                 <div className={cn("absolute right-0 top-0 -mt-8 -mr-8 h-24 w-24 rounded-full blur-xl transition-all duration-500 pointer-events-none", accentCls.glow)} />
@@ -130,7 +135,7 @@ function PortalProjects() {
                       <h3 className={cn("text-base font-bold tracking-tight text-foreground transition-colors leading-tight truncate", accentCls.textHover)}>
                         {p.name}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">{client.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 font-medium truncate">{client?.name}</p>
                     </div>
                   </div>
 
@@ -177,6 +182,9 @@ function PortalProjects() {
                 <th onClick={() => handleSort("name")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
                   Project {sortBy === "name" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
+                <th onClick={() => handleSort("client")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Client {sortBy === "client" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
                 <th onClick={() => handleSort("status")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
                   Status {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
                 </th>
@@ -190,45 +198,49 @@ function PortalProjects() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/40">
-                  <td className="px-5 py-3 font-medium">
-                    <div className="flex items-center gap-2.5">
-                      <span className={cn(
-                        "flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold border",
-                        {
-                          todo: "bg-todo text-todo-foreground border-todo-foreground/20",
-                          progress: "bg-progress text-progress-foreground border-progress-foreground/20",
-                          review: "bg-review text-review-foreground border-review-foreground/20",
-                          done: "bg-done text-done-foreground border-done-foreground/20",
-                        }[p.accent] || "bg-muted text-muted-foreground border-muted-foreground/20"
-                      )}>
-                        {p.name[0]}
-                      </span>
-                      <Link href={`/client/projects/${p.id}`} className="hover:text-primary transition-colors">{p.name}</Link>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${PROJECT_STATUS_META[p.status].cls}`}>{PROJECT_STATUS_META[p.status].label}</span>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted/60">
-                        <div className={cn(
-                          "h-full rounded-full transition-all duration-500",
-                          { todo: "bg-rose-500", progress: "bg-amber-500", review: "bg-sky-500", done: "bg-emerald-500" }[p.accent] || "bg-primary"
-                        )} style={{ width: `${p.progress}%` }} />
+              {filtered.map((p) => {
+                const client = clients.find((c) => c.id === p.clientId);
+                return (
+                  <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                    <td className="px-5 py-3 font-medium">
+                      <div className="flex items-center gap-2.5">
+                        <span className={cn(
+                          "flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-bold border",
+                          {
+                            todo: "bg-todo text-todo-foreground border-todo-foreground/20",
+                            progress: "bg-progress text-progress-foreground border-progress-foreground/20",
+                            review: "bg-review text-review-foreground border-review-foreground/20",
+                            done: "bg-done text-done-foreground border-done-foreground/20",
+                          }[p.accent] || "bg-muted text-muted-foreground border-muted-foreground/20"
+                        )}>
+                          {p.name[0]}
+                        </span>
+                        <Link href={`/team/projects/${p.id}`} className="hover:text-primary transition-colors">{p.name}</Link>
                       </div>
-                      <span className="text-xs text-muted-foreground font-medium">{p.progress}%</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3"><AvatarStack userIds={p.team} users={users} max={3} size={22} /></td>
-                  <td className="px-5 py-3 text-muted-foreground">{p.endDate}</td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-5 py-3 text-muted-foreground">{client?.name}</td>
+                    <td className="px-5 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${PROJECT_STATUS_META[p.status].cls}`}>{PROJECT_STATUS_META[p.status].label}</span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted/60">
+                          <div className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            { todo: "bg-rose-500", progress: "bg-amber-500", review: "bg-sky-500", done: "bg-emerald-500" }[p.accent] || "bg-primary"
+                          )} style={{ width: `${p.progress}%` }} />
+                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">{p.progress}%</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3"><AvatarStack userIds={p.team} users={users} max={3} size={22} /></td>
+                    <td className="px-5 py-3 text-muted-foreground">{p.endDate}</td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm text-muted-foreground">
                     No projects match your filters.
                   </td>
                 </tr>
@@ -241,4 +253,4 @@ function PortalProjects() {
   );
 }
 
-export default PortalProjects;
+export default TeamProjects;

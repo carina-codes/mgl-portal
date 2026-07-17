@@ -5,18 +5,12 @@ import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/components/filter-bar";
-import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
-import { Plus, Pencil, Clock, Coins, TrendingUp, Search, Trash2, FileDown, MoreHorizontal } from "lucide-react";
+import { useActiveTeamMember } from "@/hooks/use-active-team-member";
+import { useModals } from "@/components/modals";
+import { Plus, Clock, Coins, TrendingUp, Search, FileDown } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
-import { useState, useMemo, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { useState, useMemo, useEffect } from "react";
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -28,11 +22,22 @@ const formatDate = (dateStr: string) => {
 
 type TimeSortField = "date" | "member" | "project" | "hours" | "billable";
 
-function TimePage() {
+function TeamTimePage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const { member, isManager } = useActiveTeamMember();
+  const { open } = useModals();
+  const allEntries = useStore((s) => s.timeEntries);
+  const allProjects = useStore((s) => s.projects);
+  const clients = useStore((s) => s.clients);
+  const users = useStore((s) => s.users);
+  const tasks = useStore((s) => s.tasks);
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
   const [sortBy, setSortBy] = useState<TimeSortField>("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -45,108 +50,74 @@ function TimePage() {
     }
   };
 
-  const allEntries = useStore((s) => s.timeEntries);
-  const users = useStore((s) => s.users);
-  const projects = useStore((s) => s.projects);
-  const clients = useStore((s) => s.clients);
-  const tasks = useStore((s) => s.tasks);
-  const { open } = useModals();
-  const [search, setSearch] = useState("");
-  const searchParams = useSearchParams();
-  const memberParam = searchParams.get("member");
-  const projectParam = searchParams.get("project");
-  const clientParam = searchParams.get("client");
+  const myProjects = useMemo(() => allProjects.filter((p) => p.team.includes(member.id)), [allProjects, member.id]);
+  const myProjectIds = useMemo(() => new Set(myProjects.map((p) => p.id)), [myProjects]);
 
-  const [filters, setFilters] = useState<Record<string, string[]>>(() => {
-    const initial: Record<string, string[]> = {};
-    if (memberParam) initial.member = [memberParam];
-    if (projectParam) initial.project = [projectParam];
-    if (clientParam) initial.client = [clientParam];
-    return initial;
-  });
+  // Managers see everyone's logged time across their projects; regular team
+  // members only see their own entries.
+  const scopedEntries = useMemo(() => {
+    return isManager ? allEntries.filter((e) => myProjectIds.has(e.projectId)) : allEntries.filter((e) => e.userId === member.id);
+  }, [allEntries, isManager, myProjectIds, member.id]);
 
-  useEffect(() => {
-    if (memberParam) {
-      setFilters((prev) => ({ ...prev, member: [memberParam] }));
-    }
-    if (projectParam) {
-      setFilters((prev) => ({ ...prev, project: [projectParam] }));
-    }
-    if (clientParam) {
-      setFilters((prev) => ({ ...prev, client: [clientParam] }));
-    }
-  }, [memberParam, projectParam, clientParam]);
+  const teamMembersOnMyProjects = useMemo(() => {
+    const ids = new Set<string>();
+    myProjects.forEach((p) => p.team.forEach((id) => ids.add(id)));
+    return users.filter((u) => ids.has(u.id));
+  }, [myProjects, users]);
 
-  const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
-
-  useEffect(() => {
-    if (!filters.project || filters.project.length === 0) {
-      if (filters.task && filters.task.length > 0) {
-        setFilters((prev) => {
-          const next = { ...prev };
-          delete next.task;
-          return next;
-        });
-      }
-    }
-  }, [filters.project, filters.task]);
-
-  const filterDefs = useMemo(
-    () => {
-      const defs: FilterDef[] = [
-        {
-          id: "client",
-          label: "Client",
-          multi: true,
-          options: clients.map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
-        },
-        {
-          id: "project",
-          label: "Project",
-          multi: true,
-          options: projects.map((p) => ({ value: p.id, label: p.name })),
-        },
-        {
-          id: "member",
-          label: "Team",
-          multi: true,
-          options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
-        },
-      ];
-
-      if (filters.project && filters.project.length > 0) {
-        const selectedProjectIds = filters.project;
-        const projectTasks = tasks.filter((t) => selectedProjectIds.includes(t.projectId));
-        defs.push({
-          id: "task",
-          label: "Task",
-          multi: true,
-          options: projectTasks.map((t) => ({ value: t.id, label: t.title })),
-        });
-      }
-
+  const filterDefs = useMemo(() => {
+    const defs: FilterDef[] = [];
+    if (isManager) {
       defs.push({
-        id: "billable",
-        label: "Billable",
-        options: [
-          { value: "yes", label: "Billable" },
-          { value: "no", label: "Non-billable" },
-        ] as FilterOption[],
+        id: "client",
+        label: "Client",
+        multi: true,
+        options: Array.from(new Set(myProjects.map((p) => p.clientId)))
+          .map((id) => clients.find((c) => c.id === id))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+          .map((c) => ({ value: c.id, label: c.name, color: c.logoColor })),
       });
-
-      return defs;
-    },
-    [users, projects, clients, tasks, filters.project],
-  );
+      defs.push({
+        id: "member",
+        label: "Team",
+        multi: true,
+        options: teamMembersOnMyProjects.map((u) => ({ value: u.id, label: u.name, color: u.color })),
+      });
+    }
+    defs.push({
+      id: "project",
+      label: "Project",
+      multi: true,
+      options: myProjects.map((p) => ({ value: p.id, label: p.name })),
+    });
+    if (filters.project && filters.project.length > 0) {
+      const projectTasks = tasks.filter((t) => filters.project!.includes(t.projectId));
+      defs.push({
+        id: "task",
+        label: "Task",
+        multi: true,
+        options: projectTasks.map((t) => ({ value: t.id, label: t.title })),
+      });
+    }
+    defs.push({
+      id: "billable",
+      label: "Billable",
+      options: [
+        { value: "yes", label: "Billable" },
+        { value: "no", label: "Non-billable" },
+      ] as FilterOption[],
+    });
+    return defs;
+  }, [isManager, myProjects, clients, teamMembersOnMyProjects, tasks, filters.project]);
 
   const filtered = useMemo(() => {
-    const result = allEntries.filter((e) => {
-      const project = projects.find((p) => p.id === e.projectId);
+    const result = scopedEntries.filter((e) => {
+      const project = allProjects.find((p) => p.id === e.projectId);
       if (search && !e.note?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filters.client?.length && (!project || !filters.client.includes(project.clientId))) return false;
       if (filters.member?.length && !filters.member.includes(e.userId)) return false;
       if (filters.project?.length && !filters.project.includes(e.projectId)) return false;
       if (filters.task?.length && (!e.taskId || !filters.task.includes(e.taskId))) return false;
-      if (filters.client?.length && (!project || !filters.client.includes(project.clientId))) return false;
       if (filters.billable?.length) {
         const v = filters.billable[0];
         if (v === "yes" && !e.billable) return false;
@@ -164,8 +135,8 @@ function TimePage() {
         valA = users.find((u) => u.id === a.userId)?.name || "";
         valB = users.find((u) => u.id === b.userId)?.name || "";
       } else if (sortBy === "project") {
-        valA = projects.find((p) => p.id === a.projectId)?.name || "";
-        valB = projects.find((p) => p.id === b.projectId)?.name || "";
+        valA = allProjects.find((p) => p.id === a.projectId)?.name || "";
+        valB = allProjects.find((p) => p.id === b.projectId)?.name || "";
       } else if (sortBy === "hours") {
         valA = a.hours;
         valB = b.hours;
@@ -181,36 +152,28 @@ function TimePage() {
       if (valA > valB) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [allEntries, projects, users, search, filters, dateRange, sortBy, sortOrder]);
+  }, [scopedEntries, allProjects, users, search, filters, dateRange, sortBy, sortOrder]);
 
-  const total = useMemo(() => {
-    if (!mounted) return 0;
-    return filtered.reduce((s, t) => s + t.hours, 0);
-  }, [filtered, mounted]);
-
-  const billable = useMemo(() => {
-    if (!mounted) return 0;
-    return filtered.filter((t) => t.billable).reduce((s, t) => s + t.hours, 0);
-  }, [filtered, mounted]);
+  const total = useMemo(() => (mounted ? filtered.reduce((s, t) => s + t.hours, 0) : 0), [filtered, mounted]);
+  const billableHours = useMemo(() => (mounted ? filtered.filter((t) => t.billable).reduce((s, t) => s + t.hours, 0) : 0), [filtered, mounted]);
 
   return (
     <AppShell
+      role="team"
       title="Time tracking"
-      subtitle="Hours across the workspace"
+      subtitle={isManager ? "Hours logged by your team across your projects" : "Your hours across assigned projects"}
       actions={
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              if (typeof window !== "undefined") {
-                window.print();
-              }
+              if (typeof window !== "undefined") window.print();
             }}
             className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-all cursor-pointer"
           >
             <FileDown className="h-4 w-4 text-muted-foreground" /> Export to PDF
           </button>
           <button
-            onClick={() => open("time.log")}
+            onClick={() => open("time.log", { userId: member.id })}
             className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Log time
@@ -218,32 +181,10 @@ function TimePage() {
         </div>
       }
     >
-      {/* Stats Cards Section */}
       <div className="mb-6 grid grid-cols-1 gap-5 md:grid-cols-3">
-        <KpiCard
-          label="Hours Logged"
-          value={`${parseFloat(total.toFixed(2))}h`}
-          icon={Clock}
-          color="blue"
-          delay={0}
-          sparklineData={[120, 135, 125, 148, 150, 160, 168]}
-        />
-        <KpiCard
-          label="Billable Hours"
-          value={`${parseFloat(billable.toFixed(2))}h`}
-          icon={Coins}
-          color="green"
-          delay={100}
-          sparklineData={[90, 110, 105, 120, 130, 138, 144]}
-        />
-        <KpiCard
-          label="Utilization"
-          value={`${total ? Math.round((billable / total) * 100) : 0}%`}
-          icon={TrendingUp}
-          color="purple"
-          delay={200}
-          progress={total ? Math.round((billable / total) * 100) : 0}
-        />
+        <KpiCard label="Hours Logged" value={`${parseFloat(total.toFixed(2))}h`} icon={Clock} color="blue" delay={0} sparklineData={[120, 135, 125, 148, 150, 160, 168]} />
+        <KpiCard label="Billable Hours" value={`${parseFloat(billableHours.toFixed(2))}h`} icon={Coins} color="green" delay={100} sparklineData={[90, 110, 105, 120, 130, 138, 144]} />
+        <KpiCard label="Utilization" value={`${total ? Math.round((billableHours / total) * 100) : 0}%`} icon={TrendingUp} color="purple" delay={200} progress={total ? Math.round((billableHours / total) * 100) : 0} />
       </div>
 
       <div className="space-y-4">
@@ -266,9 +207,11 @@ function TimePage() {
                   <th onClick={() => handleSort("date")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
                     Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
                   </th>
-                  <th onClick={() => handleSort("member")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
-                    Team {sortBy === "member" && (sortOrder === "asc" ? "↑" : "↓")}
-                  </th>
+                  {isManager && (
+                    <th onClick={() => handleSort("member")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                      Team {sortBy === "member" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
+                  )}
                   <th onClick={() => handleSort("project")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
                     Project {sortBy === "project" && (sortOrder === "asc" ? "↑" : "↓")}
                   </th>
@@ -279,25 +222,28 @@ function TimePage() {
                   <th onClick={() => handleSort("billable")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
                     Status {sortBy === "billable" && (sortOrder === "asc" ? "↑" : "↓")}
                   </th>
-                  <th className="px-5 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {mounted && filtered.slice(0, 80).map((e) => {
+                  const p = allProjects.find((x) => x.id === e.projectId);
                   const u = users.find((x) => x.id === e.userId);
-                  const p = projects.find((x) => x.id === e.projectId);
                   return (
                     <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                       <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{formatDate(e.date)}</td>
-                      <td className="px-5 py-3 text-muted-foreground">
-                        <div className="flex items-center gap-2.5">
-                          {u && <UserAvatar user={u} size={24} />}
-                          <span className="text-foreground font-semibold">{u?.name}</span>
-                        </div>
-                      </td>
+                      {isManager && (
+                        <td className="px-5 py-3 text-muted-foreground">
+                          {u && (
+                            <div className="flex items-center gap-2.5">
+                              <UserAvatar user={u} size={24} />
+                              <span className="text-foreground font-semibold">{u.name}</span>
+                            </div>
+                          )}
+                        </td>
+                      )}
                       <td className="px-5 py-3 text-muted-foreground">
                         {p ? (
-                          <Link href={`/owner/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
+                          <Link href={`/team/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
                             {p.name}
                           </Link>
                         ) : (
@@ -315,50 +261,18 @@ function TimePage() {
                           {e.billable ? "Billable" : "Non-billable"}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-right whitespace-nowrap">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
-                              <MoreHorizontal className="h-3.5 w-3.5" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-32 border border-border bg-card">
-                            <DropdownMenuItem
-                              onSelect={(ev) => {
-                                ev.preventDefault();
-                                setTimeout(() => open("time.edit", { timeId: e.id }), 100);
-                              }}
-                              className="flex items-center gap-2 cursor-pointer"
-                            >
-                              <span>Edit</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onSelect={(ev) => {
-                                ev.preventDefault();
-                                setTimeout(() => open("time.delete", { timeId: e.id }), 100);
-                              }}
-                              className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
-                            >
-                              <span>Delete</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
                     </tr>
                   );
                 })}
                 {(!mounted || filtered.length === 0) && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center">
+                    <td colSpan={isManager ? 6 : 5} className="px-5 py-12 text-center">
                       {mounted ? (
                         <div className="flex flex-col items-center justify-center">
                           <div className="h-10 w-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">
                             <Search className="h-5 w-5" />
                           </div>
                           <div className="text-xs font-semibold text-foreground">No time entries match your filters</div>
-                          <div className="text-[10px] text-muted-foreground mt-1 max-w-[240px]">
-                            Try adjusting search note queries or filters.
-                          </div>
                         </div>
                       ) : (
                         <div className="flex justify-center items-center py-4">
@@ -377,12 +291,4 @@ function TimePage() {
   );
 }
 
-function TimePageWrapper() {
-  return (
-    <Suspense fallback={null}>
-      <TimePage />
-    </Suspense>
-  );
-}
-
-export default TimePageWrapper;
+export default TeamTimePage;

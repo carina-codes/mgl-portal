@@ -6,7 +6,7 @@ import {
   FileArchive,
   File,
   Download,
-  ExternalLink,
+  Eye,
   CheckCircle2,
   X,
 } from "lucide-react";
@@ -18,6 +18,8 @@ export type FileAttachmentCardProps = {
   size: string;
   url?: string;
   onRemove?: () => void; // If provided, renders as a composer attachment with a delete button
+  /** If provided, the preview button opens this instead of the file's raw URL in a new tab. */
+  onPreview?: () => void;
   className?: string;
 };
 
@@ -27,6 +29,7 @@ export function FileAttachmentCard({
   size,
   url = "#",
   onRemove,
+  onPreview,
   className,
 }: FileAttachmentCardProps) {
   const ext = name.split(".").pop()?.toLowerCase() || "";
@@ -126,11 +129,11 @@ export function FileAttachmentCard({
           <>
             <button
               type="button"
-              onClick={handleOpen}
+              onClick={onPreview ?? handleOpen}
               className="opacity-0 group-hover/att-card:opacity-100 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-all cursor-pointer"
-              title="Open file"
+              title="Preview file"
             >
-              <ExternalLink className="h-3.5 w-3.5" />
+              <Eye className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"

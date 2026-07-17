@@ -21,8 +21,6 @@ import {
 import {
   ArrowLeft,
   Plus,
-  Share2,
-  Settings as SettingsIcon,
   UserPlus,
   Search,
   Filter,
@@ -77,7 +75,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { toast } from "sonner";
 import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/components/filter-bar";
 import {
@@ -92,6 +90,7 @@ import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-bo
 import { celebrateFromElement } from "@/lib/confetti";
 import { RequestDetailsDrawer } from "../../requests/page";
 import { FilePreviewDialog, isImageFile, isPdfFile, isPreviewableFile } from "@/components/file-preview-dialog";
+import { AttachFromFilesDialog } from "@/components/attach-from-files-dialog";
 import {
   Sheet,
   SheetContent,
@@ -133,6 +132,14 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+
+/** Chronological sort key for a task's due date — tasks without a valid due
+ * date sort to the end so date-ordered views stay top-to-bottom by urgency. */
+const dueDateSortValue = (dateStr?: string) => {
+  if (!dateStr) return Infinity;
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? Infinity : parsed.getTime();
+};
 
 const formatSubmissionTime = (submittedAt: string) => {
   if (!submittedAt) return "";
@@ -321,7 +328,7 @@ const LOCAL_DELIVERABLES: LocalDeliverable[] = [
   { id: "d7", projectId: "p7", title: "Field & Form homepage R1", type: "file", updatedAt: "Today", fileSource: "upload", fileName: "homepage-mockup.png", fileSize: "2.3 MB", notes: "<h3>Editorial Homepage R1</h3><p>First review pass of the homepage layout featuring rich imagery options.</p>" },
 ];
 
-function Overview({ projectId }: { projectId: string }) {
+export function Overview({ projectId }: { projectId: string }) {
   const projects = useProjects();
   const project = useMemo(() => projects.find((p) => p.id === projectId)!, [projects, projectId]);
   const allTasks = useStore((s) => s.tasks);
@@ -533,8 +540,8 @@ function Overview({ projectId }: { projectId: string }) {
                     <div className="text-sm font-medium">{u.name}</div>
                     <div className="text-xs text-muted-foreground">{u.title}</div>
                   </div>
-                  {id === project.lead && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Lead</span>
+                  {u.role === "manager" && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Manager</span>
                   )}
                 </div>
               );
@@ -619,7 +626,7 @@ function StatBox({
 
 /* ───── Tasks Tab (Kanban / List / Calendar Switcher) ───── */
 
-function TasksTab({
+export function TasksTab({
   projectId,
   selectedTaskId,
   setSelectedTaskId,
@@ -803,7 +810,6 @@ function TasksTab({
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
-              <option value="urgent">Urgent</option>
             </SelectField>
           </div>
         </FieldGroup>
@@ -854,9 +860,9 @@ function KanbanBoardView({
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       {stages.map((stage) => {
-        const stageTasks = tasks.filter(
-          (t) => t.stage === stage && (!query || t.title.toLowerCase().includes(query.toLowerCase())),
-        );
+        const stageTasks = tasks
+          .filter((t) => t.stage === stage && (!query || t.title.toLowerCase().includes(query.toLowerCase())))
+          .sort((a, b) => dueDateSortValue(a.dueDate) - dueDateSortValue(b.dueDate));
         const meta = STAGE_META[stage];
         return (
           <div
@@ -980,8 +986,8 @@ function TasksListView({
   const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const users = useStore((s) => s.users);
 
-  // Sorting
-  const [sortBy, setSortBy] = useState<"title" | "stage" | "priority" | "dueDate">("title");
+  // Sorting — defaults to due date, top to bottom (soonest first).
+  const [sortBy, setSortBy] = useState<"title" | "stage" | "priority" | "dueDate">("dueDate");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const filteredTasks = useMemo(() => {
@@ -992,15 +998,18 @@ function TasksListView({
     return [...filteredTasks].sort((a, b) => {
       let valA: string | number = a[sortBy] || "";
       let valB: string | number = b[sortBy] || "";
-      
+
       if (sortBy === "priority") {
-        const priorities: Record<string, number> = { low: 1, medium: 2, high: 3, urgent: 4 };
+        const priorities: Record<string, number> = { low: 1, medium: 2, high: 3 };
         valA = priorities[a.priority] || 0;
         valB = priorities[b.priority] || 0;
       } else if (sortBy === "stage") {
         const stages: Record<string, number> = { todo: 1, in_progress: 2, in_review: 3, completed: 4 };
         valA = stages[a.stage] || 0;
         valB = stages[b.stage] || 0;
+      } else if (sortBy === "dueDate") {
+        valA = dueDateSortValue(a.dueDate);
+        valB = dueDateSortValue(b.dueDate);
       }
 
       if (valA < valB) return sortOrder === "asc" ? -1 : 1;
@@ -1365,10 +1374,13 @@ export function TaskDetailsDrawer({
   taskId,
   onClose,
   hideDiscussion = false,
+  authorId = "u1",
 }: {
   taskId: string | null;
   onClose: () => void;
   hideDiscussion?: boolean;
+  /** Comment/time-log author for actions taken from this drawer. Defaults to the owner (u1); team/manager callers pass their own active user id. */
+  authorId?: string;
 }) {
   const tasks = useStore((s) => s.tasks);
   const task = useMemo(() => tasks.find((t) => t.id === taskId), [tasks, taskId]);
@@ -1508,7 +1520,7 @@ export function TaskDetailsDrawer({
   const handleLogTime = () => {
     if (!task || logHours <= 0) return;
     logTime({
-      userId: "u1", // Owner: Carina Rivera
+      userId: authorId,
       projectId: task.projectId,
       taskId: task.id,
       hours: logHours,
@@ -1589,7 +1601,6 @@ export function TaskDetailsDrawer({
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
-              <option value="urgent">Urgent</option>
             </select>
           </div>
 
@@ -1901,7 +1912,7 @@ export function TaskDetailsDrawer({
             </div>
 
             {/* Form */}
-            <NewCommentForm threadId={task.id} />
+            <NewCommentForm threadId={task.id} author={authorId} />
           </div>
         )}
 
@@ -1934,7 +1945,7 @@ export function TaskDetailsDrawer({
   );
 }
 
-function NewCommentForm({ threadId }: { threadId: string }) {
+function NewCommentForm({ threadId, author = "u1" }: { threadId: string; author?: string }) {
   const [commentText, setCommentText] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
@@ -1958,7 +1969,7 @@ function NewCommentForm({ threadId }: { threadId: string }) {
 
     createComment({
       threadId,
-      author: "u1", // Owner: Carina Rivera
+      author, // Defaults to Owner: Carina Rivera; overridden by team/manager callers
       body: commentText.trim(),
       visibility: isInternal ? "internal" : "client",
       attachments: docIds,
@@ -1998,7 +2009,7 @@ const TYPE_ICONS: Record<string, any> = {
   MessageCircleQuestion,
 };
 
-function RequestsTab({ projectId, onSelectRequest }: { projectId: string; onSelectRequest: (id: string) => void }) {
+export function RequestsTab({ projectId, onSelectRequest }: { projectId: string; onSelectRequest: (id: string) => void }) {
   const allRequests = useStore((s) => s.requests);
   const users = useStore((s) => s.users);
   const requests = useMemo(() => allRequests.filter((r) => r.projectId === projectId), [allRequests, projectId]);
@@ -2096,7 +2107,7 @@ function RequestsTab({ projectId, onSelectRequest }: { projectId: string; onSele
               {/* Description & Submission info */}
               <div className="space-y-2.5">
                 <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">
-                  {r.description}
+                  {stripHtml(r.description)}
                 </p>
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                   <Clock className="h-3 w-3 shrink-0" />
@@ -2131,7 +2142,7 @@ function RequestsTab({ projectId, onSelectRequest }: { projectId: string; onSele
 
 /* ───── Centralized Documents Tab ───── */
 
-function DocumentsTab({ projectId }: { projectId: string }) {
+export function DocumentsTab({ projectId }: { projectId: string }) {
   const allDocuments = useStore((s) => s.documents);
   const documents = useMemo(() => allDocuments.filter((d) => d.projectId === projectId && d.name !== ".keep"), [allDocuments, projectId]);
   const deleteDocument = useStore((s) => s.deleteDocument);
@@ -2590,7 +2601,7 @@ function DocumentsTab({ projectId }: { projectId: string }) {
 
 /* ───── Two-Column Chat System Tab ───── */
 
-function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id: string) => void }) {
+export function ChatTab({ projectId, onOpenTask, authorId = "u1" }: { projectId: string; onOpenTask: (id: string) => void; authorId?: string }) {
   const [activeThreadId, setActiveThreadId] = useState<string>(projectId);
   const [chatSearch, setChatSearch] = useState("");
   
@@ -2615,9 +2626,7 @@ function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id
   }, [activeThreadId, activeComments]);
   
   // File Upload states for chat attachments
-  const uploadDocument = useStore((s) => s.uploadDocument);
   const [uploadAttachOpen, setUploadAttachOpen] = useState(false);
-  const [attachFileName, setAttachFileName] = useState("");
   const [attachFileIsInternal, setAttachFileIsInternal] = useState(false);
 
 
@@ -2637,29 +2646,15 @@ function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id
     });
   }, [tasks, chatSearch, comments]);
 
-  const handleSendAttach = () => {
-    if (!attachFileName.trim()) return;
-
-    // 1. Create document
-    const size = `${(Math.random() * 3 + 0.5).toFixed(1)} MB`;
-    const doc = uploadDocument({
-      projectId,
-      name: attachFileName.trim(),
-      folder: "Attachments",
-      size,
-      shared: !attachFileIsInternal,
-    });
-
-    // 2. Post comment with link
+  const handleAttachExistingFile = (doc: Document) => {
     createComment({
       threadId: activeThreadId,
-      author: "u1",
+      author: authorId,
       body: `Attached file: ${doc.name} (${doc.size})`,
       visibility: attachFileIsInternal ? "internal" : "client",
       attachments: [doc.id],
     });
 
-    setAttachFileName("");
     setUploadAttachOpen(false);
     toast.success(`File ${doc.name} attached to conversation`);
   };
@@ -2793,58 +2788,34 @@ function ChatTab({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id
 
         {/* Input box */}
         <div className="border-t border-border p-4 bg-muted/5">
-          <ChatInputBox threadId={activeThreadId} onAttachClick={() => setUploadAttachOpen(true)} />
+          <ChatInputBox threadId={activeThreadId} onAttachClick={() => setUploadAttachOpen(true)} authorId={authorId} />
         </div>
       </div>
 
-      {/* Attachment Upload Dialog */}
-      <AppDialog
+      {/* Attach from Files Dialog */}
+      <AttachFromFilesDialog
         open={uploadAttachOpen}
         onOpenChange={setUploadAttachOpen}
-        title="Attach file to thread"
-        description="Select and mock upload a document file to attach in this active discussion."
-        icon={<Paperclip className="h-5 w-5" />}
+        projectId={projectId}
+        description="Choose a file uploaded within the workspace to attach to the conversation."
+        onSelect={handleAttachExistingFile}
         footer={
-          <div className="flex w-full items-center justify-end gap-2">
-            <button
-              onClick={() => setUploadAttachOpen(false)}
-              className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSendAttach}
-              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 cursor-pointer"
-            >
-              Attach File
-            </button>
-          </div>
-        }
-      >
-        <FieldGroup>
-          <TextField
-            label="File Name"
-            placeholder="e.g. Asset-Sitemap-v1.pdf"
-            value={attachFileName}
-            onChange={(e) => setAttachFileName(e.target.value)}
-            autoFocus
-          />
-          <label className="flex items-center gap-2 cursor-pointer mt-2 text-xs font-semibold">
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
             <input
               type="checkbox"
               checked={attachFileIsInternal}
               onChange={(e) => setAttachFileIsInternal(e.target.checked)}
               className="h-4 w-4 accent-primary rounded"
             />
-            <span>Mark file as Internal (hidden from clients)</span>
+            <span>Mark attached file as Internal (hidden from clients)</span>
           </label>
-        </FieldGroup>
-      </AppDialog>
+        }
+      />
     </div>
   );
 }
 
-function ChatInputBox({ threadId, onAttachClick }: { threadId: string; onAttachClick: () => void }) {
+function ChatInputBox({ threadId, onAttachClick, authorId = "u1" }: { threadId: string; onAttachClick: () => void; authorId?: string }) {
   const [commentText, setCommentText] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
@@ -2868,7 +2839,7 @@ function ChatInputBox({ threadId, onAttachClick }: { threadId: string; onAttachC
 
     createComment({
       threadId,
-      author: "u1", // Owner: Carina Rivera
+      author: authorId,
       body: commentText.trim(),
       visibility: isInternal ? "internal" : "client",
       attachments: docIds,
@@ -2908,9 +2879,12 @@ const formatDate = (dateStr: string) => {
   return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
-function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: (id: string) => void }) {
+export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId = "u1", scopeToAuthor = false }: { projectId: string; onTaskClick?: (id: string) => void; basePath?: string; authorId?: string; scopeToAuthor?: boolean }) {
   const allTimeEntries = useStore((s) => s.timeEntries);
-  const projectEntries = useMemo(() => allTimeEntries.filter((t) => t.projectId === projectId), [allTimeEntries, projectId]);
+  const projectEntries = useMemo(() => {
+    const entries = allTimeEntries.filter((t) => t.projectId === projectId);
+    return scopeToAuthor ? entries.filter((t) => t.userId === authorId) : entries;
+  }, [allTimeEntries, projectId, scopeToAuthor, authorId]);
   const users = useStore((s) => s.users);
   const projects = useStore((s) => s.projects);
   const tasks = useStore((s) => s.tasks);
@@ -2923,25 +2897,26 @@ function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: 
 
   const filterDefs = useMemo(
     () => {
-      const defs: FilterDef[] = [
-        {
+      const defs: FilterDef[] = [];
+      if (!scopeToAuthor) {
+        defs.push({
           id: "member",
           label: "Team",
           multi: true,
           options: users.filter((u) => u.role !== "client").map((u) => ({ value: u.id, label: u.name, color: u.color })),
-        },
-        {
-          id: "billable",
-          label: "Billable",
-          options: [
-            { value: "yes", label: "Billable" },
-            { value: "no", label: "Non-billable" },
-          ] as FilterOption[],
-        },
-      ];
+        });
+      }
+      defs.push({
+        id: "billable",
+        label: "Billable",
+        options: [
+          { value: "yes", label: "Billable" },
+          { value: "no", label: "Non-billable" },
+        ] as FilterOption[],
+      });
       return defs;
     },
-    [users]
+    [users, scopeToAuthor]
   );
 
   const filteredEntries = useMemo(() => {
@@ -2972,7 +2947,7 @@ function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: 
           onDateRange={setDateRange}
           trailing={
             <button
-              onClick={() => open("time.log", { projectId })}
+              onClick={() => open("time.log", authorId !== "u1" ? { projectId, userId: authorId } : { projectId })}
               className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer whitespace-nowrap"
             >
               <Plus className="h-4 w-4" /> Log time
@@ -3022,7 +2997,7 @@ function TimeTab({ projectId, onTaskClick }: { projectId: string; onTaskClick?: 
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">
                         {p ? (
-                          <Link href={`/owner/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
+                          <Link href={`${basePath}/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
                             {p.name}
                           </Link>
                         ) : (

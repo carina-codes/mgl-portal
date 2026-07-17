@@ -19,10 +19,23 @@ const formatDate = (dateStr: string) => {
   return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
+type TimeSortField = "date" | "member" | "project" | "hours" | "billable";
+
 function PortalTime() {
   const { client } = useActiveClient();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const [sortBy, setSortBy] = useState<TimeSortField>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: TimeSortField) => {
+    if (sortBy === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
 
   const allEntries = useStore((s) => s.timeEntries);
   const users = useStore((s) => s.users);
@@ -76,18 +89,46 @@ function PortalTime() {
     return defs;
   }, [myProjects, tasks, filters.project]);
 
-  const filtered = myEntries.filter((e) => {
-    if (search && !e.note?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filters.project?.length && !filters.project.includes(e.projectId)) return false;
-    if (filters.task?.length && (!e.taskId || !filters.task.includes(e.taskId))) return false;
-    if (filters.billable?.length) {
-      const v = filters.billable[0];
-      if (v === "yes" && !e.billable) return false;
-      if (v === "no" && e.billable) return false;
-    }
-    if (!inRange(e.date, dateRange)) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const result = myEntries.filter((e) => {
+      if (search && !e.note?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filters.project?.length && !filters.project.includes(e.projectId)) return false;
+      if (filters.task?.length && (!e.taskId || !filters.task.includes(e.taskId))) return false;
+      if (filters.billable?.length) {
+        const v = filters.billable[0];
+        if (v === "yes" && !e.billable) return false;
+        if (v === "no" && e.billable) return false;
+      }
+      if (!inRange(e.date, dateRange)) return false;
+      return true;
+    });
+
+    return [...result].sort((a, b) => {
+      let valA: string | number;
+      let valB: string | number;
+
+      if (sortBy === "member") {
+        valA = users.find((u) => u.id === a.userId)?.name || "";
+        valB = users.find((u) => u.id === b.userId)?.name || "";
+      } else if (sortBy === "project") {
+        valA = myProjects.find((p) => p.id === a.projectId)?.name || "";
+        valB = myProjects.find((p) => p.id === b.projectId)?.name || "";
+      } else if (sortBy === "hours") {
+        valA = a.hours;
+        valB = b.hours;
+      } else if (sortBy === "billable") {
+        valA = a.billable ? 1 : 0;
+        valB = b.billable ? 1 : 0;
+      } else {
+        valA = new Date(a.date).getTime() || 0;
+        valB = new Date(b.date).getTime() || 0;
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [myEntries, myProjects, users, search, filters, dateRange, sortBy, sortOrder]);
 
   const total = useMemo(() => {
     if (!mounted) return 0;
@@ -160,12 +201,22 @@ function PortalTime() {
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th className="px-5 py-3 font-medium">Date</th>
-                  <th className="px-5 py-3 font-medium">Team</th>
-                  <th className="px-5 py-3 font-medium">Project</th>
-                  <th className="px-5 py-3 font-medium">Note / Work Done</th>
-                  <th className="px-5 py-3 font-medium text-right">Hours</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th onClick={() => handleSort("date")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("member")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Team {sortBy === "member" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("project")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Project {sortBy === "project" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="px-5 py-3 font-medium select-none">Note / Work Done</th>
+                  <th onClick={() => handleSort("hours")} className="px-5 py-3 font-medium text-right cursor-pointer hover:text-foreground select-none">
+                    Hours {sortBy === "hours" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("billable")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Status {sortBy === "billable" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
                 </tr>
               </thead>
               <tbody>

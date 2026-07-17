@@ -15,6 +15,7 @@ const RoleContext = createContext<RoleContextValue | null>(null);
 const DEFAULT_USERS: Record<Role, string> = {
   owner: "u1",
   team: "u2",
+  manager: "u10",
   client: "u8",
 };
 

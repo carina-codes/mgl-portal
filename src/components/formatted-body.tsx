@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
 import { FileAttachmentCard } from "@/components/file-attachment-card";
+import { FilePreviewDialog } from "@/components/file-preview-dialog";
 
 export type FormattedBodyProps = {
   html: string;
@@ -74,6 +75,8 @@ function CodeBlockRender({ code, html, lang }: { code: string; html: string; lan
 
 export function CommentAttachmentsList({ attachmentIds }: { attachmentIds?: string[] }) {
   const documents = useStore((s) => s.documents);
+  const [previewDoc, setPreviewDoc] = React.useState<{ name: string; size: string; previewUrl?: string } | null>(null);
+
   if (!attachmentIds || attachmentIds.length === 0) return null;
 
   // Filter documents in store matching these ids
@@ -81,16 +84,35 @@ export function CommentAttachmentsList({ attachmentIds }: { attachmentIds?: stri
   if (matchedDocs.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
-      {matchedDocs.map((doc) => (
-        <FileAttachmentCard
-          key={doc.id}
-          id={doc.id}
-          name={doc.name}
-          size={doc.size}
-          url={doc.previewUrl || "#"}
-        />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3">
+        {matchedDocs.map((doc) => (
+          <FileAttachmentCard
+            key={doc.id}
+            id={doc.id}
+            name={doc.name}
+            size={doc.size}
+            url={doc.previewUrl || "#"}
+            onPreview={() => setPreviewDoc({ name: doc.name, size: doc.size, previewUrl: doc.previewUrl })}
+          />
+        ))}
+      </div>
+      <FilePreviewDialog
+        file={previewDoc}
+        onClose={() => setPreviewDoc(null)}
+        onDownload={(f) => {
+          if (f.previewUrl) {
+            const link = document.createElement("a");
+            link.href = f.previewUrl;
+            link.download = f.name;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        }}
+      />
+    </>
   );
 }

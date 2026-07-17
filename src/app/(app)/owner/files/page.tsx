@@ -34,6 +34,7 @@ import React, { useState, useMemo, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { isImageFile } from "@/components/file-preview-dialog";
 
 const PROVIDERS = {
   gdrive: { label: "Google Drive", icon: Cloud, color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
@@ -299,7 +300,7 @@ function FilesView() {
                       </div>
 
                       <div className="h-28 bg-muted/40 flex items-center justify-center relative select-none overflow-hidden w-full">
-                        {file.previewUrl ? (
+                        {file.previewUrl && isImageFile(file.name) ? (
                           <img
                             src={file.previewUrl}
                             alt={file.name}
@@ -472,7 +473,7 @@ function FilesView() {
                         </td>
                         <td className="px-5 py-3 font-medium">
                           <span className="inline-flex items-center gap-2.5">
-                            {file.previewUrl ? (
+                            {file.previewUrl && isImageFile(file.name) ? (
                               <img
                                 src={file.previewUrl}
                                 alt={file.name}

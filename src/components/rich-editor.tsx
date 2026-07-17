@@ -39,12 +39,6 @@ import {
   Mic,
   Lock,
   Send,
-  File,
-  FileText,
-  FileImage,
-  FileVideo,
-  FileArchive,
-  Search,
   FolderOpen,
 } from "lucide-react";
 import { users } from "@/lib/mock-data";
@@ -54,6 +48,7 @@ import { toast } from "sonner";
 import { FileAttachmentCard } from "@/components/file-attachment-card";
 import { useParams } from "next/navigation";
 import { AppDialog } from "@/components/ui/app-dialog";
+import { AttachFromFilesDialog } from "@/components/attach-from-files-dialog";
 
 const lowlight = createLowlight(all);
 
@@ -228,57 +223,15 @@ export function RichEditor({
 
   // App Files Selector Modal State
   const [isAppFileModalOpen, setIsAppFileModalOpen] = React.useState(false);
-  const [appFileSearch, setAppFileSearch] = React.useState("");
-  const [appFileFilter, setAppFileFilter] = React.useState<"project" | "all">("project");
 
   const params = useParams();
   const routeProjectId = params?.projectId as string | undefined;
   const activeProjectId = routeProjectId;
 
-  const allDocuments = useStore((s) => s.documents);
   const projects = useStore((s) => s.projects);
   const clients = useStore((s) => s.clients);
   const storageConnections = useStore((s) => s.storageConnections);
   const uploadDocument = useStore((s) => s.uploadDocument);
-
-  React.useEffect(() => {
-    if (!activeProjectId) {
-      setAppFileFilter("all");
-    } else {
-      setAppFileFilter("project");
-    }
-  }, [activeProjectId]);
-
-  const filteredDocuments = React.useMemo(() => {
-    let docs = allDocuments.filter((d) => d.name !== ".keep");
-    if (appFileFilter === "project" && activeProjectId) {
-      docs = docs.filter((d) => d.projectId === activeProjectId);
-    }
-    if (appFileSearch.trim() !== "") {
-      const q = appFileSearch.toLowerCase();
-      docs = docs.filter((d) => d.name.toLowerCase().includes(q));
-    }
-    return docs;
-  }, [allDocuments, appFileFilter, activeProjectId, appFileSearch]);
-
-  const getProjectName = (pId: string) => {
-    return projects.find((p) => p.id === pId)?.name || "General";
-  };
-
-  const getAppFileIcon = (fileName: string) => {
-    const ext = fileName.split(".").pop()?.toLowerCase() || "";
-    let IconComponent = File;
-    if (["png", "jpg", "jpeg", "gif", "webp", "svg", "fig"].includes(ext)) {
-      IconComponent = FileImage;
-    } else if (ext === "pdf" || ["doc", "docx"].includes(ext)) {
-      IconComponent = FileText;
-    } else if (["zip", "rar", "7z", "tar"].includes(ext)) {
-      IconComponent = FileArchive;
-    } else if (["mp4", "mov", "avi"].includes(ext)) {
-      IconComponent = FileVideo;
-    }
-    return <IconComponent className="h-4 w-4 text-foreground shrink-0" />;
-  };
 
   const attachAppFile = (doc: any) => {
     const match = doc.size.match(/^([\d.]+)\s*(KB|MB|GB|B)?$/i);
@@ -315,7 +268,10 @@ export function RichEditor({
     }
 
     toast.success(`Attached ${doc.name} from app files`);
-    setIsAppFileModalOpen(false);
+  };
+
+  const removeAppFile = (doc: any) => {
+    setAtts(atts.filter((a) => a.id !== doc.id));
   };
 
   React.useEffect(() => {
@@ -702,89 +658,14 @@ export function RichEditor({
         <div className="border-t border-border/60 px-3 py-2.5 bg-muted/5 rounded-b-2xl">{footer}</div>
       ) : null}
 
-      <AppDialog
+      <AttachFromFilesDialog
         open={isAppFileModalOpen}
         onOpenChange={setIsAppFileModalOpen}
-        title="Attach from Files"
-        description="Choose a file uploaded within the workspace to attach to your message."
-        size="lg"
-      >
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search files..."
-                value={appFileSearch}
-                onChange={(e) => setAppFileSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm border rounded-xl bg-background outline-none border-border focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            
-            {activeProjectId && (
-              <select
-                value={appFileFilter}
-                onChange={(e) => setAppFileFilter(e.target.value as any)}
-                className="px-3 py-2 text-sm border rounded-xl bg-background outline-none border-border focus:ring-1 focus:ring-primary"
-              >
-                <option value="project">This Project Files</option>
-                <option value="all">All Workspace Files</option>
-              </select>
-            )}
-          </div>
-
-          <div className="border border-border/60 rounded-2xl overflow-hidden max-h-[300px] overflow-y-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-muted/30 text-muted-foreground border-b border-border/60">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Folder</th>
-                  {appFileFilter === "all" && <th className="px-4 py-2 font-medium">Project</th>}
-                  <th className="px-4 py-2 font-medium">Size</th>
-                  <th className="px-4 py-2 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDocuments.length === 0 ? (
-                  <tr>
-                    <td colSpan={appFileFilter === "all" ? 5 : 4} className="px-4 py-8 text-center text-muted-foreground">
-                      No files found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredDocuments.map((doc) => (
-                    <tr key={doc.id} className="border-b border-border/40 last:border-0 hover:bg-muted/40 transition-colors">
-                      <td className="px-4 py-2.5 font-medium text-foreground max-w-[240px]">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          {getAppFileIcon(doc.name)}
-                          <span className="truncate" title={doc.name}>{doc.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{doc.folder}</td>
-                      {appFileFilter === "all" && (
-                        <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[120px]" title={getProjectName(doc.projectId)}>
-                          {getProjectName(doc.projectId)}
-                        </td>
-                      )}
-                      <td className="px-4 py-2.5 text-muted-foreground">{doc.size}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => attachAppFile(doc)}
-                          className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary hover:bg-primary/20 transition-all cursor-pointer"
-                        >
-                          Select
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </AppDialog>
+        projectId={activeProjectId}
+        selectedIds={atts.map((a) => a.id)}
+        onSelect={attachAppFile}
+        onDeselect={removeAppFile}
+      />
     </div>
   );
 }

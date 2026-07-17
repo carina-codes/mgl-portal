@@ -33,6 +33,16 @@ export type User = {
     phone: string;
     relationship: string;
   };
+  zipCode?: string;
+  financialType?: string;
+  financialAmount?: number;
+  internalNotes?: string;
+  /** Magic-link token granting this team/manager member access to their /team portal. */
+  memberShareToken?: string;
+  shortcuts?: Array<{
+    name: string;
+    link: string;
+  }>;
 };
 
 export type Client = {
@@ -128,19 +138,6 @@ export type Project = {
   lead: string;
   description: string;
   accent: "todo" | "progress" | "review" | "done";
-  
-  // Settings & Sharing
-  shareLinks?: ProjectShareLink[];
-  shareLink?: string;
-  sharePermission?: "view" | "comment" | "edit";
-  shareExpiresAt?: string;
-  sharePasswordEnabled?: boolean;
-  sharePassword?: string;
-  memberPermissions?: Record<string, "view" | "comment" | "edit" | "admin" | "owner">;
-  clientShareToken?: string;
-  clientShareEnabled?: boolean;
-  teamShareToken?: string;
-  teamShareEnabled?: boolean;
   visibility?: "private" | "team" | "client";
   notifications?: {
     tasks?: boolean;
@@ -264,11 +261,12 @@ export type Channel = {
 
 export const users: User[] = [
   { id: "u1", name: "Carina Rivera", email: "carina@mglagency.com", role: "owner", title: "Founder & Strategy Lead", color: "#0049FE", avatar: "CR", city: "Los Angeles", state: "CA", hourlyRate: 150 },
-  { id: "u2", name: "Mia Tanaka", email: "mia@mglagency.com", role: "team", title: "Design Director", color: "#FF7A59", avatar: "MT", city: "San Francisco", state: "CA", hourlyRate: 125 },
+  { id: "u2", name: "Mia Tanaka", email: "mia@mglagency.com", role: "team", title: "Design Director", color: "#FF7A59", avatar: "MT", city: "San Francisco", state: "CA", hourlyRate: 125, memberShareToken: "mia-team-demo" },
   { id: "u3", name: "Devon Patel", email: "devon@mglagency.com", role: "team", title: "Senior Engineer", color: "#10B981", avatar: "DP", city: "New York", state: "NY", hourlyRate: 140 },
   { id: "u4", name: "Ava Lindgren", email: "ava@mglagency.com", role: "team", title: "Brand Designer", color: "#A855F7", avatar: "AL", city: "Austin", state: "TX", hourlyRate: 95 },
   { id: "u5", name: "Noah Carter", email: "noah@mglagency.com", role: "team", title: "Producer", color: "#F59E0B", avatar: "NC", city: "Chicago", state: "IL", hourlyRate: 110 },
   { id: "u6", name: "Priya Shah", email: "priya@mglagency.com", role: "team", title: "Motion Designer", color: "#EC4899", avatar: "PS", city: "Miami", state: "FL", hourlyRate: 105 },
+  { id: "u10", name: "Jordan Reyes", email: "jordan@mglagency.com", role: "manager", title: "Project Manager", color: "#6366F1", avatar: "JR", city: "Denver", state: "CO", hourlyRate: 115, memberShareToken: "jordan-manager-demo" },
   // Client-side users
   { id: "u7", name: "Elena Brooks", email: "elena@northwind.io", role: "client", title: "VP Marketing, Northwind", color: "#0EA5E9", avatar: "EB" },
   { id: "u8", name: "Marcus Hale", email: "marcus@arcadia.com", role: "client", title: "CMO, Arcadia Solutions", color: "#84CC16", avatar: "MH" },
@@ -505,7 +503,7 @@ export const projects: Project[] = [
     startDate: "May 20, 2026",
     endDate: "Jun 30, 2026",
     progress: 64,
-    team: ["u1", "u2", "u3", "u6"],
+    team: ["u1", "u2", "u3", "u6", "u10"],
     lead: "u2",
     description:
       "Native mobile companion for the NovaBoard SaaS suite — onboarding, board view, notifications and a client-facing review mode.",
@@ -524,7 +522,7 @@ export const projects: Project[] = [
     startDate: "Apr 02, 2026",
     endDate: "Jun 10, 2026",
     progress: 88,
-    team: ["u2", "u4", "u5"],
+    team: ["u1", "u2", "u4", "u5"],
     lead: "u4",
     description: "Full marketing site redesign covering homepage, product, pricing and resources hubs.",
     accent: "review",
@@ -560,7 +558,7 @@ export const projects: Project[] = [
     startDate: "May 01, 2026",
     endDate: "Jul 20, 2026",
     progress: 48,
-    team: ["u2", "u4", "u6"],
+    team: ["u1", "u2", "u4", "u6"],
     lead: "u4",
     description: "Visual identity refresh, packaging system, web art direction and motion guidelines.",
     accent: "progress",
@@ -578,7 +576,7 @@ export const projects: Project[] = [
     startDate: "Jul 01, 2026",
     endDate: "Oct 15, 2026",
     progress: 4,
-    team: ["u4", "u6"],
+    team: ["u1", "u4", "u6"],
     lead: "u6",
     description: "Limited edition holiday line — packaging, photography direction, launch microsite.",
     accent: "todo",
@@ -614,7 +612,7 @@ export const projects: Project[] = [
     startDate: "Sep 10, 2025",
     endDate: "Jul 15, 2026",
     progress: 42,
-    team: ["u2", "u3", "u4"],
+    team: ["u1", "u2", "u3", "u4"],
     lead: "u3",
     description: "Editorial marketing site for a boutique architecture firm — portfolio, journal, contact flow.",
     accent: "progress",

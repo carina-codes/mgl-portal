@@ -10,7 +10,7 @@ import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { useStore } from "@/lib/store";
 import { useActiveClient } from "@/hooks/use-active-client";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   PROJECT_STATUS_META,
@@ -43,6 +43,9 @@ import {
   ListTodo,
   Folder,
   Eye,
+  TrendingUp,
+  Coins,
+  Briefcase,
 } from "lucide-react";
 import {
   Sheet,
@@ -70,6 +73,14 @@ const TYPE_ICONS: Record<string, any> = {
   FolderPlus,
   Upload,
   MessageCircleQuestion,
+};
+
+/** Chronological sort key for a task's due date — tasks without a valid due
+ * date sort to the end so date-ordered views stay top-to-bottom by urgency. */
+const dueDateSortValue = (dateStr?: string) => {
+  if (!dateStr) return Infinity;
+  const parsed = new Date(dateStr);
+  return isNaN(parsed.getTime()) ? Infinity : parsed.getTime();
 };
 
 const formatSubmissionTime = (submittedAt: string) => {
@@ -223,6 +234,53 @@ function PortalProjectDetail() {
 
 export default PortalProjectDetail;
 
+function StatBox({
+  label,
+  value,
+  description,
+  icon: Icon,
+  colorCls,
+  progress,
+}: {
+  label: string;
+  value: string;
+  description?: string;
+  icon: React.ComponentType<any>;
+  colorCls: { text: string; bg: string; dot: string; hover: string };
+  progress?: number;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-border/60 bg-card/75 backdrop-blur-sm p-4 transition-all duration-300 flex flex-col justify-between group select-none",
+        colorCls.hover
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors">
+          {label}
+        </span>
+        <div className={cn("flex h-7 w-7 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground transition-colors group-hover:text-foreground", colorCls.bg)}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </div>
+      <div className="mt-3">
+        <div className="text-2xl font-bold text-foreground leading-none">{value}</div>
+        {description && (
+          <div className="mt-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            {description}
+          </div>
+        )}
+        {progress !== undefined && (
+          <div className="mt-2.5 h-1 w-full bg-muted/50 rounded-full overflow-hidden">
+            <div className={cn("h-full rounded-full transition-all duration-500", colorCls.dot)} style={{ width: `${progress}%` }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ───── Overview ───── */
 
 function OverviewTab({ projectId }: { projectId: string }) {
@@ -257,6 +315,60 @@ function OverviewTab({ projectId }: { projectId: string }) {
               No description provided.
             </p>
           )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatBox
+            label="Progress"
+            value={`${project.progress}%`}
+            description="Completion rate"
+            icon={TrendingUp}
+            progress={project.progress}
+            colorCls={{
+              text: "text-amber-500 dark:text-amber-400",
+              bg: "group-hover:bg-amber-500/10 group-hover:text-amber-500",
+              dot: "bg-amber-500",
+              hover: "hover:bg-amber-500/[0.03] hover:border-amber-500/25",
+            }}
+          />
+          <StatBox
+            label="Hours Logged"
+            value={`${project.hoursLogged}h`}
+            description={`of ${project.hoursEstimate}h est.`}
+            icon={Clock}
+            progress={Math.min((project.hoursLogged / project.hoursEstimate) * 100, 100)}
+            colorCls={{
+              text: "text-sky-500 dark:text-sky-400",
+              bg: "group-hover:bg-sky-500/10 group-hover:text-sky-500",
+              dot: "bg-sky-500",
+              hover: "hover:bg-sky-500/[0.03] hover:border-sky-500/25",
+            }}
+          />
+          <StatBox
+            label="Spent Budget"
+            value={`$${(project.spent / 1000).toFixed(0)}k`}
+            description={`of $${(project.budget / 1000).toFixed(0)}k`}
+            icon={Coins}
+            progress={Math.min((project.spent / project.budget) * 100, 100)}
+            colorCls={{
+              text: "text-emerald-500 dark:text-emerald-400",
+              bg: "group-hover:bg-emerald-500/10 group-hover:text-emerald-500",
+              dot: "bg-emerald-500",
+              hover: "hover:bg-emerald-500/[0.03] hover:border-emerald-500/25",
+            }}
+          />
+          <StatBox
+            label="Billing Type"
+            value={{ fixed: "Fixed", hourly: "Hourly", retainer: "Retainer" }[project.type] ?? project.type}
+            description="Billing structure"
+            icon={Briefcase}
+            colorCls={{
+              text: "text-rose-500 dark:text-rose-400",
+              bg: "group-hover:bg-rose-500/10 group-hover:text-rose-500",
+              dot: "bg-rose-500",
+              hover: "hover:bg-rose-500/[0.03] hover:border-rose-500/25",
+            }}
+          />
         </div>
 
         <div className="panel p-6 bg-card border-border/60">
@@ -342,8 +454,8 @@ function OverviewTab({ projectId }: { projectId: string }) {
                     <div className="text-sm font-medium">{u.name}</div>
                     <div className="text-xs text-muted-foreground">{u.title}</div>
                   </div>
-                  {id === project.lead && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Lead</span>
+                  {u.role === "manager" && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Manager</span>
                   )}
                 </div>
               );
@@ -419,7 +531,9 @@ function TasksTabClient({ projectId, onCardClick }: { projectId: string; onCardC
       {activeView === "board" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {stages.map((stage) => {
-            const stageTasks = tasks.filter((t) => t.stage === stage && (!query || t.title.toLowerCase().includes(query.toLowerCase())));
+            const stageTasks = tasks
+              .filter((t) => t.stage === stage && (!query || t.title.toLowerCase().includes(query.toLowerCase())))
+              .sort((a, b) => dueDateSortValue(a.dueDate) - dueDateSortValue(b.dueDate));
             const meta = STAGE_META[stage];
             return (
               <div key={stage} className={cn(`${meta.tone} rounded-3xl p-4 border border-border/10`)}>
@@ -454,6 +568,7 @@ function TasksTabClient({ projectId, onCardClick }: { projectId: string; onCardC
             <tbody>
               {tasks
                 .filter((t) => t.title.toLowerCase().includes(query.toLowerCase()))
+                .sort((a, b) => dueDateSortValue(a.dueDate) - dueDateSortValue(b.dueDate))
                 .map((t) => {
                   const pmeta = PRIORITY_META[t.priority] ?? PRIORITY_META.medium;
                   return (
@@ -823,7 +938,7 @@ function RequestsTabClient({ projectId, clientId, onSelectRequest }: { projectId
                 <span className="font-semibold text-muted-foreground capitalize bg-muted/45 px-2 py-0.5 rounded text-[10px]">{tm.label}</span>
               </div>
               <div className="space-y-2.5">
-                <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">{r.description}</p>
+                <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">{stripHtml(r.description)}</p>
                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                   <Clock className="h-3 w-3 shrink-0" />
                   <span>{formatSubmissionTime(r.submittedAt)}</span>

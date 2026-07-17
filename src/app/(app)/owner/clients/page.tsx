@@ -20,7 +20,6 @@ import {
   Mail,
   ArrowUpDown,
   Settings,
-  Share2,
   UserPlus,
 } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";

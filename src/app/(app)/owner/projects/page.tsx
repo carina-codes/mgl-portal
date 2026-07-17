@@ -20,6 +20,8 @@ import {
 
 
 
+type ProjectSortField = "name" | "client" | "status" | "progress" | "due";
+
 function ProjectsView() {
   const router = useRouter();
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -28,6 +30,17 @@ function ProjectsView() {
   const users = useStore((s) => s.users);
   const { open } = useModals();
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<ProjectSortField>("due");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const handleSort = (field: ProjectSortField) => {
+    if (sortBy === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
   const searchParams = useSearchParams();
   const clientParam = searchParams.get("client");
   const memberParam = searchParams.get("member");
@@ -61,15 +74,43 @@ function ProjectsView() {
     { id: "type", label: "Type", options: [{ value: "fixed", label: "Fixed bid" }, { value: "hourly", label: "Hourly" }, { value: "retainer", label: "Retainer" }] },
   ], [clients, users]);
 
-  const filtered = projects.filter((p) => {
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filters.status?.length && !filters.status.includes(p.status)) return false;
-    if (filters.client?.length && !filters.client.includes(p.clientId)) return false;
-    if (filters.team?.length && !p.team.some((t) => filters.team!.includes(t))) return false;
-    if (filters.type?.length && !filters.type.includes(p.type)) return false;
-    if (!inRange(p.startDate, dateRange)) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const result = projects.filter((p) => {
+      if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filters.status?.length && !filters.status.includes(p.status)) return false;
+      if (filters.client?.length && !filters.client.includes(p.clientId)) return false;
+      if (filters.team?.length && !p.team.some((t) => filters.team!.includes(t))) return false;
+      if (filters.type?.length && !filters.type.includes(p.type)) return false;
+      if (!inRange(p.startDate, dateRange)) return false;
+      return true;
+    });
+
+    return [...result].sort((a, b) => {
+      let valA: string | number;
+      let valB: string | number;
+
+      if (sortBy === "client") {
+        valA = clients.find((c) => c.id === a.clientId)?.name || "";
+        valB = clients.find((c) => c.id === b.clientId)?.name || "";
+      } else if (sortBy === "status") {
+        valA = PROJECT_STATUS_META[a.status]?.label || "";
+        valB = PROJECT_STATUS_META[b.status]?.label || "";
+      } else if (sortBy === "progress") {
+        valA = a.progress;
+        valB = b.progress;
+      } else if (sortBy === "due") {
+        valA = new Date(a.endDate).getTime() || Infinity;
+        valB = new Date(b.endDate).getTime() || Infinity;
+      } else {
+        valA = a.name;
+        valB = b.name;
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [projects, search, filters, dateRange, sortBy, sortOrder, clients]);
 
   return (
     <AppShell
@@ -247,12 +288,22 @@ function ProjectsView() {
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="px-5 py-3 font-medium">Project</th>
-                <th className="px-5 py-3 font-medium">Client</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Progress</th>
-                <th className="px-5 py-3 font-medium">Team</th>
-                <th className="px-5 py-3 font-medium">Due</th>
+                <th onClick={() => handleSort("name")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Project {sortBy === "name" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("client")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Client {sortBy === "client" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("status")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Status {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("progress")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Progress {sortBy === "progress" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th className="px-5 py-3 font-medium select-none">Team</th>
+                <th onClick={() => handleSort("due")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Due {sortBy === "due" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>

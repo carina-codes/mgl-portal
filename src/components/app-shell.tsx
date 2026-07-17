@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { useActiveClient } from "@/hooks/use-active-client";
+import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
@@ -61,7 +62,7 @@ import {
   CircleDot,
   FileCheck,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useModals } from "@/components/modals";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { SearchDropdown } from "./search-dropdown";
@@ -82,13 +83,23 @@ const NAV_BY_ROLE: Record<AppRole, { to: string; label: string; icon: typeof Hom
   client: [
     { to: "/client", label: "Overview", icon: Home, exact: true },
     { to: "/client/projects", label: "Projects", icon: FolderOpen },
+    { to: "/client/time", label: "Time", icon: Clock },
     { to: "/client/messages", label: "Messages", icon: MessageSquare },
     { to: "/client/requests", label: "Requests", icon: Send },
   ],
   team: [
     { to: "/team", label: "Overview", icon: Home, exact: true },
+    { to: "/team/projects", label: "Projects", icon: FolderOpen },
+    { to: "/team/tasks", label: "Tasks", icon: ListTodo },
+    { to: "/team/time", label: "Time", icon: Clock },
+    { to: "/team/messages", label: "Messages", icon: MessageSquare },
+    { to: "/team/requests", label: "Requests", icon: Send },
+    { to: "/team/team", label: "Team", icon: UserCog },
   ],
 };
+
+/** Nav items only visible to the "manager" role within the team portal. */
+const TEAM_MANAGER_ONLY_LABELS = new Set(["Requests", "Team"]);
 
 const statusConfig = {
   online: { color: "bg-emerald-500", label: "Online" },
@@ -190,14 +201,19 @@ export function AppShell({
   const { setRole } = useRole();
   const currentUser = useCurrentUser();
   const { client: activeClient } = useActiveClient();
+  const { member: activeTeamMember, isManager } = useActiveTeamMember();
   const workspaceName = useStore((s) => s.workspaceName);
   const router = useRouter();
-  const NAV = NAV_BY_ROLE[role];
-  const settingsHref = role === "owner" ? "/owner/settings" : role === "client" ? "/client/settings" : "/team";
+  const NAV = useMemo(() => {
+    const base = NAV_BY_ROLE[role];
+    if (role !== "team") return base;
+    return isManager ? base : base.filter((item) => !TEAM_MANAGER_ONLY_LABELS.has(item.label));
+  }, [role, isManager]);
+  const settingsHref = role === "owner" ? "/owner/settings" : role === "client" ? "/client/settings" : "/team/settings";
 
-  // On the client portal, the header should reflect the active client's own
-  // contact profile — not the internal role-context identity, which is a
-  // separate, unrelated bit of app-wide state.
+  // On the client/team portals, the header should reflect the active
+  // client/member's own profile — not the internal role-context identity,
+  // which is a separate, unrelated bit of app-wide state.
   const user =
     role === "client"
       ? {
@@ -211,6 +227,8 @@ export function AppShell({
             activeClient.contact.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2),
           color: activeClient.logoColor,
         }
+      : role === "team"
+      ? activeTeamMember
       : currentUser;
   const workspaceLabel = role === "client" ? "Client Workspace" : role === "team" ? "Team Workspace" : "Owner Workspace";
   const { open } = useModals();

@@ -29,7 +29,7 @@ import {
   Eye,
 } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -111,6 +111,10 @@ function guessMimeType(name: string): string {
   return "application/octet-stream";
 }
 
+type RequestSortField = "title" | "client" | "status" | "priority" | "type" | "submitted";
+
+const REQUEST_PRIORITY_SORT: Record<string, number> = { low: 1, medium: 2, high: 3 };
+
 function RequestsView() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const requests = useStore((s) => s.requests);
@@ -119,6 +123,17 @@ function RequestsView() {
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
+  const [sortBy, setSortBy] = useState<RequestSortField>("submitted");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: RequestSortField) => {
+    if (sortBy === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
 
   const searchParams = useSearchParams();
   const clientParam = searchParams.get("client");
@@ -176,15 +191,46 @@ function RequestsView() {
     [clients],
   );
 
-  const filtered = requests.filter((r) => {
-    if (search && !r.title.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filters.status?.length && !filters.status.includes(r.status)) return false;
-    if (filters.type?.length && !filters.type.includes(r.type)) return false;
-    if (filters.priority?.length && !filters.priority.includes(r.priority)) return false;
-    if (filters.client?.length && !filters.client.includes(r.clientId)) return false;
-    if (!inRange(r.submittedAt, dateRange)) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const result = requests.filter((r) => {
+      if (search && !r.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (filters.status?.length && !filters.status.includes(r.status)) return false;
+      if (filters.type?.length && !filters.type.includes(r.type)) return false;
+      if (filters.priority?.length && !filters.priority.includes(r.priority)) return false;
+      if (filters.client?.length && !filters.client.includes(r.clientId)) return false;
+      if (!inRange(r.submittedAt, dateRange)) return false;
+      return true;
+    });
+
+    return [...result].sort((a, b) => {
+      let valA: string | number;
+      let valB: string | number;
+
+      if (sortBy === "client") {
+        valA = clients.find((c) => c.id === a.clientId)?.name || "";
+        valB = clients.find((c) => c.id === b.clientId)?.name || "";
+      } else if (sortBy === "status") {
+        valA = REQUEST_STATUS_META[a.status]?.label || "";
+        valB = REQUEST_STATUS_META[b.status]?.label || "";
+      } else if (sortBy === "priority") {
+        valA = REQUEST_PRIORITY_SORT[a.priority] || 0;
+        valB = REQUEST_PRIORITY_SORT[b.priority] || 0;
+      } else if (sortBy === "type") {
+        valA = REQUEST_TYPE_META[a.type]?.label || "";
+        valB = REQUEST_TYPE_META[b.type]?.label || "";
+      } else if (sortBy === "submitted") {
+        valA = new Date(a.submittedAt).getTime() || 0;
+        valB = new Date(b.submittedAt).getTime() || 0;
+      } else {
+        valA = a.title;
+        valB = b.title;
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [requests, search, filters, dateRange, sortBy, sortOrder, clients]);
 
   return (
     <AppShell
@@ -315,7 +361,7 @@ function RequestsView() {
                   {/* Description & Submission info */}
                   <div className="space-y-2.5">
                     <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">
-                      {r.description}
+                      {stripHtml(r.description)}
                     </p>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                       <Clock className="h-3 w-3 shrink-0" />
@@ -356,12 +402,24 @@ function RequestsView() {
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="px-5 py-3 font-medium">Request</th>
-                <th className="px-5 py-3 font-medium">Client</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Priority</th>
-                <th className="px-5 py-3 font-medium">Type</th>
-                <th className="px-5 py-3 font-medium">Submitted</th>
+                <th onClick={() => handleSort("title")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Request {sortBy === "title" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("client")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Client {sortBy === "client" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("status")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Status {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("priority")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Priority {sortBy === "priority" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("type")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Type {sortBy === "type" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
+                <th onClick={() => handleSort("submitted")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                  Submitted {sortBy === "submitted" && (sortOrder === "asc" ? "↑" : "↓")}
+                </th>
                 <th className="px-5 py-3"></th>
               </tr>
             </thead>
@@ -428,7 +486,7 @@ function RequestsView() {
   );
 }
 
-function NewCommentForm({ threadId }: { threadId: string }) {
+function NewCommentForm({ threadId, author = "u1" }: { threadId: string; author?: string }) {
   const [commentText, setCommentText] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
@@ -452,7 +510,7 @@ function NewCommentForm({ threadId }: { threadId: string }) {
 
     createComment({
       threadId,
-      author: "u1", // Owner: Carina Rivera
+      author, // Defaults to Owner: Carina Rivera; overridden by team/manager callers
       body: commentText.trim(),
       visibility: isInternal ? "internal" : "client",
       attachments: docIds,
@@ -485,9 +543,12 @@ function NewCommentForm({ threadId }: { threadId: string }) {
 export function RequestDetailsDrawer({
   requestId,
   onClose,
+  authorId = "u1",
 }: {
   requestId: string | null;
   onClose: () => void;
+  /** Comment author for replies posted from this drawer. Defaults to the owner (u1); team/manager callers pass their own active user id. */
+  authorId?: string;
 }) {
   const requests = useStore((s) => s.requests);
   const req = useMemo(() => requests.find((r) => r.id === requestId), [requests, requestId]);
@@ -763,7 +824,7 @@ export function RequestDetailsDrawer({
             </div>
 
             {/* Form */}
-            <NewCommentForm threadId={req.id} />
+            <NewCommentForm threadId={req.id} author={authorId} />
           </div>
         </div>
 
