@@ -1,16 +1,27 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, Sparkles, LayoutDashboard, Users, UserCog, MessageSquare, Clock } from "lucide-react";
+"use client";
 
-export const metadata: Metadata = {
-  title: "MGL Portal",
-  description: "The operating system for a high-end digital agency.",
-};
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useRole } from "@/lib/role-context";
+import { ArrowRight, Lock, Mail } from "lucide-react";
 
-export default function Landing() {
+export default function Login() {
+  const router = useRouter();
+  const { setRole } = useRole();
+  const [email, setEmail] = useState("carina@mglagency.com");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setRole("owner");
+    router.push("/owner");
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="mx-auto w-full max-w-6xl px-6 py-5">
         <div className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground font-bold">M</div>
           <div>
@@ -18,79 +29,68 @@ export default function Landing() {
             <div className="text-[11px] text-muted-foreground -mt-0.5">Workspace Portal</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Enter platform <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 pb-10 pt-12 lg:pt-20">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-          <Sparkles className="h-3 w-3" /> Internal preview · v0.1
-        </div>
-        <h1 className="mt-5 max-w-3xl text-5xl font-semibold leading-[1.05] tracking-tight lg:text-6xl">
-          The operating system for a high-end digital agency.
-        </h1>
-        <p className="mt-4 max-w-2xl text-base text-muted-foreground lg:text-lg">
-          MGL Portal centralizes project execution, client requests, time
-          tracking and reporting — so the workspace stops living in inboxes and starts shipping faster.
-        </p>
+      <main className="flex-1 flex items-center justify-center px-6 pb-16">
+        <div className="w-full max-w-sm">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">Sign in to your workspace</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Owner access for the MGL Agency operating system.
+            </p>
+          </div>
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-          >
-            <LayoutDashboard className="h-4 w-4" /> Open internal dashboard
-          </Link>
-          <Link
-            href="/client"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-muted"
-          >
-            <Users className="h-4 w-4" /> Preview client portal
-          </Link>
-          <Link
-            href="/team"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold hover:bg-muted"
-          >
-            <UserCog className="h-4 w-4" /> Preview team portal
-          </Link>
-        </div>
+          <form onSubmit={handleSubmit} className="panel p-6 space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Email address</label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@mglagency.com"
+                  className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
 
-        <div className="mt-14 grid gap-4 lg:grid-cols-3">
-          <Feature
-            icon={LayoutDashboard}
-            title="One place to run the workspace"
-            body="Dashboards, projects, Kanban, time and reporting — built on a shared design language."
-          />
-          <Feature
-            icon={MessageSquare}
-            title="Clients stay in the loop"
-            body="Magic-link portal with project visibility, request intake, and conversation threads."
-          />
-          <Feature
-            icon={Clock}
-            title="Time and billing, handled"
-            body="Log hours per project, watch margins in real time, and export clean reports ready for invoicing."
-          />
-        </div>
-      </section>
-    </div>
-  );
-}
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-muted-foreground">Password</label>
+              </div>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
 
-function Feature({ icon: Icon, title, body }: { icon: typeof LayoutDashboard; title: string; body: string }) {
-  return (
-    <div className="panel p-6">
-      <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
-        <Icon className="h-5 w-5" />
-      </div>
-      <h3 className="mt-4 text-base font-semibold">{title}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-all cursor-pointer"
+            >
+              {submitting ? "Signing in…" : "Sign in"} <ArrowRight className="h-4 w-4" />
+            </button>
+          </form>
+
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Client or team member? Use the portal link shared with you to access your workspace.
+          </p>
+        </div>
+      </main>
+
+      <footer className="py-6 text-center text-xs text-muted-foreground select-none">
+        © 2026 MGL Agency
+      </footer>
     </div>
   );
 }
