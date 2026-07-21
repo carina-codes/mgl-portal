@@ -46,7 +46,7 @@ export default function TeamTasksPage() {
     setMounted(true);
   }, []);
 
-  const { member } = useActiveTeamMember();
+  const { member, isManager } = useActiveTeamMember();
   const allTasks = useStore((s) => s.tasks);
   const projects = useStore((s) => s.projects);
   const users = useStore((s) => s.users);
@@ -258,6 +258,7 @@ export default function TeamTasksPage() {
         taskId={selectedTaskId}
         onClose={() => setSelectedTaskId(null)}
         authorId={member.id}
+        canDelete={isManager}
       />
     </AppShell>
   );

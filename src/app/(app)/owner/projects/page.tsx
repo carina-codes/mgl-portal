@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack } from "@/components/user-avatar";
 import { PROJECT_STATUS_META } from "@/lib/mock-data";
-import { useStore, useProjects } from "@/lib/store";
+import { useStore, useProjects, projectMemberIds } from "@/lib/store";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { Plus, LayoutGrid, List as ListIcon, MoreHorizontal, Archive, Trash2, UserPlus } from "lucide-react";
@@ -28,6 +28,7 @@ function ProjectsView() {
   const projects = useProjects();
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
+  const tasks = useStore((s) => s.tasks);
   const { open } = useModals();
   const [search, setSearch] = useState("");
   // Defaults to the store's natural order — newest-created projects are
@@ -246,7 +247,7 @@ function ProjectsView() {
 
                 {/* Footer Section: Team & Buttons */}
                 <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4">
-                  <AvatarStack userIds={p.team} users={users} max={4} size={26} />
+                  <AvatarStack userIds={projectMemberIds(p, tasks)} users={users} max={4} size={26} />
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => open("project.edit", { projectId: p.id })}
@@ -353,7 +354,7 @@ function ProjectsView() {
                         <span className="text-xs text-muted-foreground font-medium">{p.progress}%</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3"><AvatarStack userIds={p.team} users={users} max={3} size={22} /></td>
+                    <td className="px-5 py-3"><AvatarStack userIds={projectMemberIds(p, tasks)} users={users} max={3} size={22} /></td>
                     <td className="px-5 py-3 text-muted-foreground">{p.endDate}</td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack } from "@/components/user-avatar";
 import { PROJECT_STATUS_META } from "@/lib/mock-data";
-import { useStore, isProjectMember } from "@/lib/store";
+import { useStore, isProjectMember, projectMemberIds } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { LayoutGrid, List as ListIcon } from "lucide-react";
@@ -169,7 +169,7 @@ function TeamProjects() {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between border-t border-border/40 pt-4">
-                  <AvatarStack userIds={p.team} users={users} max={4} size={26} />
+                  <AvatarStack userIds={projectMemberIds(p, allTasks)} users={users} max={4} size={26} />
                 </div>
               </Link>
             );
@@ -239,7 +239,7 @@ function TeamProjects() {
                         <span className="text-xs text-muted-foreground font-medium">{p.progress}%</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3"><AvatarStack userIds={p.team} users={users} max={3} size={22} /></td>
+                    <td className="px-5 py-3"><AvatarStack userIds={projectMemberIds(p, allTasks)} users={users} max={3} size={22} /></td>
                     <td className="px-5 py-3 text-muted-foreground">{p.endDate}</td>
                   </tr>
                 );

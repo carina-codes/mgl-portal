@@ -19,6 +19,7 @@ import {
   FileUp,
   PlusCircle,
   FolderPlus,
+  FolderOpen,
   Pencil,
   FolderCog,
   CircleDot,
@@ -71,6 +72,11 @@ function PortalHome() {
     useActivityFeed().filter((a) => myProjectNames.has(a.project)),
   );
   const myMessages = MESSAGE_INBOX.filter((m) => myProjectNames.has(m.project));
+  // The feed's timestamps resolve relative to "now", so its rendered text
+  // can differ between the server render pass and client hydration by a
+  // matter of seconds. Only render it after mount to avoid that mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <AppShell
@@ -79,10 +85,10 @@ function PortalHome() {
       subtitle={`Here's what's moving across your ${myProjects.length} ${client.name} ${myProjects.length === 1 ? "project" : "projects"}`}
       actions={
         <Link
-          href="/client/requests"
+          href="/client/projects"
           className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer"
         >
-          <Send className="h-4 w-4" /> Submit a request
+          <FolderOpen className="h-4 w-4" /> View projects
         </Link>
       }
     >
@@ -131,7 +137,7 @@ function PortalHome() {
           </div>
 
           <div className="space-y-4 flex-1 overflow-y-auto pr-1 scrollbar-thin">
-            {myActivity.length === 0 ? (
+            {!mounted ? null : myActivity.length === 0 ? (
               <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-2xl">
                 No activity yet on your projects.
               </div>

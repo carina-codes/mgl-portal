@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/app-dialog";
 import { FormattedBody } from "@/components/formatted-body";
 import { cn } from "@/lib/utils";
-import { formatDateLong, toDateInputValue } from "@/lib/dates";
+import { formatDateLong, formatDateShort, toDateInputValue } from "@/lib/dates";
 import { DateInput } from "@/components/ui/date-input";
 import { RichEditor } from "@/components/rich-editor";
 import { useStore, isProjectMember } from "@/lib/store";
@@ -2213,7 +2213,7 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
           note: form.note,
           stage: form.stage,
           priority: form.priority,
-          dueDate: form.dueDate,
+          dueDate: form.dueDate ? formatDateShort(form.dueDate) : "",
           startDate: form.startDate,
           estimatedHours: form.estimatedHours,
           tags,
@@ -2403,16 +2403,6 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
           onChange={(e) => setForm({ ...form, title: e.target.value })}
           autoFocus
         />
-        
-        <div>
-          <FieldLabel>Description</FieldLabel>
-          <RichEditor
-            value={form.note}
-            onChange={(v) => setForm({ ...form, note: v })}
-            placeholder="Context, links, @mentions…"
-            minHeight={100}
-          />
-        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <SelectField
@@ -2475,20 +2465,30 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
         </div>
 
         <div>
-          <TextField
-            label="Tags"
-            placeholder="e.g. Design, Frontend (comma-separated)"
-            value={form.tagsInput}
-            onChange={(e) => setForm({ ...form, tagsInput: e.target.value })}
-          />
-        </div>
-
-        <div>
           <FieldLabel>Assignees</FieldLabel>
           <MultiUserPicker
             users={team}
             selected={form.assignees}
             onChange={(assignees) => setForm({ ...form, assignees })}
+          />
+        </div>
+
+        <div>
+          <FieldLabel>Description</FieldLabel>
+          <RichEditor
+            value={form.note}
+            onChange={(v) => setForm({ ...form, note: v })}
+            placeholder="Context, links, @mentions…"
+            minHeight={100}
+          />
+        </div>
+
+        <div>
+          <TextField
+            label="Tags"
+            placeholder="e.g. Design, Frontend (comma-separated)"
+            value={form.tagsInput}
+            onChange={(e) => setForm({ ...form, tagsInput: e.target.value })}
           />
         </div>
 
@@ -3002,25 +3002,55 @@ function ConvertRequestToTaskModal({ close, payload }: { close: () => void; payl
   const id = payload?.requestId as string;
   const req = useStore((s) => s.requests.find((r) => r.id === id));
   const projects = useStore((s) => s.projects).filter((p) => p.clientId === req?.clientId);
+  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const convert = useStore((s) => s.convertRequestToTask);
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? "");
   const { busy, run } = useAsyncAction();
+
+  const [form, setForm] = useState(() => ({
+    title: req?.title ?? "",
+    description: req?.description ?? "",
+    projectId: projects[0]?.id ?? "",
+    stage: "todo" as TaskStage,
+    priority: (req?.priority ?? "medium") as Priority,
+    dueDate: "",
+    startDate: "",
+    estimatedHours: req?.estimatedHours ?? 0,
+    assignees: [] as string[],
+  }));
+
   if (!req) return null;
+
+  const valid = form.title.trim().length > 1 && !!form.projectId;
+
   return (
     <AppDialog
       open
       onOpenChange={(v) => !v && close()}
       title="Convert request to task"
-      description="Pick the project to add this work into."
+      description="Review the details and add this work to a project."
       icon={<ArrowRightLeft className="h-5 w-5" />}
+      size="lg"
       footer={
         <div className="flex w-full justify-end gap-2">
           <GhostButton onClick={close}>Cancel</GhostButton>
           <PrimaryButton
             loading={busy}
-            disabled={!projectId}
+            disabled={!valid}
             onClick={async () => {
-              await run(() => convert(id, projectId), "Converted to task");
+              await run(
+                () =>
+                  convert(id, form.projectId, {
+                    title: form.title,
+                    note: form.description,
+                    stage: form.stage,
+                    priority: form.priority,
+                    dueDate: form.dueDate ? formatDateShort(form.dueDate) : "",
+                    startDate: form.startDate,
+                    estimatedHours: form.estimatedHours,
+                    assignees: form.assignees,
+                  }),
+                "Converted to task",
+              );
               close();
             }}
           >
@@ -3034,10 +3064,90 @@ function ConvertRequestToTaskModal({ close, payload }: { close: () => void; payl
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Original request</div>
           <div className="mt-1 font-medium">{req.title}</div>
         </div>
-        <SelectField label="Add to project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+
+        <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+
+        <SelectField label="Add to project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
           {projects.length === 0 && <option value="">No projects for this client</option>}
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </SelectField>
+
+        <div className="grid grid-cols-2 gap-3">
+          <SelectField label="Stage" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value as TaskStage })}>
+            {(Object.keys(STAGE_META) as TaskStage[]).map((s) => (
+              <option key={s} value={s}>{STAGE_META[s].label}</option>
+            ))}
+          </SelectField>
+          <SelectField label="Priority" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value as Priority })}>
+            {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
+              <option key={p} value={p}>{PRIORITY_META[p].label}</option>
+            ))}
+          </SelectField>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <TextField
+            label="Due Date"
+            type="date"
+            value={form.dueDate}
+            onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+          />
+          <TextField
+            label="Start Date"
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+          />
+        </div>
+
+        <TextField
+          label="Estimated Hours"
+          type="number"
+          value={form.estimatedHours || ""}
+          onChange={(e) => setForm({ ...form, estimatedHours: parseFloat(e.target.value) || 0 })}
+        />
+
+        <div>
+          <FieldLabel>Assignees</FieldLabel>
+          <div className="rounded-xl border border-border bg-background p-2 max-h-[140px] overflow-y-auto space-y-1.5 scrollbar-thin">
+            {team.map((m) => {
+              const assigned = form.assignees.includes(m.id);
+              return (
+                <label
+                  key={m.id}
+                  className={cn(
+                    "flex items-center gap-2.5 text-xs font-semibold cursor-pointer transition-all p-1.5 rounded-lg hover:bg-muted/60",
+                    assigned ? "text-primary bg-primary/5" : "text-foreground"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={assigned}
+                    onChange={() => {
+                      const next = assigned
+                        ? form.assignees.filter((mid) => mid !== m.id)
+                        : [...form.assignees, m.id];
+                      setForm({ ...form, assignees: next });
+                    }}
+                    className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
+                  />
+                  <UserAvatar user={m} size={20} />
+                  <span className="truncate">{m.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <FieldLabel>Description</FieldLabel>
+          <RichEditor
+            value={form.description}
+            onChange={(v) => setForm({ ...form, description: v })}
+            placeholder="Context, links, @mentions…"
+            minHeight={100}
+          />
+        </div>
       </FieldGroup>
     </AppDialog>
   );
@@ -3046,17 +3156,39 @@ function ConvertRequestToTaskModal({ close, payload }: { close: () => void; payl
 function ConvertRequestToProjectModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const id = payload?.requestId as string;
   const req = useStore((s) => s.requests.find((r) => r.id === id));
+  const clients = useStore((s) => s.clients);
+  const client = useMemo(() => clients.find((c) => c.id === req?.clientId), [clients, req?.clientId]);
   const convert = useStore((s) => s.convertRequestToProject);
-  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
+  // Mirrors New Project: only the owner and managers show up as candidates
+  // for Management — regular team members connect via task assignment.
+  const managementUsers = useStore((s) => s.users).filter((u) => u.role === "owner" || u.role === "manager");
+  const { busy, run } = useAsyncAction();
+
   const [form, setForm] = useState(() => ({
     name: req?.title ?? "",
-    type: "fixed" as "fixed" | "hourly",
+    description: req?.description ?? "",
+    type: "fixed" as "fixed" | "hourly" | "retainer",
     budget: 15000,
     hoursEstimate: 80,
+    endDate: "",
     team: [] as string[],
+    lead: "",
   }));
-  const { busy, run } = useAsyncAction();
+
   if (!req) return null;
+
+  const budgetLabel = {
+    fixed: "Budget (USD)",
+    hourly: "Hourly rate (USD)",
+    retainer: "Monthly retainer (USD)",
+  }[form.type] ?? "Budget (USD)";
+
+  const hoursLabel = {
+    fixed: "Hours estimate",
+    hourly: "Estimated hours",
+    retainer: "Allocated hours",
+  }[form.type] ?? "Hours estimate";
+
   return (
     <AppDialog
       open
@@ -3071,7 +3203,15 @@ function ConvertRequestToProjectModal({ close, payload }: { close: () => void; p
           <PrimaryButton
             loading={busy}
             onClick={async () => {
-              await run(() => convert(id, form), "Project created from request");
+              await run(
+                () =>
+                  convert(id, {
+                    ...form,
+                    endDate: form.endDate ? formatDateLong(form.endDate) : undefined,
+                    lead: form.lead || form.team[0],
+                  }),
+                "Project created from request",
+              );
               close();
             }}
           >
@@ -3080,19 +3220,79 @@ function ConvertRequestToProjectModal({ close, payload }: { close: () => void; p
         </div>
       }
     >
-      <FieldGroup>
-        <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <div className="grid grid-cols-3 gap-3">
-          <SelectField label="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as typeof form.type })}>
-            <option value="fixed">Fixed bid</option>
-            <option value="hourly">Hourly</option>
-          </SelectField>
-          <TextField label="Budget" type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: Number(e.target.value) })} />
-          <TextField label="Hours est." type="number" value={form.hoursEstimate} onChange={(e) => setForm({ ...form, hoursEstimate: Number(e.target.value) })} />
+      <FieldGroup className="space-y-6">
+        {/* Section 1: General Details */}
+        <div className="space-y-4">
+          <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <FieldLabel>Client</FieldLabel>
+              <div className="mt-1 flex items-center rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                {client?.name ?? "—"}
+              </div>
+            </div>
+            <SelectField
+              label="Engagement type"
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value as "fixed" | "hourly" | "retainer" })}
+            >
+              <option value="fixed">Fixed</option>
+              <option value="hourly">Hourly</option>
+              <option value="retainer">Retainer</option>
+            </SelectField>
+          </div>
         </div>
-        <div>
-          <FieldLabel>Team</FieldLabel>
-          <MultiUserPicker users={team} selected={form.team} onChange={(team) => setForm({ ...form, team })} />
+
+        {/* Section 2: Timeline & Budget */}
+        <div className="border-t border-border/50 pt-5 space-y-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            <span>Timeline & Budget Settings</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <TextField
+              label={budgetLabel}
+              type="number"
+              value={form.budget}
+              onChange={(e) => setForm({ ...form, budget: Number(e.target.value) })}
+            />
+            <TextField
+              label={hoursLabel}
+              type="number"
+              value={form.hoursEstimate}
+              onChange={(e) => setForm({ ...form, hoursEstimate: Number(e.target.value) })}
+            />
+            <TextField
+              label="Due date"
+              type="date"
+              value={form.endDate}
+              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            />
+          </div>
+        </div>
+
+        {/* Section 3: Management */}
+        <div className="border-t border-border/50 pt-5 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            <span>Management</span>
+          </div>
+          <MultiUserPicker
+            users={managementUsers}
+            selected={form.team}
+            onChange={(team) => setForm({ ...form, team })}
+          />
+        </div>
+
+        {/* Section 4: Brief */}
+        <div className="border-t border-border/50 pt-5 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            <span>Project Brief & Scope</span>
+          </div>
+          <RichEditor
+            value={form.description}
+            onChange={(html) => setForm({ ...form, description: html })}
+            placeholder="Goals, scope, success metrics…"
+            minHeight={120}
+          />
         </div>
       </FieldGroup>
     </AppDialog>

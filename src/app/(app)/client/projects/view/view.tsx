@@ -300,6 +300,13 @@ function OverviewTab({ projectId }: { projectId: string }) {
   const { client } = useActiveClient();
   const clientAsUser = useClientAsUser(client);
 
+  // The Team panel shows everyone actively contributing — management plus
+  // anyone assigned to a task here — not just the Management list.
+  const teamMemberIds = useMemo(() => {
+    const taskAssignees = tasks.flatMap((t) => t.assignees);
+    return Array.from(new Set([...project.team, ...taskAssignees]));
+  }, [project.team, tasks]);
+
   const totalTasks = tasks.length;
   const breakdown = (["todo", "in_progress", "in_review", "completed"] as TaskStage[]).map((s) => {
     const count = tasks.filter((x) => x.stage === s).length;
@@ -452,7 +459,7 @@ function OverviewTab({ projectId }: { projectId: string }) {
         <div className="panel p-6 bg-card border-border/60">
           <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Team</h3>
           <div className="space-y-3">
-            {project.team.map((id) => {
+            {teamMemberIds.map((id) => {
               const u = users.find((x) => x.id === id);
               if (!u) return null;
               return (

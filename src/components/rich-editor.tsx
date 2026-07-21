@@ -759,7 +759,14 @@ const MentionList = React.forwardRef<
       {props.items.map((item, i) => (
         <button
           key={item.id}
-          onClick={() => select(i)}
+          // Use onMouseDown (not onClick) and preventDefault so the editor
+          // never blurs first — a blur closes the suggestion popup (onExit)
+          // before a click event would have fired, silently swallowing the
+          // selection.
+          onMouseDown={(e) => {
+            e.preventDefault();
+            select(i);
+          }}
           className={cn(
             "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors cursor-pointer",
             i === idx ? "bg-primary/10 text-foreground animate-pulse" : "hover:bg-muted text-foreground",
@@ -793,7 +800,12 @@ const mentionSuggestion = {
         if (!props.clientRect) return;
         popup = tippy("body", {
           getReferenceClientRect: props.clientRect,
-          appendTo: () => document.body,
+          // Radix Dialog/Sheet locks pointer-events on everything outside its
+          // own content tree while open. Appending straight to document.body
+          // puts the popup outside that tree — it renders on top but can't
+          // receive clicks. Appending inside the dialog (when there is one)
+          // keeps it interactive.
+          appendTo: () => props.editor.view.dom.closest('[role="dialog"]') ?? document.body,
           content: component.element,
           showOnCreate: true,
           interactive: true,
@@ -899,7 +911,10 @@ const ReferenceList = React.forwardRef<
       {props.items.map((item, i) => (
         <button
           key={`${item.type}-${item.id}`}
-          onClick={() => select(i)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            select(i);
+          }}
           className={cn(
             "flex w-full flex-col rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer",
             i === idx ? "bg-primary/10 text-foreground animate-pulse" : "hover:bg-muted text-muted-foreground",
@@ -926,7 +941,8 @@ const referenceSuggestion = {
         if (!props.clientRect) return;
         popup = tippy("body", {
           getReferenceClientRect: props.clientRect,
-          appendTo: () => document.body,
+          // See matching note in mentionSuggestion.onStart above.
+          appendTo: () => props.editor.view.dom.closest('[role="dialog"]') ?? document.body,
           content: component.element,
           showOnCreate: true,
           interactive: true,

@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
 import { useStore, useProjects, type StorageConnection } from "@/lib/store";
 import { useModals } from "@/components/modals";
+import { formatDateShort } from "@/lib/dates";
 import { DateInput } from "@/components/ui/date-input";
 import {
   PROJECT_STATUS_META,
@@ -343,6 +344,13 @@ export function Overview({ projectId }: { projectId: string }) {
   const users = useStore((s) => s.users);
   const clients = useStore((s) => s.clients);
 
+  // The Team panel shows everyone actively contributing — management plus
+  // anyone assigned to a task here — not just the Management list.
+  const teamMemberIds = useMemo(() => {
+    const taskAssignees = t.flatMap((task) => task.assignees);
+    return Array.from(new Set([...project.team, ...taskAssignees]));
+  }, [project.team, t]);
+
   const client = useMemo(() => clients.find((c) => c.id === project.clientId), [clients, project.clientId]);
   const clientUser = useMemo(() => {
     if (!client) return undefined;
@@ -538,8 +546,9 @@ export function Overview({ projectId }: { projectId: string }) {
         <div className="panel p-6 bg-card border-border/60">
           <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Team</h3>
           <div className="space-y-3">
-            {project.team.map((id) => {
-              const u = users.find((x) => x.id === id)!;
+            {teamMemberIds.map((id) => {
+              const u = users.find((x) => x.id === id);
+              if (!u) return null;
               return (
                 <div key={id} className="flex items-center gap-3">
                   <UserAvatar user={u} size={32} />
@@ -637,10 +646,13 @@ export function TasksTab({
   projectId,
   selectedTaskId,
   setSelectedTaskId,
+  canCreateTask = true,
 }: {
   projectId: string;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
+  /** Regular (non-manager) team members can work tasks but not create new ones. */
+  canCreateTask?: boolean;
 }) {
   const [activeView, setActiveView] = useState<"board" | "list" | "calendar">("board");
   const [query, setQuery] = useState("");
@@ -652,12 +664,18 @@ export function TasksTab({
   const users = useStore((s) => s.users);
 
   const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const [newTask, setNewTask] = useState({
+  const emptyNewTask = {
     title: "",
     description: "",
     stage: "todo" as TaskStage,
     priority: "medium" as Task["priority"],
-  });
+    dueDate: "",
+    startDate: "",
+    estimatedHours: 0,
+    assignees: [] as string[],
+  };
+  const [newTask, setNewTask] = useState(emptyNewTask);
+  const teamMembers = users.filter((u) => u.role !== "client");
 
   const stages: TaskStage[] = ["todo", "in_progress", "in_review", "completed"];
 
@@ -673,9 +691,12 @@ export function TasksTab({
       stage: newTask.stage,
       priority: newTask.priority,
       progress: newTask.stage === "completed" ? 100 : 0,
-      assignees: [],
+      dueDate: newTask.dueDate ? formatDateShort(newTask.dueDate) : "",
+      startDate: newTask.startDate,
+      estimatedHours: newTask.estimatedHours,
+      assignees: newTask.assignees,
     });
-    setNewTask({ title: "", description: "", stage: "todo", priority: "medium" });
+    setNewTask(emptyNewTask);
     setNewTaskOpen(false);
     toast.success("Task created", { description: created.title });
   }
@@ -719,12 +740,14 @@ export function TasksTab({
           </div>
         </div>
 
-        <button
-          onClick={() => setNewTaskOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
-        >
-          <Plus className="h-4 w-4" /> Add task
-        </button>
+        {canCreateTask && (
+          <button
+            onClick={() => setNewTaskOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4" /> Add task
+          </button>
+        )}
       </div>
 
       {activeView === "board" && (
@@ -734,6 +757,7 @@ export function TasksTab({
           onCardClick={setSelectedTaskId}
           setNewTaskStage={(stage) => setNewTask((n) => ({ ...n, stage }))}
           setNewTaskOpen={setNewTaskOpen}
+          canCreateTask={canCreateTask}
         />
       )}
 
@@ -788,15 +812,6 @@ export function TasksTab({
             onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
             autoFocus
           />
-          <div>
-            <FieldLabel>Description</FieldLabel>
-            <RichEditor
-              value={newTask.description}
-              onChange={(html) => setNewTask({ ...newTask, description: html })}
-              placeholder="Add context, links, or @mention a teammate…"
-              minHeight={140}
-            />
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <SelectField
               label="Stage"
@@ -819,6 +834,70 @@ export function TasksTab({
               <option value="high">High</option>
             </SelectField>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              label="Due Date"
+              type="date"
+              value={newTask.dueDate}
+              onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+            />
+            <TextField
+              label="Start Date"
+              type="date"
+              value={newTask.startDate}
+              onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
+            />
+          </div>
+
+          <TextField
+            label="Estimated Hours"
+            type="number"
+            value={newTask.estimatedHours || ""}
+            onChange={(e) => setNewTask({ ...newTask, estimatedHours: parseFloat(e.target.value) || 0 })}
+          />
+
+          <div>
+            <FieldLabel>Assignees</FieldLabel>
+            <div className="rounded-xl border border-border bg-background p-2 max-h-[140px] overflow-y-auto space-y-1.5 scrollbar-thin">
+              {teamMembers.map((m) => {
+                const assigned = newTask.assignees.includes(m.id);
+                return (
+                  <label
+                    key={m.id}
+                    className={cn(
+                      "flex items-center gap-2.5 text-xs font-semibold cursor-pointer transition-all p-1.5 rounded-lg hover:bg-muted/60",
+                      assigned ? "text-primary bg-primary/5" : "text-foreground"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={assigned}
+                      onChange={() => {
+                        const next = assigned
+                          ? newTask.assignees.filter((id) => id !== m.id)
+                          : [...newTask.assignees, m.id];
+                        setNewTask({ ...newTask, assignees: next });
+                      }}
+                      className="h-3.5 w-3.5 accent-primary rounded cursor-pointer"
+                    />
+                    <UserAvatar user={m} size={20} />
+                    <span className="truncate">{m.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <FieldLabel>Description</FieldLabel>
+            <RichEditor
+              value={newTask.description}
+              onChange={(html) => setNewTask({ ...newTask, description: html })}
+              placeholder="Add context, links, or @mention a teammate…"
+              minHeight={140}
+            />
+          </div>
         </FieldGroup>
       </AppDialog>
     </>
@@ -833,12 +912,14 @@ function KanbanBoardView({
   onCardClick,
   setNewTaskStage,
   setNewTaskOpen,
+  canCreateTask = true,
 }: {
   projectId: string;
   query: string;
   onCardClick: (id: string) => void;
   setNewTaskStage: (stage: TaskStage) => void;
   setNewTaskOpen: (open: boolean) => void;
+  canCreateTask?: boolean;
 }) {
   const allTasks = useStore((s) => s.tasks);
   const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
@@ -884,15 +965,17 @@ function KanbanBoardView({
                 {meta.label}
                 <span className="ml-1 rounded-full bg-white/60 dark:bg-black/20 px-1.5 py-0.5 text-[10px]">{stageTasks.length}</span>
               </div>
-              <button
-                onClick={() => {
-                  setNewTaskStage(stage);
-                  setNewTaskOpen(true);
-                }}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </button>
+              {canCreateTask && (
+                <button
+                  onClick={() => {
+                    setNewTaskStage(stage);
+                    setNewTaskOpen(true);
+                  }}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <div className="space-y-3">
               {stageTasks.map((task) => (
@@ -905,15 +988,17 @@ function KanbanBoardView({
                   />
                 </div>
               ))}
-              <button
-                onClick={() => {
-                  setNewTaskStage(stage);
-                  setNewTaskOpen(true);
-                }}
-                className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-foreground/15 bg-white/40 dark:bg-card/20 py-2 text-xs text-muted-foreground hover:bg-white/70 dark:hover:bg-card/40 cursor-pointer transition-colors"
-              >
-                <Plus className="h-3 w-3" /> Add task
-              </button>
+              {canCreateTask && (
+                <button
+                  onClick={() => {
+                    setNewTaskStage(stage);
+                    setNewTaskOpen(true);
+                  }}
+                  className="flex w-full items-center justify-center gap-1 rounded-2xl border border-dashed border-foreground/15 bg-white/40 dark:bg-card/20 py-2 text-xs text-muted-foreground hover:bg-white/70 dark:hover:bg-card/40 cursor-pointer transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Add task
+                </button>
+              )}
             </div>
           </div>
         );
@@ -1343,19 +1428,6 @@ function parseDateToInputVal(dateStr: string | undefined | null): string {
   return "";
 }
 
-function formatToMockDate(dateStr: string): string {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-");
-  if (parts.length === 3) {
-    const monthIdx = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    if (monthIdx >= 0 && monthIdx < 12 && !isNaN(day)) {
-      return `${monthNames[monthIdx]} ${day.toString().padStart(2, "0")}`;
-    }
-  }
-  return dateStr;
-}
 
 function parseSizeToBytes(size: string): number {
   const match = size.match(/^([\d.]+)\s*(KB|MB|GB|B)?$/i);
@@ -1382,12 +1454,15 @@ export function TaskDetailsDrawer({
   onClose,
   hideDiscussion = false,
   authorId = "u1",
+  canDelete = true,
 }: {
   taskId: string | null;
   onClose: () => void;
   hideDiscussion?: boolean;
   /** Comment/time-log author for actions taken from this drawer. Defaults to the owner (u1); team/manager callers pass their own active user id. */
   authorId?: string;
+  /** Regular (non-manager) team members can work tasks but not delete them. */
+  canDelete?: boolean;
 }) {
   const tasks = useStore((s) => s.tasks);
   const task = useMemo(() => tasks.find((t) => t.id === taskId), [tasks, taskId]);
@@ -1616,7 +1691,7 @@ export function TaskDetailsDrawer({
             <DateInput
               size="sm"
               value={parseDateToInputVal(task.dueDate)}
-              onChange={(e) => updateTask(task.id, { dueDate: formatToMockDate(e.target.value) })}
+              onChange={(e) => updateTask(task.id, { dueDate: formatDateShort(e.target.value) })}
               className="col-span-2 cursor-pointer"
             />
           </div>
@@ -1914,23 +1989,25 @@ export function TaskDetailsDrawer({
         )}
 
         {/* Footer */}
-        <div className="border-t border-border/80 pt-4 mt-8 flex items-center justify-between">
-          <button
-            onClick={() => {
-              if (confirmDelete) {
-                deleteTask(task.id);
-                toast.success("Task deleted successfully");
-                onClose();
-              } else {
-                setConfirmDelete(true);
-              }
-            }}
-            className="text-sm font-semibold text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
-          >
-            {confirmDelete ? "Confirm Delete" : "Delete Task"}
-          </button>
+        {canDelete && (
+          <div className="border-t border-border/80 pt-4 mt-8 flex items-center justify-between">
+            <button
+              onClick={() => {
+                if (confirmDelete) {
+                  deleteTask(task.id);
+                  toast.success("Task deleted successfully");
+                  onClose();
+                } else {
+                  setConfirmDelete(true);
+                }
+              }}
+              className="text-sm font-semibold text-rose-500 hover:text-rose-600 transition-colors cursor-pointer"
+            >
+              {confirmDelete ? "Confirm Delete" : "Delete Task"}
+            </button>
 
-        </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
     <FilePreviewDialog

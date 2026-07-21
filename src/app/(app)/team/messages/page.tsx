@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { MessageSquare, Search, MessageCircle, ListTodo, Eye } from "lucide-react";
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
-import { useStore, isProjectMember } from "@/lib/store";
+import { useStore, isProjectMember, projectMemberIds } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { toast } from "sonner";
 import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
@@ -21,7 +21,7 @@ const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 function TeamMessages() {
-  const { member } = useActiveTeamMember();
+  const { member, isManager } = useActiveTeamMember();
   const comments = useStore((s) => s.comments);
   const projects = useStore((s) => s.projects);
   const clients = useStore((s) => s.clients);
@@ -308,7 +308,7 @@ function TeamMessages() {
                 {activeThread.type === "project" && activeThread.project?.team && (
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-semibold text-muted-foreground hidden sm:inline">Active Members:</span>
-                    <AvatarStack userIds={activeThread.project.team} users={storeUsers} size={28} />
+                    <AvatarStack userIds={projectMemberIds(activeThread.project, tasks)} users={storeUsers} size={28} />
                   </div>
                 )}
               </div>
@@ -384,7 +384,7 @@ function TeamMessages() {
         )}
       </div>
 
-      <TaskDetailsDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} authorId={member.id} />
+      <TaskDetailsDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} authorId={member.id} canDelete={isManager} />
     </AppShell>
   );
 }

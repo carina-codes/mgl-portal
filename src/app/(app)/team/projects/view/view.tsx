@@ -46,6 +46,8 @@ function TeamProjectDetail() {
   const projectId = searchParams.get("projectId") as string;
   const tabParam = searchParams.get("tab") as TabId;
 
+  const visibleTabs = useMemo(() => TABS.filter((t) => isManager || t.id !== "requests"), [isManager]);
+
   const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
   const client = useMemo(() => (project ? clients.find((c) => c.id === project.clientId) : undefined), [clients, project]);
   // Header avatars, and access to this page, include everyone actively
@@ -62,6 +64,11 @@ function TeamProjectDetail() {
   useEffect(() => {
     if (tabParam) setTab(tabParam);
   }, [tabParam]);
+
+  useEffect(() => {
+    // Guard against a direct/stale ?tab=requests link for non-managers.
+    if (tab === "requests" && !isManager) setTab("overview");
+  }, [tab, isManager]);
 
   if (!project) throw notFound();
   if (!client) throw notFound();
@@ -114,7 +121,7 @@ function TeamProjectDetail() {
 
       {/* Tabs */}
       <div className="mt-6 mb-6 flex flex-wrap gap-1 rounded-full border border-border bg-card p-1">
-        {TABS.map((t) => {
+        {visibleTabs.map((t) => {
           const Icon = t.icon;
           const active = tab === t.id;
           return (
@@ -132,14 +139,14 @@ function TeamProjectDetail() {
 
       <div className="transition-all duration-300">
         {tab === "overview" && <Overview projectId={project.id} />}
-        {tab === "tasks" && <TasksTab projectId={project.id} selectedTaskId={selectedTaskId} setSelectedTaskId={setSelectedTaskId} />}
-        {tab === "requests" && <RequestsTab projectId={project.id} onSelectRequest={setSelectedRequestId} />}
+        {tab === "tasks" && <TasksTab projectId={project.id} selectedTaskId={selectedTaskId} setSelectedTaskId={setSelectedTaskId} canCreateTask={isManager} />}
+        {tab === "requests" && isManager && <RequestsTab projectId={project.id} onSelectRequest={setSelectedRequestId} />}
         {tab === "files" && <DocumentsTab projectId={project.id} />}
         {tab === "chat" && <ChatTab projectId={project.id} onOpenTask={setSelectedTaskId} authorId={member.id} />}
         {tab === "time" && <TimeTab projectId={project.id} onTaskClick={setSelectedTaskId} basePath="/team" authorId={member.id} scopeToAuthor />}
       </div>
 
-      <TaskDetailsDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} hideDiscussion={tab === "chat"} authorId={member.id} />
+      <TaskDetailsDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} hideDiscussion={tab === "chat"} authorId={member.id} canDelete={isManager} />
       <RequestDetailsDrawer requestId={selectedRequestId} onClose={() => setSelectedRequestId(null)} authorId={member.id} />
     </AppShell>
   );

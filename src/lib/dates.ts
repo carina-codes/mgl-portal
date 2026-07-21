@@ -29,7 +29,11 @@ export function parseFuzzyDate(raw?: string): number {
   const timeMatch = s.match(/(\d{1,2}):(\d{2})/);
   if (/^today/i.test(s)) {
     const d = new Date();
+    // Bare "Today" (no time) must resolve to a fixed point, not the live
+    // clock — otherwise it re-evaluates to "now" on every render and
+    // permanently out-ranks anything actually created moments ago.
     if (timeMatch) d.setHours(parseInt(timeMatch[1], 10), parseInt(timeMatch[2], 10), 0, 0);
+    else d.setHours(12, 0, 0, 0);
     return d.getTime();
   }
   if (/^yesterday/i.test(s)) {
@@ -72,6 +76,31 @@ export function formatDateLong(input?: string): string {
   const parsed = new Date(s);
   if (!Number.isNaN(parsed.getTime())) {
     return `${MONTHS[parsed.getMonth()]} ${parsed.getDate().toString().padStart(2, "0")}, ${parsed.getFullYear()}`;
+  }
+
+  return s;
+}
+
+/** Normalizes an ISO ("YYYY-MM-DD") or already-formatted date string into
+ * the short display format task due dates use across the app: "MMM DD"
+ * (no year, e.g. "Jun 14"). Falls back to the original string if it can't
+ * be parsed. */
+export function formatDateShort(input?: string): string {
+  if (!input) return "";
+  const s = input.trim();
+
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, , m, d] = isoMatch;
+    const monthIdx = parseInt(m, 10) - 1;
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${MONTHS[monthIdx]} ${d}`;
+    }
+  }
+
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${MONTHS[parsed.getMonth()]} ${parsed.getDate().toString().padStart(2, "0")}`;
   }
 
   return s;

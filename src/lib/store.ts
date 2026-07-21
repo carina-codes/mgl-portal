@@ -99,7 +99,7 @@ type State = {
   updateRequest: (id: string, patch: Partial<ClientRequest>) => void;
   setRequestStatus: (id: string, status: RequestStatus) => void;
   deleteRequest: (id: string) => void;
-  convertRequestToTask: (id: string, projectId: string) => Task | null;
+  convertRequestToTask: (id: string, projectId: string, taskInput?: Partial<Task>) => Task | null;
   convertRequestToProject: (id: string, projectInput: Partial<Project>) => Project | null;
 
   /* Documents */
@@ -383,10 +383,16 @@ export const useStore = create<State>((set, get) => ({
       requests: s.requests.filter((r) => r.id !== id),
       comments: s.comments.filter((c) => c.threadId !== id),
     })),
-  convertRequestToTask: (id, projectId) => {
+  convertRequestToTask: (id, projectId, taskInput) => {
     const r = get().requests.find((x) => x.id === id);
     if (!r) return null;
-    const task = get().createTask({ projectId, title: r.title, note: r.description, priority: r.priority });
+    const task = get().createTask({
+      projectId,
+      title: r.title,
+      note: r.description,
+      priority: r.priority,
+      ...taskInput,
+    });
     get().setRequestStatus(id, "convert");
     return task;
   },
@@ -630,6 +636,19 @@ export const useStore = create<State>((set, get) => ({
 export function isProjectMember(project: Project, tasks: Task[], userId: string): boolean {
   if (project.team.includes(userId)) return true;
   return tasks.some((t) => t.projectId === project.id && t.assignees.includes(userId));
+}
+
+/**
+ * All user ids actively associated with a project — the Management list
+ * plus anyone assigned to at least one task on it. Used anywhere the app
+ * shows "who's on this project" (avatar stacks, team panels) so it
+ * reflects real task assignment, not just Management.
+ */
+export function projectMemberIds(project: Project, tasks: Task[]): string[] {
+  const taskAssignees = tasks
+    .filter((t) => t.projectId === project.id)
+    .flatMap((t) => t.assignees);
+  return Array.from(new Set([...project.team, ...taskAssignees]));
 }
 
 export function getProjectProgress(projectId: string) {

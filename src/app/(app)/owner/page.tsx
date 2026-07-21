@@ -61,6 +61,11 @@ export default function Dashboard() {
   const submittedRequestsCount = requests.filter((r) => r.status === "submitted").length;
   const recentRequests = requests.slice(0, 5);
   const activityFeed = selectRecentActivity(useActivityFeed());
+  // The feed's timestamps resolve relative to "now", so its rendered text
+  // can differ between the server render pass and client hydration by a
+  // matter of seconds. Only render it after mount to avoid that mismatch.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   return (
     <AppShell
@@ -122,7 +127,7 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-4 flex-1 overflow-y-auto pr-1 scrollbar-thin">
-            {activityFeed.length === 0 ? (
+            {!mounted ? null : activityFeed.length === 0 ? (
               <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-2xl">
                 No activity yet.
               </div>
