@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams, useSearchParams } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack } from "@/components/user-avatar";
@@ -19,7 +19,7 @@ import {
   ChatTab,
   TimeTab,
   TaskDetailsDrawer,
-} from "@/app/(app)/owner/projects/[projectId]/view";
+} from "@/app/(app)/owner/projects/view/view";
 import { RequestDetailsDrawer } from "@/app/(app)/owner/requests/page";
 
 const TABS = [
@@ -34,20 +34,27 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 function TeamProjectDetail() {
-  const params = useParams();
-  const projectId = params?.projectId as string;
   const { open } = useModals();
   const { member, isManager } = useActiveTeamMember();
 
   const projects = useProjects();
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
+  const allTasks = useStore((s) => s.tasks);
+
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") as string;
+  const tabParam = searchParams.get("tab") as TabId;
 
   const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
   const client = useMemo(() => (project ? clients.find((c) => c.id === project.clientId) : undefined), [clients, project]);
-
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab") as TabId;
+  // Header avatars, and access to this page, include everyone actively
+  // contributing — management plus anyone assigned to a task here.
+  const projectMemberIds = useMemo(() => {
+    if (!project) return [];
+    const taskAssignees = allTasks.filter((t) => t.projectId === project.id).flatMap((t) => t.assignees);
+    return Array.from(new Set([...project.team, ...taskAssignees]));
+  }, [project, allTasks]);
   const [tab, setTab] = useState<TabId>(() => tabParam || "overview");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -58,7 +65,7 @@ function TeamProjectDetail() {
 
   if (!project) throw notFound();
   if (!client) throw notFound();
-  if (!project.team.includes(member.id)) throw notFound();
+  if (!projectMemberIds.includes(member.id)) throw notFound();
 
   return (
     <AppShell role="team">
@@ -92,7 +99,7 @@ function TeamProjectDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <AvatarStack userIds={project.team} users={users} max={4} size={32} />
+            <AvatarStack userIds={projectMemberIds} users={users} max={4} size={32} />
             {isManager && (
               <button
                 onClick={() => open("project.edit", { projectId: project.id })}

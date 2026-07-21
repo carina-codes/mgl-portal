@@ -5,7 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
-import { useStore } from "@/lib/store";
+import { useStore, isProjectMember } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { totalHoursByUser } from "@/lib/mock-data";
 import { LayoutGrid, List as ListIcon, MoreHorizontal, Plus, ShieldAlert } from "lucide-react";
@@ -77,7 +77,7 @@ function TeamRosterPage() {
 
   const filtered = useMemo(() => {
     const result = team.filter((u) => {
-      const assignedProjects = projects.filter((p) => p.team.includes(u.id));
+      const assignedProjects = projects.filter((p) => isProjectMember(p, allTasks, u.id));
       if (search && !u.name.toLowerCase().includes(search.toLowerCase()) && !u.title.toLowerCase().includes(search.toLowerCase()))
         return false;
       if (filters.role?.length && !filters.role.includes(u.role)) return false;
@@ -102,13 +102,13 @@ function TeamRosterPage() {
         valA = a.role;
         valB = b.role;
       } else if (sortBy === "status") {
-        const aBusy = a.status || (projects.filter((p) => p.team.includes(a.id)).length > 2 ? "Busy" : "Available");
-        const bBusy = b.status || (projects.filter((p) => p.team.includes(b.id)).length > 2 ? "Busy" : "Available");
+        const aBusy = a.status || (projects.filter((p) => isProjectMember(p, allTasks, a.id)).length > 2 ? "Busy" : "Available");
+        const bBusy = b.status || (projects.filter((p) => isProjectMember(p, allTasks, b.id)).length > 2 ? "Busy" : "Available");
         valA = aBusy;
         valB = bBusy;
       } else if (sortBy === "projects") {
-        valA = projects.filter((p) => p.team.includes(a.id)).length;
-        valB = projects.filter((p) => p.team.includes(b.id)).length;
+        valA = projects.filter((p) => isProjectMember(p, allTasks, a.id)).length;
+        valB = projects.filter((p) => isProjectMember(p, allTasks, b.id)).length;
       } else if (sortBy === "time") {
         valA = totalHoursByUser(a.id);
         valB = totalHoursByUser(b.id);
@@ -177,7 +177,7 @@ function TeamRosterPage() {
         {view === "grid" ? (
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((u) => {
-              const assignedProjects = projects.filter((p) => p.team.includes(u.id));
+              const assignedProjects = projects.filter((p) => isProjectMember(p, allTasks, u.id));
               const userTasks = allTasks.filter((t) => t.assignees.includes(u.id));
               const hours = totalHoursByUser(u.id);
               const currentStatus = u.status || (assignedProjects.length > 2 ? "Busy" : "Available");
@@ -330,7 +330,7 @@ function TeamRosterPage() {
                 </thead>
                 <tbody>
                   {filtered.map((u) => {
-                    const assignedProjects = projects.filter((p) => p.team.includes(u.id));
+                    const assignedProjects = projects.filter((p) => isProjectMember(p, allTasks, u.id));
                     const hours = totalHoursByUser(u.id);
                     const currentStatus = u.status || (assignedProjects.length > 2 ? "Busy" : "Available");
                     const isBusy = currentStatus === "Busy";

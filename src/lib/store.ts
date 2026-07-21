@@ -260,15 +260,18 @@ export const useStore = create<State>((set, get) => ({
       lead: input.lead ?? (input.team?.[0] ?? "u1"),
       description: input.description ?? "",
       accent: input.accent ?? "progress",
+      createdAt: new Date().toISOString(),
     };
     set((s) => ({ projects: [p, ...s.projects] }));
     return p;
   },
   updateProject: (id, patch) =>
-    set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+    set((s) => ({
+      projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p)),
+    })),
   archiveProject: (id) =>
     set((s) => ({
-      projects: s.projects.map((p) => (p.id === id ? { ...p, status: "on_hold" } : p)),
+      projects: s.projects.map((p) => (p.id === id ? { ...p, status: "on_hold", updatedAt: new Date().toISOString() } : p)),
     })),
   deleteProject: (id) =>
     set((s) => ({
@@ -288,6 +291,8 @@ export const useStore = create<State>((set, get) => ({
       progress: 0,
       spent: 0,
       hoursLogged: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: undefined,
     };
     set((state) => ({ projects: [newProj, ...state.projects] }));
 
@@ -303,7 +308,9 @@ export const useStore = create<State>((set, get) => ({
     return newProj;
   },
   setProjectStatus: (id, status) =>
-    set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, status } : p)) })),
+    set((s) => ({
+      projects: s.projects.map((p) => (p.id === id ? { ...p, status, updatedAt: new Date().toISOString() } : p)),
+    })),
 
   /* Tasks */
   createTask: (input) => {
@@ -612,6 +619,18 @@ export const useStore = create<State>((set, get) => ({
 }));
 
 /* ────────────────────── Derived helpers ────────────────────── */
+
+/**
+ * Whether a user is a working member of a project — either because they're
+ * on the project's Management list (owner/manager oversight), or because
+ * they're assigned to at least one task on it. Regular team members are
+ * connected to projects purely through task assignment, so any "my
+ * projects" view needs both signals, not just `project.team`.
+ */
+export function isProjectMember(project: Project, tasks: Task[], userId: string): boolean {
+  if (project.team.includes(userId)) return true;
+  return tasks.some((t) => t.projectId === project.id && t.assignees.includes(userId));
+}
 
 export function getProjectProgress(projectId: string) {
   const s = useStore.getState();

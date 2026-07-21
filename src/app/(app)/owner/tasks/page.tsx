@@ -7,7 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { useStore } from "@/lib/store";
 import { useModals } from "@/components/modals";
 import { Search, FolderOpen, Calendar, AlertCircle, CheckCircle2, Circle, MoreHorizontal } from "lucide-react";
-import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/[projectId]/view";
+import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
 import { FilterBar, type FilterDef } from "@/components/filter-bar";
 import { AvatarStack } from "@/components/user-avatar";
 import {
@@ -121,6 +121,12 @@ export default function TasksPage() {
     });
 
     return [...result].sort((a, b) => {
+      // Incomplete (and therefore newer/active) tasks always float above
+      // completed ones, regardless of the chosen sort field or direction.
+      const aDone = a.stage === "completed" ? 1 : 0;
+      const bDone = b.stage === "completed" ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+
       let valA: string | number;
       let valB: string | number;
 
@@ -228,7 +234,7 @@ export default function TasksPage() {
                         <td className="px-5 py-3 text-muted-foreground">
                           {project ? (
                             <Link
-                              href={`/owner/projects/${project.id}`}
+                              href={`/owner/projects/view?projectId=${project.id}`}
                               onClick={(e) => e.stopPropagation()}
                               className="hover:text-primary transition-colors font-medium flex items-center gap-1"
                             >

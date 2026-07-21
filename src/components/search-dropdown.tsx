@@ -104,7 +104,7 @@ export function SearchDropdown() {
                       key={project.id}
                       value={`project ${project.name}`}
                       onSelect={() => {
-                        runCommand(() => router.push(`/owner/projects/${project.id}`));
+                        runCommand(() => router.push(`/owner/projects/view?projectId=${project.id}`));
                       }}
                       className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 cursor-pointer transition-colors text-foreground hover:bg-muted/70 data-[selected=true]:bg-muted/70 data-[selected=true]:text-foreground outline-none"
                     >
@@ -164,7 +164,7 @@ export function SearchDropdown() {
                         value={`task ${task.title}`}
                         onSelect={() => {
                           if (project) {
-                            runCommand(() => router.push(`/owner/projects/${project.id}`));
+                            runCommand(() => router.push(`/owner/projects/view?projectId=${project.id}`));
                           }
                         }}
                         className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 cursor-pointer transition-colors text-foreground hover:bg-muted/70 data-[selected=true]:bg-muted/70 data-[selected=true]:text-foreground outline-none"

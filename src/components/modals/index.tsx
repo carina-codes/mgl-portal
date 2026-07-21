@@ -23,9 +23,10 @@ import {
 } from "@/components/ui/app-dialog";
 import { FormattedBody } from "@/components/formatted-body";
 import { cn } from "@/lib/utils";
+import { formatDateLong, toDateInputValue } from "@/lib/dates";
 import { DateInput } from "@/components/ui/date-input";
 import { RichEditor } from "@/components/rich-editor";
-import { useStore } from "@/lib/store";
+import { useStore, isProjectMember } from "@/lib/store";
 import { TIMEZONE_OPTIONS, detectTimezone } from "@/lib/timezones";
 import {
   PROJECT_STATUS_META,
@@ -243,7 +244,7 @@ export function ModalsHost() {
 
 function NewProjectModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const clients = useStore((s) => s.clients);
-  const team = useStore((s) => s.users).filter((u) => u.role !== "client");
+  const team = useStore((s) => s.users).filter((u) => u.role === "owner" || u.role === "manager");
   const createProject = useStore((s) => s.createProject);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState({
@@ -264,7 +265,13 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
   async function submit() {
     if (!valid) return toast.error("Add a project name and pick a client.");
     await run(
-      () => createProject({ ...form, lead: form.lead || form.team[0] }),
+      () =>
+        createProject({
+          ...form,
+          startDate: form.startDate ? formatDateLong(form.startDate) : undefined,
+          endDate: form.endDate ? formatDateLong(form.endDate) : undefined,
+          lead: form.lead || form.team[0],
+        }),
       "Project created",
     );
     close();
@@ -363,10 +370,10 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
           })()}
         </div>
 
-        {/* Section 3: Staffing */}
+        {/* Section 3: Management */}
         <div className="border-t border-border/50 pt-5 space-y-3">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <span>Team Staffing</span>
+            <span>Management</span>
           </div>
           <MultiUserPicker
             users={team}
@@ -396,7 +403,7 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
   const projectId = payload?.projectId as string;
   const project = useStore((s) => s.projects.find((p) => p.id === projectId));
   const clients = useStore((s) => s.clients);
-  const teamUsers = useStore((s) => s.users).filter((u) => u.role !== "client");
+  const teamUsers = useStore((s) => s.users).filter((u) => u.role === "owner" || u.role === "manager");
   const updateProject = useStore((s) => s.updateProject);
   const deleteProject = useStore((s) => s.deleteProject);
   const { busy, run } = useAsyncAction();
@@ -408,7 +415,7 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
     description: project?.description ?? "",
     budget: project?.budget ?? 0,
     hoursEstimate: project?.hoursEstimate ?? 0,
-    endDate: project?.endDate ?? "",
+    endDate: toDateInputValue(project?.endDate),
     team: project?.team ?? [],
   }));
 
@@ -426,8 +433,13 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
     retainer: "Allocated hours",
   }[form.type] ?? "Hours estimate";
 
+  const originalEndDate = project.endDate;
+
   async function submit() {
-    await run(() => updateProject(projectId, form), "Project updated");
+    await run(
+      () => updateProject(projectId, { ...form, endDate: form.endDate ? formatDateLong(form.endDate) : originalEndDate }),
+      "Project updated",
+    );
     close();
   }
 
@@ -496,10 +508,10 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
           </div>
         </div>
 
-        {/* Section 3: Staffing */}
+        {/* Section 3: Management */}
         <div className="border-t border-border/50 pt-5 space-y-3">
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            <span>Team Staffing</span>
+            <span>Management</span>
           </div>
           <MultiUserPicker
             users={teamUsers}
@@ -2100,7 +2112,6 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
     tagsInput: "",
     assignees: [] as string[],
     followers: [] as string[],
-    clientPriority: "Normal" as "Low" | "Normal" | "High",
   });
   const valid = form.title.trim().length > 1 && !!form.projectId;
 
@@ -2194,9 +2205,6 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    const customFields = {
-      "Client Priority": form.clientPriority,
-    };
     await run(
       () =>
         create({
@@ -2210,7 +2218,6 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
           estimatedHours: form.estimatedHours,
           tags,
           followers: form.followers,
-          customFields,
         }),
       "Task created"
     );
@@ -2467,22 +2474,13 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div>
           <TextField
             label="Tags"
             placeholder="e.g. Design, Frontend (comma-separated)"
             value={form.tagsInput}
             onChange={(e) => setForm({ ...form, tagsInput: e.target.value })}
           />
-          <SelectField
-            label="Client Priority (Custom Field)"
-            value={form.clientPriority}
-            onChange={(e) => setForm({ ...form, clientPriority: e.target.value as any })}
-          >
-            <option value="Low">Low</option>
-            <option value="Normal">Normal</option>
-            <option value="High">High</option>
-          </SelectField>
         </div>
 
         <div>
@@ -3923,19 +3921,22 @@ function RemoveMemberModal({ close, payload }: { close: () => void; payload?: Mo
 
 function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPayload }) {
   const projects = useStore((s) => s.projects);
+  const allTasks = useStore((s) => s.tasks);
   const team = useStore((s) => s.users).filter((u) => u.role !== "client");
   const log = useStore((s) => s.logTime);
   const { busy, run } = useAsyncAction();
   const lockedUserId = payload?.userId as string | undefined;
-  const availableProjects = lockedUserId ? projects.filter((p) => p.team.includes(lockedUserId)) : projects;
+  const availableProjects = lockedUserId ? projects.filter((p) => isProjectMember(p, allTasks, lockedUserId)) : projects;
   const [form, setForm] = useState({
     userId: lockedUserId ?? "u1",
     projectId: (payload?.projectId as string) ?? availableProjects[0]?.id ?? "",
+    taskId: (payload?.taskId as string) ?? "",
     date: new Date().toISOString().slice(0, 10),
     hours: 1,
     note: "",
     billable: true,
   });
+  const projectTasks = allTasks.filter((t) => t.projectId === form.projectId);
   return (
     <AppDialog
       open
@@ -3949,7 +3950,7 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
           <PrimaryButton
             loading={busy}
             disabled={!form.projectId || form.hours <= 0}
-            onClick={async () => { await run(() => log(form), `Logged ${form.hours}h`); close(); }}
+            onClick={async () => { await run(() => log({ ...form, taskId: form.taskId || undefined }), `Logged ${form.hours}h`); close(); }}
           >
             Log time
           </PrimaryButton>
@@ -3957,8 +3958,16 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
       }
     >
       <FieldGroup>
-        <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
+        <SelectField
+          label="Project"
+          value={form.projectId}
+          onChange={(e) => setForm({ ...form, projectId: e.target.value, taskId: "" })}
+        >
           {availableProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </SelectField>
+        <SelectField label="Task (optional)" value={form.taskId} onChange={(e) => setForm({ ...form, taskId: e.target.value })}>
+          <option value="">No specific task</option>
+          {projectTasks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
         </SelectField>
         <div className="grid grid-cols-2 gap-3">
           <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
@@ -3992,15 +4001,18 @@ function EditTimeModal({ close, payload }: { close: () => void; payload?: ModalP
   const id = payload?.timeId as string;
   const entry = useStore((s) => s.timeEntries.find((t) => t.id === id));
   const projects = useStore((s) => s.projects);
+  const allTasks = useStore((s) => s.tasks);
   const update = useStore((s) => s.updateTimeEntry);
   const { busy, run } = useAsyncAction();
   const [form, setForm] = useState(() => ({
     projectId: entry?.projectId ?? "",
+    taskId: entry?.taskId ?? "",
     date: entry?.date ?? today2(),
     hours: entry?.hours ?? 0,
     note: entry?.note ?? "",
     billable: entry?.billable ?? true,
   }));
+  const projectTasks = allTasks.filter((t) => t.projectId === form.projectId);
   if (!entry) return null;
   return (
     <AppDialog
@@ -4011,13 +4023,26 @@ function EditTimeModal({ close, payload }: { close: () => void; payload?: ModalP
       footer={
         <div className="flex w-full justify-end gap-2">
           <GhostButton onClick={close}>Cancel</GhostButton>
-          <PrimaryButton loading={busy} onClick={async () => { await run(() => update(id, form), "Entry updated"); close(); }}>Save</PrimaryButton>
+          <PrimaryButton
+            loading={busy}
+            onClick={async () => { await run(() => update(id, { ...form, taskId: form.taskId || undefined }), "Entry updated"); close(); }}
+          >
+            Save
+          </PrimaryButton>
         </div>
       }
     >
       <FieldGroup>
-        <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
+        <SelectField
+          label="Project"
+          value={form.projectId}
+          onChange={(e) => setForm({ ...form, projectId: e.target.value, taskId: "" })}
+        >
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </SelectField>
+        <SelectField label="Task (optional)" value={form.taskId} onChange={(e) => setForm({ ...form, taskId: e.target.value })}>
+          <option value="">No specific task</option>
+          {projectTasks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
         </SelectField>
         <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
         <div className="grid grid-cols-2 gap-3">

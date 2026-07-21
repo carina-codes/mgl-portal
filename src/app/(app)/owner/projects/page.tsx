@@ -20,7 +20,7 @@ import {
 
 
 
-type ProjectSortField = "name" | "client" | "status" | "progress" | "due";
+type ProjectSortField = "name" | "client" | "status" | "progress" | "due" | "created";
 
 function ProjectsView() {
   const router = useRouter();
@@ -30,7 +30,9 @@ function ProjectsView() {
   const users = useStore((s) => s.users);
   const { open } = useModals();
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<ProjectSortField>("due");
+  // Defaults to the store's natural order — newest-created projects are
+  // unshifted to the front, so leaving this unsorted shows latest first.
+  const [sortBy, setSortBy] = useState<ProjectSortField>("created");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const handleSort = (field: ProjectSortField) => {
@@ -86,6 +88,9 @@ function ProjectsView() {
     });
 
     return [...result].sort((a, b) => {
+      // "created" preserves the store's natural order (newest first).
+      if (sortBy === "created") return 0;
+
       let valA: string | number;
       let valB: string | number;
 
@@ -187,7 +192,7 @@ function ProjectsView() {
               <div key={p.id} className={cn("group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-card/85", accentCls.cardHover)}>
                 <div className={cn("absolute right-0 top-0 -mt-8 -mr-8 h-24 w-24 rounded-full blur-xl transition-all duration-500 pointer-events-none", accentCls.glow)} />
                 
-                <Link href={`/owner/projects/${p.id}`} className="block space-y-4">
+                <Link href={`/owner/projects/view?projectId=${p.id}`} className="block space-y-4">
                   {/* Top Header Row: Project Accent Square + Text Details */}
                   <div className="flex items-center gap-3">
                     <div className={cn(
@@ -259,7 +264,7 @@ function ProjectsView() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                         <DropdownMenuItem
-                          onClick={() => router.push(`/owner/projects/${p.id}?tab=files`)}
+                          onClick={() => router.push(`/owner/projects/view?projectId=${p.id}&tab=files`)}
                           className="flex items-center gap-2 cursor-pointer font-normal"
                         >
                           <span>View files</span>
@@ -325,7 +330,7 @@ function ProjectsView() {
                         )}>
                           {p.name[0]}
                         </span>
-                        <Link href={`/owner/projects/${p.id}`} className="hover:text-primary transition-colors">{p.name}</Link>
+                        <Link href={`/owner/projects/view?projectId=${p.id}`} className="hover:text-primary transition-colors">{p.name}</Link>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{client?.name}</td>
@@ -361,7 +366,7 @@ function ProjectsView() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40 border border-border bg-card">
                             <DropdownMenuItem
-                              onClick={() => router.push(`/owner/projects/${p.id}?tab=files`)}
+                              onClick={() => router.push(`/owner/projects/view?projectId=${p.id}&tab=files`)}
                               className="flex items-center gap-2 cursor-pointer font-normal"
                             >
                               <span>View files</span>

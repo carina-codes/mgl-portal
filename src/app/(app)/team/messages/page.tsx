@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
 import { MessageSquare, Search, MessageCircle, ListTodo, Eye } from "lucide-react";
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
-import { useStore } from "@/lib/store";
+import { useStore, isProjectMember } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { toast } from "sonner";
-import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/[projectId]/view";
+import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
   owner: { label: "Owner", cls: "bg-violet-100 dark:bg-violet-950/45 text-violet-800 dark:text-violet-300" },
@@ -33,7 +33,7 @@ function TeamMessages() {
   const channels = useStore((s) => s.channels);
   const markChannelAsRead = useStore((s) => s.markChannelAsRead);
 
-  const myProjects = useMemo(() => projects.filter((p) => p.team.includes(member.id)), [projects, member.id]);
+  const myProjects = useMemo(() => projects.filter((p) => isProjectMember(p, tasks, member.id)), [projects, tasks, member.id]);
   const myProjectIds = useMemo(() => new Set(myProjects.map((p) => p.id)), [myProjects]);
   const myTasks = useMemo(() => tasks.filter((t) => myProjectIds.has(t.projectId)), [tasks, myProjectIds]);
   const myRequests = useMemo(() => requests.filter((r) => r.projectId && myProjectIds.has(r.projectId)), [requests, myProjectIds]);
@@ -264,7 +264,7 @@ function TeamMessages() {
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                   {activeThread.project && (
                     <Link
-                      href={`/team/projects/${activeThread.project.id}`}
+                      href={`/team/projects/view?projectId=${activeThread.project.id}`}
                       className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/60 hover:bg-muted/80 hover:text-foreground transition-all cursor-pointer"
                     >
                       {activeThread.type === "project" ? "View project" : `Project: ${activeThread.project.name}`}

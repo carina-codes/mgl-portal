@@ -7,6 +7,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { UserAvatar } from "@/components/user-avatar";
 import { useActiveClient } from "@/hooks/use-active-client";
 import { useStore } from "@/lib/store";
+import { useActivityFeed, selectRecentActivity } from "@/lib/activity";
 import { REQUEST_STATUS_META } from "@/lib/mock-data";
 import {
   TrendingUp,
@@ -17,23 +18,11 @@ import {
   CheckCircle2,
   FileUp,
   PlusCircle,
-  Calendar,
+  FolderPlus,
+  Pencil,
+  FolderCog,
   CircleDot,
 } from "lucide-react";
-
-const ACTIVITY_FEED = [
-  { id: "act-1", date: "Today, 11:22 AM", type: "comment", user: "Marcus Hale", project: "Halcyon CarePortal Support", projectId: "p8", details: "Posted comment: 'Thanks team, onboarding flow looks excellent.'" },
-  { id: "act-2", date: "Today, 10:45 AM", type: "status", user: "Mia Tanaka", project: "NovaBoard Mobile App", projectId: "p1", taskName: "Draft Wireframes", details: "Changed status of task 'Draft Wireframes' to 'In Review'" },
-  { id: "act-3", date: "Yesterday, 04:30 PM", type: "file", user: "Ava Lindgren", project: "NovaBoard Mobile App", projectId: "p1", details: "Uploaded file 'dashboard-v3-final.fig'" },
-  { id: "act-4", date: "Yesterday, 02:15 PM", type: "task_add", user: "Carina Rivera", project: "Halcyon CarePortal Support", projectId: "p8", taskName: "Integrate billing webhook endpoint", details: "Added task: 'Integrate billing webhook endpoint'" },
-  { id: "act-5", date: "Yesterday, 10:15 AM", type: "dates", user: "Devon Patel", project: "Arcadia Marketing Site Refresh", projectId: "p2", details: "Rescheduled launch date from Jun 28 to Jul 05" },
-  { id: "act-6", date: "Jun 11, 04:12 PM", type: "comment", user: "Marcus Hale", project: "NovaBoard Mobile App", projectId: "p1", details: "Posted comment: 'Looks solid, let's proceed with design revisions.'" },
-  { id: "act-7", date: "Jun 10, 02:45 PM", type: "status", user: "Devon Patel", project: "NovaBoard Mobile App", projectId: "p1", taskName: "Asset Compilation", details: "Changed status of task 'Asset Compilation' to 'Completed'" },
-  { id: "act-8", date: "Jun 10, 09:30 AM", type: "file", user: "Mia Tanaka", project: "Arcadia Marketing Site Refresh", projectId: "p2", details: "Uploaded file 'landing-page-v2.png'" },
-  { id: "act-9", date: "Jun 09, 05:00 PM", type: "task_add", user: "Ava Lindgren", project: "NovaBoard Mobile App", projectId: "p1", taskName: "Database migration scripts", details: "Added task: 'Database migration scripts'" },
-  { id: "act-10", date: "Jun 09, 11:15 AM", type: "dates", user: "Carina Rivera", project: "NovaBoard Mobile App", projectId: "p1", details: "Rescheduled kickoff date from Jun 12 to Jun 15" },
-  { id: "act-11", date: "Jun 08, 02:30 PM", type: "comment", user: "Mia Tanaka", project: "Northwind Brand System", projectId: "p4", details: "Posted comment: 'Primary color palette updated in Figma files.'" },
-];
 
 const MESSAGE_INBOX = [
   { id: "msg-1", user: "Mia Tanaka", project: "NovaBoard Mobile App", text: "@carina I just uploaded the layout draft. Let me know what you think!", time: "10m ago" },
@@ -76,9 +65,11 @@ function PortalHome() {
     .filter((t) => myProjectIds.includes(t.projectId))
     .reduce((sum, e) => sum + e.hours, 0);
 
-  // Scoped to this client's own projects only — the underlying feed/inbox are
-  // shared demo data, but a client should never see another client's activity.
-  const myActivity = ACTIVITY_FEED.filter((a) => myProjectNames.has(a.project));
+  // Scoped to this client's own projects only — a client should never see
+  // another client's activity.
+  const myActivity = selectRecentActivity(
+    useActivityFeed().filter((a) => myProjectNames.has(a.project)),
+  );
   const myMessages = MESSAGE_INBOX.filter((m) => myProjectNames.has(m.project));
 
   return (
@@ -129,17 +120,17 @@ function PortalHome() {
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3 items-start">
         {/* Latest Activity */}
-        <div className="xl:col-span-2 panel p-6">
-          <div className="mb-[25px] flex items-start justify-between">
+        <div className="xl:col-span-2 panel pt-6 px-6 pb-2 h-[760px] flex flex-col">
+          <div className="mb-[25px] flex items-start justify-between shrink-0">
             <div>
               <h2 className="text-lg font-semibold">Latest activity</h2>
               <p className="text-xs text-muted-foreground">Updates across your projects</p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 overflow-y-auto pr-1 scrollbar-thin">
             {myActivity.length === 0 ? (
               <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-2xl">
                 No activity yet on your projects.
@@ -151,7 +142,10 @@ function PortalHome() {
                   status: CheckCircle2,
                   file: FileUp,
                   task_add: PlusCircle,
-                  dates: Calendar,
+                  task_update: Pencil,
+                  request: Send,
+                  project: FolderPlus,
+                  project_update: FolderCog,
                 }[act.type] || CircleDot;
 
                 const iconCls = {
@@ -159,13 +153,16 @@ function PortalHome() {
                   status: "bg-emerald-500/10 text-emerald-500",
                   file: "bg-purple-500/10 text-purple-500",
                   task_add: "bg-pink-500/10 text-pink-500",
-                  dates: "bg-amber-500/10 text-amber-500",
+                  task_update: "bg-slate-500/10 text-slate-500",
+                  request: "bg-amber-500/10 text-amber-500",
+                  project: "bg-indigo-500/10 text-indigo-500",
+                  project_update: "bg-indigo-500/10 text-indigo-500",
                 }[act.type] || "bg-muted text-muted-foreground";
 
                 return (
                   <Link
                     key={act.id}
-                    href={`/client/projects/${act.projectId}`}
+                    href={`/client/projects/view?projectId=${act.projectId}`}
                     className="flex gap-4 pb-3.5 mb-4 border-b border-border/40 last:border-b-0 last:mb-0 hover:bg-muted/5 transition-all cursor-pointer block"
                   >
                     <div className={`h-9 w-9 rounded-xl shrink-0 flex items-center justify-center ${iconCls}`}>
@@ -197,10 +194,10 @@ function PortalHome() {
         </div>
 
         {/* Right column: Message Inbox & Request Inbox */}
-        <div className="flex flex-col gap-6 h-full">
+        <div className="flex flex-col gap-6 h-[760px]">
           {/* Message Inbox */}
-          <div className="panel p-6 flex-1 flex flex-col">
-            <div className="mb-4 flex items-start justify-between">
+          <div className="panel pt-6 px-6 pb-2 flex-1 flex flex-col overflow-hidden">
+            <div className="mb-4 flex items-start justify-between shrink-0">
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   Message inbox
@@ -217,7 +214,7 @@ function PortalHome() {
               </Link>
             </div>
 
-            <div className="space-y-3 flex-1">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 scrollbar-thin">
               {myMessages.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-2xl">
                   No messages yet.
@@ -258,8 +255,8 @@ function PortalHome() {
           </div>
 
           {/* Request Inbox */}
-          <div className="panel p-6 flex-1 flex flex-col">
-            <div className="mb-4 flex items-start justify-between">
+          <div className="panel pt-6 px-6 pb-2 flex-1 flex flex-col overflow-hidden">
+            <div className="mb-4 flex items-start justify-between shrink-0">
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   Request inbox
@@ -275,7 +272,7 @@ function PortalHome() {
                 All →
               </Link>
             </div>
-            <div className="space-y-3 flex-1">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 scrollbar-thin">
               {recentRequests.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-2xl">
                   No requests submitted yet.

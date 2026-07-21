@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams, useRouter, useSearchParams } from "next/navigation";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
 import { useStore, useProjects, type StorageConnection } from "@/lib/store";
@@ -181,16 +181,19 @@ const formatSubmissionTime = (submittedAt: string) => {
 };
 
 function ProjectDetail() {
-  const params = useParams();
-  const projectId = params?.projectId as string;
   const router = useRouter();
   const { open } = useModals();
-  
+
   const projects = useProjects();
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const allRequests = useStore((s) => s.requests);
   const channels = useStore((s) => s.channels);
+  const allTasks = useStore((s) => s.tasks);
+
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") as string;
+  const tabParam = searchParams.get("tab") as TabId;
 
   const projectRequestsCount = useMemo(() => {
     return allRequests.filter(
@@ -206,9 +209,13 @@ function ProjectDetail() {
 
   const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
   const client = useMemo(() => project ? clients.find((c) => c.id === project.clientId) : undefined, [clients, project]);
-  
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab") as TabId;
+  // Header avatars show everyone actively contributing — management plus
+  // anyone assigned to a task on this project — not just the Management list.
+  const projectMemberIds = useMemo(() => {
+    if (!project) return [];
+    const taskAssignees = allTasks.filter((t) => t.projectId === project.id).flatMap((t) => t.assignees);
+    return Array.from(new Set([...project.team, ...taskAssignees]));
+  }, [project, allTasks]);
   const [tab, setTab] = useState<TabId>(() => tabParam || "overview");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -254,7 +261,7 @@ function ProjectDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <AvatarStack userIds={project.team} users={users} max={4} size={32} />
+            <AvatarStack userIds={projectMemberIds} users={users} max={4} size={32} />
             <button
               onClick={() => open("project.edit", { projectId: project.id })}
               className="inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-3.5 py-2 text-sm font-medium hover:bg-primary/90 transition-colors cursor-pointer"
@@ -1634,22 +1641,6 @@ export function TaskDetailsDrawer({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-2 items-center">
-            <span className="text-muted-foreground font-medium">Client Priority:</span>
-            <select
-              value={task.customFields?.["Client Priority"] ?? "Normal"}
-              onChange={(e) => {
-                const nextCustom = { ...(task.customFields ?? {}), "Client Priority": e.target.value };
-                updateTask(task.id, { customFields: nextCustom });
-              }}
-              className="col-span-2 rounded-xl border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer text-foreground"
-            >
-              <option value="Low">Low</option>
-              <option value="Normal">Normal</option>
-              <option value="High">High</option>
-            </select>
-          </div>
-
           <div className="grid grid-cols-3 gap-2 items-start">
             <span className="text-muted-foreground font-medium pt-1">Assignees:</span>
             <div className="col-span-2 rounded-xl border border-border bg-background p-2 max-h-[140px] overflow-y-auto space-y-1.5 scrollbar-thin">
@@ -1707,6 +1698,12 @@ export function TaskDetailsDrawer({
                   />
                 </div>
               )}
+              <button
+                onClick={() => open("time.log", { projectId: task.projectId, taskId: task.id })}
+                className="ml-auto text-[10px] font-semibold text-primary hover:underline cursor-pointer whitespace-nowrap"
+              >
+                + Log time
+              </button>
             </div>
           </div>
         </div>
@@ -1839,7 +1836,7 @@ export function TaskDetailsDrawer({
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-semibold text-foreground truncate">{u.name.split(" ")[0]}</span>
-                          <span className="text-[10px] text-muted-foreground">{e.date}</span>
+                          <span className="text-[10px] text-muted-foreground">{formatDate(e.date)}</span>
                           {e.billable ? (
                             <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.2 rounded border border-emerald-500/10">Billable</span>
                           ) : (
@@ -2821,7 +2818,7 @@ function ChatInputBox({ threadId, onAttachClick, authorId = "u1" }: { threadId: 
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
   const createComment = useStore((s) => s.createComment);
   const uploadDocument = useStore((s) => s.uploadDocument);
-  const projectId = useParams().projectId as string || "p1";
+  const projectId = useSearchParams().get("projectId") || "p1";
 
   const handleSubmit = () => {
     if (!commentText.trim() && attachments.length === 0) return;
@@ -2879,6 +2876,8 @@ const formatDate = (dateStr: string) => {
   return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
+type TimeTabSortField = "date" | "member" | "task" | "hours" | "billable";
+
 export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId = "u1", scopeToAuthor = false }: { projectId: string; onTaskClick?: (id: string) => void; basePath?: string; authorId?: string; scopeToAuthor?: boolean }) {
   const allTimeEntries = useStore((s) => s.timeEntries);
   const projectEntries = useMemo(() => {
@@ -2886,14 +2885,23 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
     return scopeToAuthor ? entries.filter((t) => t.userId === authorId) : entries;
   }, [allTimeEntries, projectId, scopeToAuthor, authorId]);
   const users = useStore((s) => s.users);
-  const projects = useStore((s) => s.projects);
   const tasks = useStore((s) => s.tasks);
   const { open } = useModals();
-  const deleteTimeEntry = useStore((s) => s.deleteTimeEntry);
 
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
+  const [sortBy, setSortBy] = useState<TimeTabSortField>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: TimeTabSortField) => {
+    if (sortBy === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
 
   const filterDefs = useMemo(
     () => {
@@ -2920,7 +2928,7 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
   );
 
   const filteredEntries = useMemo(() => {
-    return projectEntries.filter((e) => {
+    const result = projectEntries.filter((e) => {
       if (search && !e.note?.toLowerCase().includes(search.toLowerCase())) return false;
       if (filters.member?.length && !filters.member.includes(e.userId)) return false;
       if (filters.billable?.length) {
@@ -2931,7 +2939,33 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
       if (!inRange(e.date, dateRange)) return false;
       return true;
     });
-  }, [projectEntries, search, filters.member, filters.billable, dateRange]);
+
+    return [...result].sort((a, b) => {
+      let valA: string | number;
+      let valB: string | number;
+
+      if (sortBy === "member") {
+        valA = users.find((u) => u.id === a.userId)?.name || "";
+        valB = users.find((u) => u.id === b.userId)?.name || "";
+      } else if (sortBy === "task") {
+        valA = (a.taskId ? tasks.find((t) => t.id === a.taskId)?.title : "") || "";
+        valB = (b.taskId ? tasks.find((t) => t.id === b.taskId)?.title : "") || "";
+      } else if (sortBy === "hours") {
+        valA = a.hours;
+        valB = b.hours;
+      } else if (sortBy === "billable") {
+        valA = a.billable ? 1 : 0;
+        valB = b.billable ? 1 : 0;
+      } else {
+        valA = new Date(a.date).getTime() || 0;
+        valB = new Date(b.date).getTime() || 0;
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [projectEntries, search, filters.member, filters.billable, dateRange, sortBy, sortOrder, users, tasks]);
 
   return (
     <div className="space-y-4">
@@ -2957,7 +2991,7 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
       </div>
 
       {/* Table Section */}
-      <div className="panel bg-card border-border/60 overflow-hidden">
+      <div className="panel overflow-hidden">
         {filteredEntries.length === 0 ? (
           <div className="py-12 text-center flex flex-col items-center justify-center">
             <div className="h-10 w-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">
@@ -2971,21 +3005,31 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground bg-muted/20">
+              <thead className="text-left text-xs text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th className="px-5 py-3 font-medium">Date</th>
-                  <th className="px-5 py-3 font-medium">Team</th>
-                  <th className="px-5 py-3 font-medium">Project</th>
-                  <th className="px-5 py-3 font-medium">Note / Work Done</th>
-                  <th className="px-5 py-3 font-medium text-right">Hours</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th onClick={() => handleSort("date")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("member")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Team {sortBy === "member" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("task")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Task {sortBy === "task" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="px-5 py-3 font-medium select-none">Note / Work Done</th>
+                  <th onClick={() => handleSort("hours")} className="px-5 py-3 font-medium text-right cursor-pointer hover:text-foreground select-none">
+                    Hours {sortBy === "hours" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("billable")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Status {sortBy === "billable" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
                   <th className="px-5 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEntries.map((e) => {
                   const u = users.find((x) => x.id === e.userId)!;
-                  const p = projects.find((x) => x.id === e.projectId);
+                  const assocTask = e.taskId ? tasks.find((t) => t.id === e.taskId) : null;
                   return (
                     <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                       <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{formatDate(e.date)}</td>
@@ -2996,31 +3040,19 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
                         </div>
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">
-                        {p ? (
-                          <Link href={`${basePath}/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
-                            {p.name}
-                          </Link>
+                        {assocTask ? (
+                          <button
+                            onClick={() => onTaskClick?.(assocTask.id)}
+                            className="hover:text-primary transition-colors font-medium cursor-pointer text-left"
+                          >
+                            {assocTask.title}
+                          </button>
                         ) : (
-                          <span className="font-medium text-muted-foreground/50">General</span>
+                          <span className="font-medium text-muted-foreground/50">No task</span>
                         )}
                       </td>
                       <td className="px-5 py-3 text-muted-foreground font-medium">
-                        <div>
-                          {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
-                        </div>
-                        {(() => {
-                          const assocTask = e.taskId ? tasks.find((t) => t.id === e.taskId) : null;
-                          if (!assocTask) return null;
-                          return (
-                            <button
-                              onClick={() => onTaskClick?.(assocTask.id)}
-                              className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-primary cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
-                            >
-                              <span className="h-1.2 w-1.2 rounded-full bg-primary" />
-                              Task: {assocTask.title}
-                            </button>
-                          );
-                        })()}
+                        {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
                       </td>
                       <td className="px-5 py-3 text-right text-muted-foreground font-semibold">
                         {parseFloat(e.hours.toFixed(2))}h
@@ -3055,7 +3087,7 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
                             <DropdownMenuItem
                               onSelect={(ev) => {
                                 ev.preventDefault();
-                                setTimeout(() => deleteTimeEntry(e.id), 100);
+                                setTimeout(() => open("time.delete", { timeId: e.id }), 100);
                               }}
                               className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
                             >

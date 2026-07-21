@@ -458,9 +458,9 @@ export function AppShell({
           {/* Footer */}
           <footer className="mt-12 border-t border-border/50 pt-6 pb-2 text-center text-xs text-muted-foreground select-none">
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <span>© 2026 Carina</span>
+              <span>© 2026 MGL Agency</span>
               <span className="text-border/40">|</span>
-              <a href="mailto:lovelycarina@gmail.com" className="text-foreground hover:underline">
+              <a href="mailto:carina@mglagency.com" className="text-foreground hover:underline">
                 Support
               </a>
               <span className="text-border/40">|</span>

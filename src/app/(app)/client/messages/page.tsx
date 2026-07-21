@@ -279,7 +279,7 @@ function PortalMessages() {
                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                   {activeThread.project && (
                     <Link
-                      href={`/client/projects/${activeThread.project.id}`}
+                      href={`/client/projects/view?projectId=${activeThread.project.id}`}
                       className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/60 hover:bg-muted/80 hover:text-foreground transition-all cursor-pointer"
                     >
                       {activeThread.type === "project" ? "View project" : `Project: ${activeThread.project.name}`}

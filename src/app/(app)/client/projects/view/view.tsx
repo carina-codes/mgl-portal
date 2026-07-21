@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
@@ -152,12 +152,20 @@ function useClientAsUser(client: ReturnType<typeof useActiveClient>["client"]) {
 }
 
 function PortalProjectDetail() {
-  const params = useParams();
-  const projectId = params?.projectId as string;
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") as string;
   const { client } = useActiveClient();
   const projects = useStore((s) => s.projects);
   const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
   const users = useStore((s) => s.users);
+  const allTasks = useStore((s) => s.tasks);
+  // Header avatars show everyone actively contributing — management plus
+  // anyone assigned to a task on this project — not just the Management list.
+  const projectMemberIds = useMemo(() => {
+    if (!project) return [];
+    const taskAssignees = allTasks.filter((t) => t.projectId === project.id).flatMap((t) => t.assignees);
+    return Array.from(new Set([...project.team, ...taskAssignees]));
+  }, [project, allTasks]);
 
   const [tab, setTab] = useState<TabId>("overview");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -195,7 +203,7 @@ function PortalProjectDetail() {
               </div>
             </div>
           </div>
-          <AvatarStack userIds={project.team} users={users} max={4} size={32} />
+          <AvatarStack userIds={projectMemberIds} users={users} max={4} size={32} />
         </div>
       </div>
 
@@ -1400,6 +1408,8 @@ function ChatTabClient({ projectId, onOpenTask }: { projectId: string; onOpenTas
 
 /* ───── Time (read-only, scoped to this project) ───── */
 
+type TimeTabClientSortField = "date" | "member" | "task" | "hours" | "billable";
+
 function TimeTabClient({ projectId, onTaskClick }: { projectId: string; onTaskClick?: (id: string) => void }) {
   const allTimeEntries = useStore((s) => s.timeEntries);
   const projectEntries = useMemo(() => allTimeEntries.filter((t) => t.projectId === projectId), [allTimeEntries, projectId]);
@@ -1410,6 +1420,17 @@ function TimeTabClient({ projectId, onTaskClick }: { projectId: string; onTaskCl
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
+  const [sortBy, setSortBy] = useState<TimeTabClientSortField>("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: TimeTabClientSortField) => {
+    if (sortBy === field) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
 
   const filterDefs = useMemo<FilterDef[]>(
     () => [
@@ -1419,7 +1440,7 @@ function TimeTabClient({ projectId, onTaskClick }: { projectId: string; onTaskCl
   );
 
   const filteredEntries = useMemo(() => {
-    return projectEntries.filter((e) => {
+    const result = projectEntries.filter((e) => {
       if (search && !e.note?.toLowerCase().includes(search.toLowerCase())) return false;
       if (filters.billable?.length) {
         const v = filters.billable[0];
@@ -1429,7 +1450,33 @@ function TimeTabClient({ projectId, onTaskClick }: { projectId: string; onTaskCl
       if (!inRange(e.date, dateRange)) return false;
       return true;
     });
-  }, [projectEntries, search, filters.billable, dateRange]);
+
+    return [...result].sort((a, b) => {
+      let valA: string | number;
+      let valB: string | number;
+
+      if (sortBy === "member") {
+        valA = users.find((u) => u.id === a.userId)?.name || "";
+        valB = users.find((u) => u.id === b.userId)?.name || "";
+      } else if (sortBy === "task") {
+        valA = (a.taskId ? tasks.find((t) => t.id === a.taskId)?.title : "") || "";
+        valB = (b.taskId ? tasks.find((t) => t.id === b.taskId)?.title : "") || "";
+      } else if (sortBy === "hours") {
+        valA = a.hours;
+        valB = b.hours;
+      } else if (sortBy === "billable") {
+        valA = a.billable ? 1 : 0;
+        valB = b.billable ? 1 : 0;
+      } else {
+        valA = new Date(a.date).getTime() || 0;
+        valB = new Date(b.date).getTime() || 0;
+      }
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [projectEntries, search, filters.billable, dateRange, sortBy, sortOrder, users, tasks]);
 
   return (
     <div className="space-y-4">
@@ -1446,7 +1493,7 @@ function TimeTabClient({ projectId, onTaskClick }: { projectId: string; onTaskCl
         />
       </div>
 
-      <div className="panel bg-card border-border/60 overflow-hidden">
+      <div className="panel overflow-hidden">
         {filteredEntries.length === 0 ? (
           <div className="py-12 text-center flex flex-col items-center justify-center">
             <div className="h-10 w-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">
@@ -1460,18 +1507,30 @@ function TimeTabClient({ projectId, onTaskClick }: { projectId: string; onTaskCl
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground bg-muted/20">
+              <thead className="text-left text-xs text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th className="px-5 py-3 font-medium">Date</th>
-                  <th className="px-5 py-3 font-medium">Team</th>
-                  <th className="px-5 py-3 font-medium">Note / Work Done</th>
-                  <th className="px-5 py-3 font-medium text-right">Hours</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th onClick={() => handleSort("date")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Date {sortBy === "date" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("member")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Team {sortBy === "member" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("task")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Task {sortBy === "task" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="px-5 py-3 font-medium select-none">Note / Work Done</th>
+                  <th onClick={() => handleSort("hours")} className="px-5 py-3 font-medium text-right cursor-pointer hover:text-foreground select-none">
+                    Hours {sortBy === "hours" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th onClick={() => handleSort("billable")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
+                    Status {sortBy === "billable" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEntries.map((e) => {
                   const u = users.find((x) => x.id === e.userId);
+                  const assocTask = e.taskId ? tasks.find((t) => t.id === e.taskId) : null;
                   return (
                     <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                       <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{formatDate(e.date)}</td>
@@ -1481,23 +1540,20 @@ function TimeTabClient({ projectId, onTaskClick }: { projectId: string; onTaskCl
                           <span className="text-foreground font-semibold">{u?.name}</span>
                         </div>
                       </td>
+                      <td className="px-5 py-3 text-muted-foreground">
+                        {assocTask ? (
+                          <button
+                            onClick={() => onTaskClick?.(assocTask.id)}
+                            className="hover:text-primary transition-colors font-medium cursor-pointer text-left"
+                          >
+                            {assocTask.title}
+                          </button>
+                        ) : (
+                          <span className="font-medium text-muted-foreground/50">No task</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3 text-muted-foreground font-medium">
-                        <div>
-                          {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
-                        </div>
-                        {(() => {
-                          const assocTask = e.taskId ? tasks.find((t) => t.id === e.taskId) : null;
-                          if (!assocTask) return null;
-                          return (
-                            <button
-                              onClick={() => onTaskClick?.(assocTask.id)}
-                              className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-primary cursor-pointer bg-primary/5 hover:bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 w-fit transition-all"
-                            >
-                              <span className="h-1.2 w-1.2 rounded-full bg-primary" />
-                              Task: {assocTask.title}
-                            </button>
-                          );
-                        })()}
+                        {e.note || <span className="italic text-muted-foreground/30 font-normal">No note provided</span>}
                       </td>
                       <td className="px-5 py-3 text-right text-muted-foreground font-semibold">{parseFloat(e.hours.toFixed(2))}h</td>
                       <td className="px-5 py-3 whitespace-nowrap">

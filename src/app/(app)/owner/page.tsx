@@ -23,24 +23,14 @@ import {
   CheckCircle2,
   FileUp,
   PlusCircle,
-  Calendar,
+  Send,
+  FolderPlus,
+  Pencil,
+  FolderCog,
   CircleDot,
 } from "lucide-react";
 import { projects } from "@/lib/mock-data";
-
-const ACTIVITY_FEED = [
-  { id: "act-1", date: "Today, 11:22 AM", type: "comment", user: "Marcus Hale", project: "Halcyon CarePortal Support", projectId: "p8", details: "Posted comment: 'Thanks team, onboarding flow looks excellent.'" },
-  { id: "act-2", date: "Today, 10:45 AM", type: "status", user: "Mia Tanaka", project: "NovaBoard Mobile App", projectId: "p1", taskName: "Draft Wireframes", details: "Changed status of task 'Draft Wireframes' to 'In Review'" },
-  { id: "act-3", date: "Yesterday, 04:30 PM", type: "file", user: "Ava Lindgren", project: "NovaBoard Mobile App", projectId: "p1", details: "Uploaded file 'dashboard-v3-final.fig'" },
-  { id: "act-4", date: "Yesterday, 02:15 PM", type: "task_add", user: "Carina Rivera", project: "Halcyon CarePortal Support", projectId: "p8", taskName: "Integrate billing webhook endpoint", details: "Added task: 'Integrate billing webhook endpoint'" },
-  { id: "act-5", date: "Yesterday, 10:15 AM", type: "dates", user: "Devon Patel", project: "Arcadia Marketing Site Refresh", projectId: "p2", details: "Rescheduled launch date from Jun 28 to Jul 05" },
-  { id: "act-6", date: "Jun 11, 04:12 PM", type: "comment", user: "Marcus Hale", project: "NovaBoard Mobile App", projectId: "p1", details: "Posted comment: 'Looks solid, let's proceed with design revisions.'" },
-  { id: "act-7", date: "Jun 10, 02:45 PM", type: "status", user: "Devon Patel", project: "NovaBoard Mobile App", projectId: "p1", taskName: "Asset Compilation", details: "Changed status of task 'Asset Compilation' to 'Completed'" },
-  { id: "act-8", date: "Jun 10, 09:30 AM", type: "file", user: "Mia Tanaka", project: "Arcadia Marketing Site Refresh", projectId: "p2", details: "Uploaded file 'landing-page-v2.png'" },
-  { id: "act-9", date: "Jun 09, 05:00 PM", type: "task_add", user: "Ava Lindgren", project: "NovaBoard Mobile App", projectId: "p1", taskName: "Database migration scripts", details: "Added task: 'Database migration scripts'" },
-  { id: "act-10", date: "Jun 09, 11:15 AM", type: "dates", user: "Carina Rivera", project: "NovaBoard Mobile App", projectId: "p1", details: "Rescheduled kickoff date from Jun 12 to Jun 15" },
-  { id: "act-11", date: "Jun 08, 02:30 PM", type: "comment", user: "Mia Tanaka", project: "Northwind Brand System", projectId: "p4", details: "Posted comment: 'Primary color palette updated in Figma files.'" },
-];
+import { useActivityFeed, selectRecentActivity } from "@/lib/activity";
 
 const MESSAGE_INBOX = [
   { id: "msg-1", user: "Mia Tanaka", project: "NovaBoard Mobile App", text: "@carina I just uploaded the layout draft. Let me know what you think!", time: "10m ago" },
@@ -70,6 +60,7 @@ export default function Dashboard() {
   const openRequests = requests.filter((r) => ["submitted", "under_review"].includes(r.status)).length;
   const submittedRequestsCount = requests.filter((r) => r.status === "submitted").length;
   const recentRequests = requests.slice(0, 5);
+  const activityFeed = selectRecentActivity(useActivityFeed());
 
   return (
     <AppShell
@@ -120,80 +111,95 @@ export default function Dashboard() {
 
 
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3 items-start">
         {/* Latest Activity */}
-        <div className="xl:col-span-2 panel p-6">
-          <div className="mb-[25px] flex items-start justify-between">
+        <div className="xl:col-span-2 panel pt-6 px-6 pb-2 h-[760px] flex flex-col">
+          <div className="mb-[25px] flex items-start justify-between shrink-0">
             <div>
               <h2 className="text-lg font-semibold">Latest activity</h2>
               <p className="text-xs text-muted-foreground">Live project momentum & team velocity</p>
             </div>
           </div>
-          
-          <div className="space-y-4">
-            {ACTIVITY_FEED.map((act) => {
-              const Icon = {
-                comment: MessageSquare,
-                status: CheckCircle2,
-                file: FileUp,
-                task_add: PlusCircle,
-                dates: Calendar,
-              }[act.type] || CircleDot;
 
-              const iconCls = {
-                comment: "bg-blue-500/10 text-blue-500",
-                status: "bg-emerald-500/10 text-emerald-500",
-                file: "bg-purple-500/10 text-purple-500",
-                task_add: "bg-pink-500/10 text-pink-500",
-                dates: "bg-amber-500/10 text-amber-500",
-              }[act.type] || "bg-muted text-muted-foreground";
+          <div className="space-y-4 flex-1 overflow-y-auto pr-1 scrollbar-thin">
+            {activityFeed.length === 0 ? (
+              <div className="text-sm text-muted-foreground text-center py-6 border border-dashed border-border/60 rounded-2xl">
+                No activity yet.
+              </div>
+            ) : (
+              activityFeed.map((act) => {
+                const Icon = {
+                  comment: MessageSquare,
+                  status: CheckCircle2,
+                  file: FileUp,
+                  task_add: PlusCircle,
+                  task_update: Pencil,
+                  request: Send,
+                  project: FolderPlus,
+                  project_update: FolderCog,
+                }[act.type] || CircleDot;
 
-              return (
-                <Link
-                  key={act.id}
-                  href={`/owner/projects/${act.projectId}?tab=${
-                    {
-                      comment: "chat",
-                      status: "tasks",
-                      file: "files",
-                      task_add: "tasks",
-                      dates: "overview",
-                    }[act.type] || "overview"
-                  }`}
-                  className="flex gap-4 pb-3.5 mb-4 border-b border-border/40 last:border-b-0 last:mb-0 hover:bg-muted/5 transition-all cursor-pointer block"
-                >
-                  <div className={`h-9 w-9 rounded-xl shrink-0 flex items-center justify-center ${iconCls}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-foreground">{act.user}</span>
-                      <span className="text-[10px] text-muted-foreground">{act.date}</span>
+                const iconCls = {
+                  comment: "bg-blue-500/10 text-blue-500",
+                  status: "bg-emerald-500/10 text-emerald-500",
+                  file: "bg-purple-500/10 text-purple-500",
+                  task_add: "bg-pink-500/10 text-pink-500",
+                  task_update: "bg-slate-500/10 text-slate-500",
+                  request: "bg-amber-500/10 text-amber-500",
+                  project: "bg-indigo-500/10 text-indigo-500",
+                  project_update: "bg-indigo-500/10 text-indigo-500",
+                }[act.type] || "bg-muted text-muted-foreground";
+
+                return (
+                  <Link
+                    key={act.id}
+                    href={`/owner/projects/view?projectId=${act.projectId}&tab=${
+                      {
+                        comment: "chat",
+                        status: "tasks",
+                        file: "files",
+                        task_add: "tasks",
+                        task_update: "tasks",
+                        request: "requests",
+                        project: "overview",
+                        project_update: "overview",
+                      }[act.type] || "overview"
+                    }`}
+                    className="flex gap-4 pb-3.5 mb-4 border-b border-border/40 last:border-b-0 last:mb-0 hover:bg-muted/5 transition-all cursor-pointer block"
+                  >
+                    <div className={`h-9 w-9 rounded-xl shrink-0 flex items-center justify-center ${iconCls}`}>
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground leading-relaxed select-text">
-                      {act.details}
-                    </p>
-                    <div className="mt-1.5 flex items-center gap-1.5 text-[9px] font-medium text-primary uppercase tracking-wider">
-                      <span>{act.project}</span>
-                      {act.taskName && (
-                        <>
-                          <span className="text-muted-foreground">•</span>
-                          <span className="text-muted-foreground normal-case">{act.taskName}</span>
-                        </>
-                      )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground">{act.user}</span>
+                        <span className="text-[10px] text-muted-foreground">{act.date}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed select-text">
+                        {act.details}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[9px] font-medium text-primary uppercase tracking-wider">
+                        <span>{act.project}</span>
+                        {act.taskName && (
+                          <>
+                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground normal-case">{act.taskName}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
+                  </Link>
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* Right column: Message Inbox & Request Inbox */}
-        <div className="flex flex-col gap-6 h-full">
+        <div className="flex flex-col gap-6 h-[760px]">
           {/* Message Inbox */}
-          <div className="panel p-6 flex-1 flex flex-col">
-            <div className="mb-4 flex items-start justify-between">
+          <div className="panel pt-6 px-6 pb-2 flex-1 flex flex-col overflow-hidden">
+            <div className="mb-4 flex items-start justify-between shrink-0">
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   Message inbox
@@ -207,8 +213,8 @@ export default function Dashboard() {
                 All →
               </Link>
             </div>
-            
-            <div className="space-y-3 flex-1">
+
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 scrollbar-thin">
               {MESSAGE_INBOX.map((msg) => {
                 const sender = users.find((u) => u.name === msg.user);
                 return (
@@ -243,8 +249,8 @@ export default function Dashboard() {
           </div>
 
           {/* Request Inbox */}
-          <div className="panel p-6 flex-1 flex flex-col">
-            <div className="mb-4 flex items-start justify-between">
+          <div className="panel pt-6 px-6 pb-2 flex-1 flex flex-col overflow-hidden">
+            <div className="mb-4 flex items-start justify-between shrink-0">
               <div>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   Request inbox
@@ -258,7 +264,7 @@ export default function Dashboard() {
                 All →
               </Link>
             </div>
-            <div className="space-y-3 flex-1">
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 scrollbar-thin">
               {recentRequests.map((r) => {
                 const meta = REQUEST_STATUS_META[r.status];
                 return (

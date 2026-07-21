@@ -12,7 +12,7 @@ import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
-import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/[projectId]/view";
+import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
   owner: { label: "Owner", cls: "bg-violet-100 dark:bg-violet-950/45 text-violet-800 dark:text-violet-300" },
@@ -338,7 +338,7 @@ function MessagesPage() {
                   )}
                   {activeThread.project && (
                     <Link
-                      href={`/owner/projects/${activeThread.project.id}`}
+                      href={`/owner/projects/view?projectId=${activeThread.project.id}`}
                       className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/60 hover:bg-muted/80 hover:text-foreground transition-all cursor-pointer"
                     >
                       {activeThread.type === "project" ? "View project" : `Project: ${activeThread.project.name}`}

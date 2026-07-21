@@ -286,6 +286,7 @@ function TimePage() {
                 {mounted && filtered.slice(0, 80).map((e) => {
                   const u = users.find((x) => x.id === e.userId);
                   const p = projects.find((x) => x.id === e.projectId);
+                  const t = e.taskId ? tasks.find((x) => x.id === e.taskId) : undefined;
                   return (
                     <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                       <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{formatDate(e.date)}</td>
@@ -297,9 +298,20 @@ function TimePage() {
                       </td>
                       <td className="px-5 py-3 text-muted-foreground">
                         {p ? (
-                          <Link href={`/owner/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
-                            {p.name}
-                          </Link>
+                          <div>
+                            <Link href={`/owner/projects/view?projectId=${p.id}`} className="hover:text-primary transition-colors font-medium">
+                              {p.name}
+                            </Link>
+                            {t && (
+                              <Link
+                                href={`/owner/projects/view?projectId=${p.id}&tab=tasks`}
+                                className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors w-fit"
+                              >
+                                <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+                                {t.title}
+                              </Link>
+                            )}
+                          </div>
                         ) : (
                           <span className="font-medium text-muted-foreground/50">General</span>
                         )}

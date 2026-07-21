@@ -4,10 +4,10 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/app-shell";
-import { useStore } from "@/lib/store";
+import { useStore, isProjectMember } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { Search, FolderOpen, AlertCircle, CheckCircle2, Circle } from "lucide-react";
-import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/[projectId]/view";
+import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
 import { FilterBar } from "@/components/filter-bar";
 import { AvatarStack } from "@/components/user-avatar";
 import { PRIORITY_META, STAGE_META } from "@/lib/mock-data";
@@ -55,7 +55,7 @@ export default function TeamTasksPage() {
     return allTasks.filter((t) => t.assignees.includes(member.id));
   }, [allTasks, member.id]);
 
-  const myProjects = useMemo(() => projects.filter((p) => p.team.includes(member.id)), [projects, member.id]);
+  const myProjects = useMemo(() => projects.filter((p) => isProjectMember(p, allTasks, member.id)), [projects, allTasks, member.id]);
 
   const filterDefs = useMemo(() => {
     return [
@@ -99,6 +99,12 @@ export default function TeamTasksPage() {
     });
 
     return [...result].sort((a, b) => {
+      // Incomplete (and therefore newer/active) tasks always float above
+      // completed ones, regardless of the chosen sort field or direction.
+      const aDone = a.stage === "completed" ? 1 : 0;
+      const bDone = b.stage === "completed" ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+
       let valA: string | number;
       let valB: string | number;
 
@@ -195,7 +201,7 @@ export default function TeamTasksPage() {
                         <td className="px-5 py-3 text-muted-foreground">
                           {project ? (
                             <Link
-                              href={`/team/projects/${project.id}`}
+                              href={`/team/projects/view?projectId=${project.id}`}
                               onClick={(e) => e.stopPropagation()}
                               className="hover:text-primary transition-colors font-medium flex items-center gap-1"
                             >

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useState, useMemo, useEffect, Suspense } from "react";
 import { cn, stripHtml } from "@/lib/utils";
+import { parseFuzzyDate } from "@/lib/dates";
 import { UserAvatar } from "@/components/user-avatar";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -111,7 +112,7 @@ function guessMimeType(name: string): string {
   return "application/octet-stream";
 }
 
-type RequestSortField = "title" | "client" | "status" | "priority" | "type" | "submitted";
+type RequestSortField = "title" | "client" | "status" | "priority" | "type" | "submitted" | "created";
 
 const REQUEST_PRIORITY_SORT: Record<string, number> = { low: 1, medium: 2, high: 3 };
 
@@ -123,7 +124,9 @@ function RequestsView() {
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
-  const [sortBy, setSortBy] = useState<RequestSortField>("submitted");
+  // Defaults to the store's natural order — newest-created requests are
+  // unshifted to the front, so leaving this unsorted shows latest first.
+  const [sortBy, setSortBy] = useState<RequestSortField>("created");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const handleSort = (field: RequestSortField) => {
@@ -203,6 +206,9 @@ function RequestsView() {
     });
 
     return [...result].sort((a, b) => {
+      // "created" preserves the store's natural order (newest first).
+      if (sortBy === "created") return 0;
+
       let valA: string | number;
       let valB: string | number;
 
@@ -219,8 +225,8 @@ function RequestsView() {
         valA = REQUEST_TYPE_META[a.type]?.label || "";
         valB = REQUEST_TYPE_META[b.type]?.label || "";
       } else if (sortBy === "submitted") {
-        valA = new Date(a.submittedAt).getTime() || 0;
-        valB = new Date(b.submittedAt).getTime() || 0;
+        valA = parseFuzzyDate(a.submittedAt);
+        valB = parseFuzzyDate(b.submittedAt);
       } else {
         valA = a.title;
         valB = b.title;

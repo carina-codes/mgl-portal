@@ -5,12 +5,18 @@ import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar, inRange, type FilterOption, type FilterDef } from "@/components/filter-bar";
-import { useStore } from "@/lib/store";
+import { useStore, isProjectMember } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { useModals } from "@/components/modals";
-import { Plus, Clock, Coins, TrendingUp, Search, FileDown } from "lucide-react";
+import { Plus, Clock, Coins, TrendingUp, Search, FileDown, MoreHorizontal } from "lucide-react";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { useState, useMemo, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
@@ -50,7 +56,7 @@ function TeamTimePage() {
     }
   };
 
-  const myProjects = useMemo(() => allProjects.filter((p) => p.team.includes(member.id)), [allProjects, member.id]);
+  const myProjects = useMemo(() => allProjects.filter((p) => isProjectMember(p, tasks, member.id)), [allProjects, tasks, member.id]);
   const myProjectIds = useMemo(() => new Set(myProjects.map((p) => p.id)), [myProjects]);
 
   // Managers see everyone's logged time across their projects; regular team
@@ -222,12 +228,14 @@ function TeamTimePage() {
                   <th onClick={() => handleSort("billable")} className="px-5 py-3 font-medium cursor-pointer hover:text-foreground select-none">
                     Status {sortBy === "billable" && (sortOrder === "asc" ? "↑" : "↓")}
                   </th>
+                  <th className="px-5 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {mounted && filtered.slice(0, 80).map((e) => {
                   const p = allProjects.find((x) => x.id === e.projectId);
                   const u = users.find((x) => x.id === e.userId);
+                  const t = e.taskId ? tasks.find((x) => x.id === e.taskId) : undefined;
                   return (
                     <tr key={e.id} className="border-b border-border last:border-0 hover:bg-muted/40">
                       <td className="px-5 py-3 text-muted-foreground font-medium whitespace-nowrap">{formatDate(e.date)}</td>
@@ -243,9 +251,20 @@ function TeamTimePage() {
                       )}
                       <td className="px-5 py-3 text-muted-foreground">
                         {p ? (
-                          <Link href={`/team/projects/${p.id}`} className="hover:text-primary transition-colors font-medium">
-                            {p.name}
-                          </Link>
+                          <div>
+                            <Link href={`/team/projects/view?projectId=${p.id}`} className="hover:text-primary transition-colors font-medium">
+                              {p.name}
+                            </Link>
+                            {t && (
+                              <Link
+                                href={`/team/projects/view?projectId=${p.id}&tab=tasks`}
+                                className="mt-0.5 flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors w-fit"
+                              >
+                                <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+                                {t.title}
+                              </Link>
+                            )}
+                          </div>
                         ) : (
                           <span className="font-medium text-muted-foreground/50">General</span>
                         )}
@@ -261,12 +280,41 @@ function TeamTimePage() {
                           {e.billable ? "Billable" : "Non-billable"}
                         </span>
                       </td>
+                      <td className="px-5 py-3 text-right whitespace-nowrap">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-all cursor-pointer">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-32 border border-border bg-card">
+                            <DropdownMenuItem
+                              onSelect={(ev) => {
+                                ev.preventDefault();
+                                setTimeout(() => open("time.edit", { timeId: e.id }), 100);
+                              }}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <span>Edit</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onSelect={(ev) => {
+                                ev.preventDefault();
+                                setTimeout(() => open("time.delete", { timeId: e.id }), 100);
+                              }}
+                              className="flex items-center gap-2 text-rose-500 focus:text-rose-500 focus:bg-rose-500/5 cursor-pointer"
+                            >
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
                     </tr>
                   );
                 })}
                 {(!mounted || filtered.length === 0) && (
                   <tr>
-                    <td colSpan={isManager ? 6 : 5} className="px-5 py-12 text-center">
+                    <td colSpan={isManager ? 7 : 6} className="px-5 py-12 text-center">
                       {mounted ? (
                         <div className="flex flex-col items-center justify-center">
                           <div className="h-10 w-10 rounded-xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-3">

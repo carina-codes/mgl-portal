@@ -139,6 +139,10 @@ export type Project = {
   description: string;
   accent: "todo" | "progress" | "review" | "done";
   visibility?: "private" | "team" | "client";
+  /** ISO timestamp set when the project is created at runtime; seed projects leave this unset. */
+  createdAt?: string;
+  /** ISO timestamp set whenever the project is edited at runtime. */
+  updatedAt?: string;
   notifications?: {
     tasks?: boolean;
     mentions?: boolean;
@@ -694,9 +698,6 @@ function buildTasks(): Task[] {
         tags: ["Design", "Dev", "Client Feedback"].slice(0, (i % 3) + 1),
         followers: ["u1", "u2", "u3"].slice(0, (i % 2) + 1),
         estimatedHours: 4 + (i % 5) * 4,
-        customFields: {
-          "Client Priority": i % 3 === 0 ? "High" : "Normal",
-        },
         createdAt,
         updatedAt,
       });
@@ -767,7 +768,13 @@ function generateTime(): TimeEntry[] {
   let id = 1;
   const today = new Date("2026-06-21T12:00:00Z");
   projects.forEach((p) => {
+    const projectTasks = tasksByProject(p.id);
     p.team.forEach((uid) => {
+      // Tasks this person is actually assigned to, so logged time lines up
+      // with their work — falls back to any task in the project.
+      const relevantTasks = projectTasks.filter((t) => t.assignees.includes(uid));
+      const candidateTasks = relevantTasks.length ? relevantTasks : projectTasks;
+
       for (let d = 0; d < 6; d++) {
         const date = new Date(today);
         date.setDate(today.getDate() - d);
@@ -775,10 +782,15 @@ function generateTime(): TimeEntry[] {
         const seed = (id * 7 + d * 13) % 20;
         const hours = 1.0 + (seed % 8) * 0.5; // 1.0 to 4.5
         const billable = ((id * 3 + d * 7) % 10) < 8; // ~80% billable
+        // ~75% of entries are logged against a specific task; the rest are
+        // general project work with no task attached.
+        const hasTask = candidateTasks.length > 0 && id % 4 !== 0;
+        const task = hasTask ? candidateTasks[id % candidateTasks.length] : undefined;
         out.push({
           id: `te${id++}`,
           userId: uid,
           projectId: p.id,
+          taskId: task?.id,
           date: date.toISOString().slice(0, 10),
           hours,
           note: ["Design exploration", "Async review", "Pairing session", "Client call prep", "QA pass", "Implementation"][d % 6],

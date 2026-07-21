@@ -4,25 +4,28 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack } from "@/components/user-avatar";
 import { PROJECT_STATUS_META } from "@/lib/mock-data";
-import { useStore } from "@/lib/store";
+import { useStore, isProjectMember } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { LayoutGrid, List as ListIcon } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
-type ProjectSortField = "name" | "client" | "status" | "progress" | "due";
+type ProjectSortField = "name" | "client" | "status" | "progress" | "due" | "created";
 
 function TeamProjects() {
   const { member } = useActiveTeamMember();
   const [view, setView] = useState<"grid" | "list">("grid");
   const allProjects = useStore((s) => s.projects);
+  const allTasks = useStore((s) => s.tasks);
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
-  const [sortBy, setSortBy] = useState<ProjectSortField>("due");
+  // Defaults to the store's natural order — newest-created projects are
+  // unshifted to the front, so leaving this unsorted shows latest first.
+  const [sortBy, setSortBy] = useState<ProjectSortField>("created");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const handleSort = (field: ProjectSortField) => {
@@ -34,7 +37,7 @@ function TeamProjects() {
     }
   };
 
-  const myProjects = useMemo(() => allProjects.filter((p) => p.team.includes(member.id)), [allProjects, member.id]);
+  const myProjects = useMemo(() => allProjects.filter((p) => isProjectMember(p, allTasks, member.id)), [allProjects, allTasks, member.id]);
 
   const filterDefs = useMemo(
     () => [
@@ -54,6 +57,9 @@ function TeamProjects() {
     });
 
     return [...result].sort((a, b) => {
+      // "created" preserves the store's natural order (newest first).
+      if (sortBy === "created") return 0;
+
       let valA: string | number;
       let valB: string | number;
 
@@ -121,7 +127,7 @@ function TeamProjects() {
             return (
               <Link
                 key={p.id}
-                href={`/team/projects/${p.id}`}
+                href={`/team/projects/view?projectId=${p.id}`}
                 className={cn("group relative flex flex-col justify-between rounded-3xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:scale-[1.01] hover:bg-card/85", accentCls.cardHover)}
               >
                 <div className={cn("absolute right-0 top-0 -mt-8 -mr-8 h-24 w-24 rounded-full blur-xl transition-all duration-500 pointer-events-none", accentCls.glow)} />
@@ -215,7 +221,7 @@ function TeamProjects() {
                         )}>
                           {p.name[0]}
                         </span>
-                        <Link href={`/team/projects/${p.id}`} className="hover:text-primary transition-colors">{p.name}</Link>
+                        <Link href={`/team/projects/view?projectId=${p.id}`} className="hover:text-primary transition-colors">{p.name}</Link>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{client?.name}</td>
