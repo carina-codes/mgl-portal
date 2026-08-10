@@ -7,8 +7,6 @@
 import { create } from "zustand";
 import { useMemo } from "react";
 import {
-  clients as seedClients,
-  projects as seedProjects,
   tasks as seedTasks,
   requests as seedRequests,
   documents as seedDocuments,
@@ -30,6 +28,27 @@ import {
   type User,
   type Comment,
 } from "./mock-data";
+import {
+  listClients,
+  createClientRecord,
+  updateClientRecord,
+  archiveClientRecord,
+  deleteClientRecord,
+} from "./data/clients";
+import {
+  listProjects,
+  createProjectRecord,
+  updateProjectRecord,
+  archiveProjectRecord,
+  deleteProjectRecord,
+  setProjectStatusRecord,
+  duplicateProjectRecord,
+} from "./data/projects";
+
+// clients + projects are now backed by Supabase (see src/lib/data/) — everything
+// else in this store (tasks, requests, documents, team, time, comments,
+// messages/channels, storage connections, AI log) is still the original
+// in-memory mock data, migrated one entity at a time.
 
 export type AIActionLog = {
   id: string;
@@ -72,19 +91,25 @@ type State = {
   workspaceName: string;
   updateWorkspaceName: (name: string) => void;
 
-  /* Clients */
-  createClient: (input: Partial<Client> & Pick<Client, "name" | "industry" | "contact" | "contactEmail">) => Client;
-  updateClient: (id: string, patch: Partial<Client>) => void;
-  archiveClient: (id: string) => void;
-  deleteClient: (id: string) => void;
+  /* Hydration — clients/projects load from Supabase; call once on app mount
+     (see Providers) after a session exists. RLS decides what comes back. */
+  hydrated: boolean;
+  hydrating: boolean;
+  hydrate: () => Promise<void>;
 
-  /* Projects */
-  createProject: (input: Partial<Project> & Pick<Project, "name" | "clientId">) => Project;
-  updateProject: (id: string, patch: Partial<Project>) => void;
-  archiveProject: (id: string) => void;
-  deleteProject: (id: string) => void;
-  duplicateProject: (id: string) => Project;
-  setProjectStatus: (id: string, status: ProjectStatus) => void;
+  /* Clients — backed by Supabase (src/lib/data/clients.ts) */
+  createClient: (input: Partial<Client> & Pick<Client, "name" | "industry" | "contact" | "contactEmail">) => Promise<Client>;
+  updateClient: (id: string, patch: Partial<Client>) => Promise<void>;
+  archiveClient: (id: string) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
+
+  /* Projects — backed by Supabase (src/lib/data/projects.ts) */
+  createProject: (input: Partial<Project> & Pick<Project, "name" | "clientId">) => Promise<Project>;
+  updateProject: (id: string, patch: Partial<Project>) => Promise<void>;
+  archiveProject: (id: string) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  duplicateProject: (id: string) => Promise<Project>;
+  setProjectStatus: (id: string, status: ProjectStatus) => Promise<void>;
 
   /* Tasks */
   createTask: (input: Partial<Task> & Pick<Task, "projectId" | "title">) => Task;
@@ -100,7 +125,8 @@ type State = {
   setRequestStatus: (id: string, status: RequestStatus) => void;
   deleteRequest: (id: string) => void;
   convertRequestToTask: (id: string, projectId: string, taskInput?: Partial<Task>) => Task | null;
-  convertRequestToProject: (id: string, projectInput: Partial<Project>) => Project | null;
+  // Async now — it calls the Supabase-backed createProject().
+  convertRequestToProject: (id: string, projectInput: Partial<Project>) => Promise<Project | null>;
 
   /* Documents */
   createFolder: (projectId: string, name: string) => void;
@@ -141,7 +167,9 @@ type State = {
 const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4)}`;
 const today = () => new Date().toISOString().slice(0, 10);
 
-const seedComments: Comment[] = [
+// Exported so scripts/seed.ts can reuse the same demo comment thread
+// instead of re-transcribing it.
+export const seedComments: Comment[] = [
   // Project-level comments for Project 1 (NovaBoard Mobile, p1)
   { id: "cm1", threadId: "p1", author: "u8", body: "Just reviewed the onboarding v3 — feels really clean. One small ask: can we slow the transition between step 2 and 3?", createdAt: "Today · 10:42", visibility: "client" },
   { id: "cm2", threadId: "p1", author: "u2", body: "Great call — easing it now. Will repost as v3.1 by EOD.", createdAt: "Today · 10:51", visibility: "client" },
@@ -165,8 +193,26 @@ const seedComments: Comment[] = [
 
 export const useStore = create<State>((set, get) => ({
   users: [...seedUsers],
-  clients: [...seedClients],
-  projects: [...seedProjects],
+  // Empty until hydrate() resolves — see Providers, which calls it once a
+  // Supabase session exists. Deliberately not seeded with mock data: showing
+  // fake numbers that then swap to different real ones is worse than a
+  // brief empty state.
+  clients: [],
+  projects: [],
+  hydrated: false,
+  hydrating: false,
+  hydrate: async () => {
+    if (get().hydrating || get().hydrated) return;
+    set({ hydrating: true });
+    try {
+      const [clients, projects] = await Promise.all([listClients(), listProjects()]);
+      set({ clients, projects, hydrated: true });
+    } catch (e) {
+      console.error("Failed to load clients/projects from Supabase", e);
+    } finally {
+      set({ hydrating: false });
+    }
+  },
   tasks: [...seedTasks],
   requests: [...seedRequests],
   documents: [
@@ -213,104 +259,80 @@ export const useStore = create<State>((set, get) => ({
   ],
   workspaceName: "MGL Agency",
 
-  /* Clients */
-  createClient: (input) => {
-    const c: Client = {
-      id: uid("c"),
-      logoColor: "#0049FE",
-      status: "active",
-      retainer: "Project",
-      since: new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-      projects: 0,
-      openRequests: 0,
-      hoursMonth: 0,
-      health: "healthy",
-      ...input,
-    } as Client;
+  /* Clients — each call hits Supabase first (so RLS + validation run for
+     real) and only updates local state once that succeeds. Errors propagate
+     to the caller — every call site in modals/index.tsx already wraps these
+     in useAsyncAction()'s run(), which shows an error toast on rejection. */
+  createClient: async (input) => {
+    const c = await createClientRecord(input);
     set((s) => ({ clients: [c, ...s.clients] }));
     return c;
   },
-  updateClient: (id, patch) =>
-    set((s) => ({ clients: s.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)) })),
-  archiveClient: (id) =>
-    set((s) => ({ clients: s.clients.map((c) => (c.id === id ? { ...c, status: "archived" } : c)) })),
-  deleteClient: (id) =>
+  updateClient: async (id, patch) => {
+    await updateClientRecord(id, patch);
+    set((s) => ({ clients: s.clients.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+  },
+  archiveClient: async (id) => {
+    await archiveClientRecord(id);
+    set((s) => ({ clients: s.clients.map((c) => (c.id === id ? { ...c, status: "archived" } : c)) }));
+  },
+  deleteClient: async (id) => {
+    await deleteClientRecord(id);
+    // Postgres cascades the client's projects/requests on delete; requests
+    // are still mock-only locally so we drop them from local state too.
     set((s) => ({
       clients: s.clients.filter((c) => c.id !== id),
       projects: s.projects.filter((p) => p.clientId !== id),
       requests: s.requests.filter((r) => r.clientId !== id),
-    })),
+    }));
+  },
 
-  /* Projects */
-  createProject: (input) => {
-    const p: Project = {
-      id: uid("p"),
-      name: input.name,
-      clientId: input.clientId,
-      status: input.status ?? "planning",
-      type: input.type ?? "fixed",
-      budget: input.budget ?? 0,
-      spent: 0,
-      hoursEstimate: input.hoursEstimate ?? 0,
-      hoursLogged: 0,
-      startDate: input.startDate ?? new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }),
-      endDate: input.endDate ?? "—",
-      progress: 0,
-      team: input.team ?? [],
-      lead: input.lead ?? (input.team?.[0] ?? "u1"),
-      description: input.description ?? "",
-      accent: input.accent ?? "progress",
-      createdAt: new Date().toISOString(),
-    };
+  /* Projects — same pattern as Clients above. */
+  createProject: async (input) => {
+    const p = await createProjectRecord(input);
     set((s) => ({ projects: [p, ...s.projects] }));
     return p;
   },
-  updateProject: (id, patch) =>
+  updateProject: async (id, patch) => {
+    await updateProjectRecord(id, patch);
     set((s) => ({
       projects: s.projects.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p)),
-    })),
-  archiveProject: (id) =>
+    }));
+  },
+  archiveProject: async (id) => {
+    await archiveProjectRecord(id);
     set((s) => ({
       projects: s.projects.map((p) => (p.id === id ? { ...p, status: "on_hold", updatedAt: new Date().toISOString() } : p)),
-    })),
-  deleteProject: (id) =>
+    }));
+  },
+  deleteProject: async (id) => {
+    await deleteProjectRecord(id);
+    // Postgres cascades tasks/documents on delete; both are still mock-only
+    // locally so we drop them from local state too.
     set((s) => ({
       projects: s.projects.filter((p) => p.id !== id),
       tasks: s.tasks.filter((t) => t.projectId !== id),
       documents: s.documents.filter((doc) => doc.projectId !== id),
-    })),
-  duplicateProject: (id) => {
-    const s = get();
-    const original = s.projects.find((p) => p.id === id);
-    if (!original) throw new Error("Project not found");
-    const newProj: Project = {
-      ...original,
-      id: uid("p"),
-      name: `${original.name} (Copy)`,
-      status: "planning",
-      progress: 0,
-      spent: 0,
-      hoursLogged: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: undefined,
-    };
-    set((state) => ({ projects: [newProj, ...state.projects] }));
-
-    // Duplicate all tasks belonging to this project
-    const originalTasks = s.tasks.filter((t) => t.projectId === id);
-    const newTasks = originalTasks.map((t) => ({
-      ...t,
-      id: uid("t"),
-      projectId: newProj.id,
     }));
-    set((state) => ({ tasks: [...newTasks, ...state.tasks] }));
+  },
+  duplicateProject: async (id) => {
+    const newProj = await duplicateProjectRecord(id);
+    set((s) => ({ projects: [newProj, ...s.projects] }));
+
+    // Tasks are still mock-only in this pass — duplicate them locally same
+    // as before, just pointed at the new (real) project id.
+    const originalTasks = get().tasks.filter((t) => t.projectId === id);
+    const newTasks = originalTasks.map((t) => ({ ...t, id: uid("t"), projectId: newProj.id }));
+    set((s) => ({ tasks: [...newTasks, ...s.tasks] }));
 
     return newProj;
   },
-  setProjectStatus: (id, status) =>
+  setProjectStatus: async (id, status) => {
+    await setProjectStatusRecord(id, status);
     set((s) => ({
       projects: s.projects.map((p) => (p.id === id ? { ...p, status, updatedAt: new Date().toISOString() } : p)),
-    })),
+    }));
+  },
 
   /* Tasks */
   createTask: (input) => {
@@ -396,10 +418,10 @@ export const useStore = create<State>((set, get) => ({
     get().setRequestStatus(id, "convert");
     return task;
   },
-  convertRequestToProject: (id, projectInput) => {
+  convertRequestToProject: async (id, projectInput) => {
     const r = get().requests.find((x) => x.id === id);
     if (!r) return null;
-    const project = get().createProject({
+    const project = await get().createProject({
       name: projectInput.name ?? r.title,
       clientId: r.clientId,
       description: projectInput.description ?? r.description,

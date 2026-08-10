@@ -304,7 +304,7 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             autoFocus
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SelectField
               label="Client"
               value={form.clientId}
@@ -346,7 +346,7 @@ function NewProjectModal({ close, payload }: { close: () => void; payload?: Moda
             }[form.type] ?? "Hours estimate";
 
             return (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <TextField
                   label={budgetLabel}
                   type="number"
@@ -480,7 +480,7 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
         {/* Section 1: General Details */}
         <div className="space-y-4">
           <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SelectField label="Client" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value })}>
               {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </SelectField>
@@ -501,7 +501,7 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
             <span>Timeline & Budget Settings</span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <TextField label={budgetLabel} type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: Number(e.target.value) })} />
             <TextField label={hoursLabel} type="number" value={form.hoursEstimate} onChange={(e) => setForm({ ...form, hoursEstimate: Number(e.target.value) })} />
             <TextField label="Due date" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} />
@@ -791,7 +791,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
         {/* Brand Identity Section */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand Identity</h4>
-          <div className="grid grid-cols-2 gap-3 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
             <div>
               <FieldLabel>Workspace Color</FieldLabel>
               <div className="flex items-center gap-2">
@@ -843,7 +843,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
         {/* Industry section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Core Industry</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Industry" placeholder="SaaS · DTC · Brand" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
             <TextField label="Sub Industry" placeholder="B2B · E-Commerce" value={form.subIndustry} onChange={(e) => setForm({ ...form, subIndustry: e.target.value })} />
           </div>
@@ -852,11 +852,11 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
         {/* Contact details section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Primary Contact</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Contact Name" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
             <TextField label="Contact Position / Role" placeholder="CMO / VP Marketing" value={form.contactRole} onChange={(e) => setForm({ ...form, contactRole: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Contact Email *" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
             <TextField label="Contact Phone" placeholder="+1 (555) 012-3457" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
           </div>
@@ -882,7 +882,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
                 >
                   Remove
                 </button>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <TextField
                     label="Name"
                     value={contact.name}
@@ -894,7 +894,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
                     onChange={(e) => updateContact(idx, "title", e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <TextField
                     label="Email"
                     type="email"
@@ -915,21 +915,21 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
         {/* Business details section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Business Details</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Business Name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <TextField label="Business Phone" placeholder="+1 (555) 012-3456" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Business Email" type="email" value={form.businessEmail} onChange={(e) => setForm({ ...form, businessEmail: e.target.value })} />
             <TextField label="Working Hours" placeholder="9:00 AM - 5:00 PM EST" value={form.workingHours} onChange={(e) => setForm({ ...form, workingHours: e.target.value })} />
           </div>
           <div className="space-y-3">
             <TextField label="Business Address" placeholder="e.g. 100 Broadway, 24th Floor" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <TextField label="City" placeholder="New York" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
               <TextField label="State" placeholder="NY" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <TextField label="Zip Code" placeholder="10005" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
               <SelectField label="Time Zone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
                 {!TIMEZONE_OPTIONS.some((t) => t.tz === form.timezone) && (
@@ -956,11 +956,11 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Online Presence</h4>
           <TextField label="Website URL" placeholder="https://example.com" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="LinkedIn URL" placeholder="https://linkedin.com/company/..." value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
             <TextField label="Instagram URL" placeholder="https://instagram.com/..." value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Twitter / X URL" placeholder="https://x.com/..." value={form.twitter} onChange={(e) => setForm({ ...form, twitter: e.target.value })} />
             <TextField label="Facebook URL" placeholder="https://facebook.com/..." value={form.facebook} onChange={(e) => setForm({ ...form, facebook: e.target.value })} />
           </div>
@@ -995,7 +995,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
               >
                 Remove
               </button>
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <TextField
                   label="Shortcut Name"
                   placeholder="e.g. Google Drive"
@@ -1225,7 +1225,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
         {/* Brand Identity Section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Brand Identity</h4>
-          <div className="grid grid-cols-2 gap-3 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
             <div>
               <FieldLabel>Workspace Color</FieldLabel>
               <div className="flex items-center gap-2">
@@ -1277,7 +1277,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
         {/* Industry section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Core Industry</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Industry" placeholder="SaaS · DTC · Brand" value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} />
             <TextField label="Sub Industry" placeholder="B2B · E-Commerce" value={form.subIndustry} onChange={(e) => setForm({ ...form, subIndustry: e.target.value })} />
           </div>
@@ -1286,11 +1286,11 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
         {/* Contact details section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Primary Contact</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Contact Name" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
             <TextField label="Contact Position / Role" placeholder="CMO / VP Marketing" value={form.contactRole} onChange={(e) => setForm({ ...form, contactRole: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Contact Email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
             <TextField label="Contact Phone" placeholder="+1 (555) 012-3457" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
           </div>
@@ -1316,7 +1316,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
                 >
                   Remove
                 </button>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <TextField
                     label="Name"
                     value={contact.name}
@@ -1328,7 +1328,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
                     onChange={(e) => updateContact(idx, "title", e.target.value)}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <TextField
                     label="Email"
                     type="email"
@@ -1349,21 +1349,21 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
         {/* Business details section */}
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Business Details</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Business Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <TextField label="Business Phone" placeholder="+1 (555) 012-3456" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Business Email" type="email" value={form.businessEmail} onChange={(e) => setForm({ ...form, businessEmail: e.target.value })} />
             <TextField label="Working Hours" placeholder="9:00 AM - 5:00 PM EST" value={form.workingHours} onChange={(e) => setForm({ ...form, workingHours: e.target.value })} />
           </div>
           <div className="space-y-3">
             <TextField label="Business Address" placeholder="e.g. 100 Broadway, 24th Floor" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <TextField label="City" placeholder="New York" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
               <TextField label="State" placeholder="NY" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <TextField label="Zip Code" placeholder="10005" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
               <SelectField label="Time Zone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
                 {!TIMEZONE_OPTIONS.some((t) => t.tz === form.timezone) && (
@@ -1390,11 +1390,11 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
         <div className="space-y-4 border-t border-border/50 pt-5">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Online Presence</h4>
           <TextField label="Website URL" placeholder="https://example.com" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="LinkedIn URL" placeholder="https://linkedin.com/company/..." value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} />
             <TextField label="Instagram URL" placeholder="https://instagram.com/..." value={form.instagram} onChange={(e) => setForm({ ...form, instagram: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Twitter / X URL" placeholder="https://x.com/..." value={form.twitter} onChange={(e) => setForm({ ...form, twitter: e.target.value })} />
             <TextField label="Facebook URL" placeholder="https://facebook.com/..." value={form.facebook} onChange={(e) => setForm({ ...form, facebook: e.target.value })} />
           </div>
@@ -1429,7 +1429,7 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
               >
                 Remove
               </button>
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <TextField
                   label="Shortcut Name"
                   placeholder="e.g. Google Drive"
@@ -2013,11 +2013,11 @@ function InviteClientModal({ close, payload }: { close: () => void; payload?: Mo
       }
     >
       <FieldGroup>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextField label="Full Name" placeholder="e.g. John Doe" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
           <TextField label="Email Address" type="email" placeholder="e.g. john@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextField label="Job Title" placeholder="e.g. Design Director" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <TextField label="Department" placeholder="e.g. Marketing" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
         </div>
@@ -2072,7 +2072,7 @@ function ClientSettingsModal({ close, payload }: { close: () => void; payload?: 
     >
       <FieldGroup>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SelectField label="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as any })}>
               <option value="active">Active</option>
               <option value="paused">Paused</option>
@@ -2404,7 +2404,7 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
           autoFocus
         />
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField
             label="Project"
             value={form.projectId}
@@ -2429,7 +2429,7 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
           </SelectField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField
             label="Priority"
             value={form.priority}
@@ -2449,7 +2449,7 @@ function NewTaskModal({ close, payload }: { close: () => void; payload?: ModalPa
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextField
             label="Start Date"
             type="date"
@@ -2550,13 +2550,13 @@ function EditTaskModal({ close, payload }: { close: () => void; payload?: ModalP
           <FieldLabel>Description</FieldLabel>
           <RichEditor value={form.note} onChange={(v) => setForm({ ...form, note: v })} minHeight={120} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField label="Project" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </SelectField>
           <TextField label="Due date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <SelectField label="Stage" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value as TaskStage })}>
             {(Object.keys(STAGE_META) as TaskStage[]).map((s) => (
               <option key={s} value={s}>{STAGE_META[s].label}</option>
@@ -2669,7 +2669,7 @@ function TaskStatusModal({ close, payload }: { close: () => void; payload?: Moda
         </div>
       }
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {(Object.keys(STAGE_META) as TaskStage[]).map((s) => {
           const m = STAGE_META[s];
           const active = s === stage;
@@ -2720,7 +2720,7 @@ function TaskPriorityModal({ close, payload }: { close: () => void; payload?: Mo
         </div>
       }
     >
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {(Object.keys(PRIORITY_META) as Priority[]).map((pr) => {
           const m = PRIORITY_META[pr];
           const active = pr === p;
@@ -2786,7 +2786,7 @@ function NewRequestModal({ close, payload }: { close: () => void; payload?: Moda
       }
     >
       <FieldGroup>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField label="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as RequestType })}>
             {(Object.keys(REQUEST_TYPE_META) as RequestType[]).map((t) => (
               <option key={t} value={t}>{REQUEST_TYPE_META[t].label}</option>
@@ -2799,7 +2799,7 @@ function NewRequestModal({ close, payload }: { close: () => void; payload?: Moda
           </SelectField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField label="Client" value={form.clientId} onChange={(e) => setForm({ ...form, clientId: e.target.value, projectId: "" })}>
             {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </SelectField>
@@ -2958,7 +2958,7 @@ function ConvertRequestChoiceModal({ close, payload }: { close: () => void; payl
       icon={<ArrowRightLeft className="h-5 w-5" />}
       size="md"
     >
-      <div className="grid grid-cols-2 gap-4 py-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
         <button
           onClick={() => {
             close();
@@ -3072,7 +3072,7 @@ function ConvertRequestToTaskModal({ close, payload }: { close: () => void; payl
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </SelectField>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField label="Stage" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value as TaskStage })}>
             {(Object.keys(STAGE_META) as TaskStage[]).map((s) => (
               <option key={s} value={s}>{STAGE_META[s].label}</option>
@@ -3085,7 +3085,7 @@ function ConvertRequestToTaskModal({ close, payload }: { close: () => void; payl
           </SelectField>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextField
             label="Due Date"
             type="date"
@@ -3224,7 +3224,7 @@ function ConvertRequestToProjectModal({ close, payload }: { close: () => void; p
         {/* Section 1: General Details */}
         <div className="space-y-4">
           <TextField label="Project name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FieldLabel>Client</FieldLabel>
               <div className="mt-1 flex items-center rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
@@ -3248,7 +3248,7 @@ function ConvertRequestToProjectModal({ close, payload }: { close: () => void; p
           <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
             <span>Timeline & Budget Settings</span>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <TextField
               label={budgetLabel}
               type="number"
@@ -3764,11 +3764,11 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
         {/* Profile Info Section */}
         <div className="space-y-4">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Profile Info</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
             <TextField label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as any })}>
               <option value="team">Team</option>
@@ -3776,7 +3776,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
               <option value="owner">Owner</option>
             </SelectField>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             <TextField label="Timezone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
           </div>
@@ -3786,7 +3786,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location</h4>
           <TextField label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
             <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
             <TextField label="Zip Code" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
@@ -3796,7 +3796,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
         {/* Financials Section */}
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financials</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SelectField label="Type" value={form.financialType} onChange={(e) => setForm({ ...form, financialType: e.target.value })}>
               <option value="hourly">Hourly</option>
               <option value="salary">Salary</option>
@@ -3836,7 +3836,7 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
               >
                 Remove
               </button>
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <TextField
                   label="Shortcut Name"
                   placeholder="e.g. Wiki"
@@ -4004,11 +4004,11 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
         {/* Profile Info Section */}
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Profile Info</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <TextField label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <SelectField label="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as typeof form.role })}>
               <option value="team">Team</option>
@@ -4016,7 +4016,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
               <option value="owner">Owner</option>
             </SelectField>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <TextField label="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             <TextField label="Timezone" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
           </div>
@@ -4026,7 +4026,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Location</h4>
           <TextField label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <TextField label="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
             <TextField label="State" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
             <TextField label="Zip Code" value={form.zipCode} onChange={(e) => setForm({ ...form, zipCode: e.target.value })} />
@@ -4035,7 +4035,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
 
         <div className="space-y-4 border-t border-border/40 pt-6">
           <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financials</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SelectField label="Type" value={form.financialType} onChange={(e) => setForm({ ...form, financialType: e.target.value })}>
               <option value="hourly">Hourly</option>
               <option value="salary">Salary</option>
@@ -4075,7 +4075,7 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
               >
                 Remove
               </button>
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <TextField
                   label="Shortcut Name"
                   placeholder="e.g. Wiki"
@@ -4169,7 +4169,7 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
           <option value="">No specific task</option>
           {projectTasks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
         </SelectField>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           {lockedUserId ? (
             <div>
@@ -4184,7 +4184,7 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
             </SelectField>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextField label="Hours" type="number" step="0.25" min="0" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} />
           <SelectField label="Billable" value={form.billable ? "y" : "n"} onChange={(e) => setForm({ ...form, billable: e.target.value === "y" })}>
             <option value="y">Billable</option>
@@ -4245,7 +4245,7 @@ function EditTimeModal({ close, payload }: { close: () => void; payload?: ModalP
           {projectTasks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
         </SelectField>
         <TextField label="Date" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <TextField label="Hours" type="number" step="0.25" value={form.hours} onChange={(e) => setForm({ ...form, hours: Number(e.target.value) })} />
           <SelectField label="Billable" value={form.billable ? "y" : "n"} onChange={(e) => setForm({ ...form, billable: e.target.value === "y" })}>
             <option value="y">Billable</option>

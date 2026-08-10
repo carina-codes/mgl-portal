@@ -27,6 +27,7 @@ import {
   FolderOpen,
   Send,
   ListTodo,
+  Menu,
 } from "lucide-react";
 import { useRole, useCurrentUser } from "@/lib/role-context";
 import { useActiveClient } from "@/hooks/use-active-client";
@@ -198,7 +199,7 @@ export function AppShell({
   role?: AppRole;
 }) {
   const pathname = usePathname() || "";
-  const { setRole } = useRole();
+  const { setRole, signOut } = useRole();
   const currentUser = useCurrentUser();
   const { client: activeClient } = useActiveClient();
   const { member: activeTeamMember, isManager } = useActiveTeamMember();
@@ -354,6 +355,11 @@ export function AppShell({
     setMounted(true);
   }, []);
 
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/");
+  };
+
   const toggleTheme = () => {
     if (theme === "light") {
       document.documentElement.classList.add("dark");
@@ -429,9 +435,55 @@ export function AppShell({
                   Switch to internal
                 </button>
               )}
-              <Link href={settingsHref} className="hover:opacity-90 transition-opacity cursor-pointer flex shrink-0">
-                <UserAvatar user={user} size={36} />
-              </Link>
+
+              {/* Mobile nav — the center <nav> is md:flex only, so below that
+                  breakpoint this is the only way to reach other sections. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 hover:bg-muted hover:text-foreground transition-colors cursor-pointer md:hidden"
+                    aria-label="Open navigation menu"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 border border-border bg-card">
+                  {NAV.map((item) => {
+                    const Icon = item.icon;
+                    const active = item.exact
+                      ? pathname === item.to
+                      : pathname.startsWith(item.to);
+                    return (
+                      <DropdownMenuItem key={item.to} asChild className={cn("cursor-pointer", active && "bg-primary/10 text-primary")}>
+                        <Link href={item.to} className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="hover:opacity-90 transition-opacity cursor-pointer flex shrink-0">
+                    <UserAvatar user={user} size={36} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 border border-border bg-card">
+                  <DropdownMenuLabel className="truncate">{user.name}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link href={settingsHref}>
+                      <Settings className="h-4 w-4" /> Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive focus:text-destructive">
+                    <LogOut className="h-4 w-4" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
