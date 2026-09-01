@@ -24,10 +24,21 @@ function TabNotificationHandler() {
  * the previous user's data. */
 function StoreHydrator() {
   const { session, loading } = useRole();
+  // Supabase fires onAuthStateChange (and hands us a brand-new `session`
+  // object) on more than just sign-in/out — a periodic TOKEN_REFRESHED
+  // event, or the tab regaining focus, produces a new reference for the
+  // *same* signed-in user. Keying this effect on the whole `session`
+  // object meant every one of those refreshes re-ran hydrate(), which
+  // does a full re-fetch and blindly overwrites the store — including
+  // any optimistic update (e.g. a file upload's storage_path) that was
+  // set locally after that re-fetch's query had already started. Keying
+  // on the user id instead means we only re-hydrate on an actual
+  // sign-in, sign-out, or account switch.
+  const userId = session?.user.id ?? null;
 
   useEffect(() => {
     if (loading) return;
-    if (session) {
+    if (userId) {
       useStore.getState().hydrate();
     } else {
       useStore.setState({
@@ -43,7 +54,7 @@ function StoreHydrator() {
         hydrated: false,
       });
     }
-  }, [session, loading]);
+  }, [userId, loading]);
 
   return null;
 }
