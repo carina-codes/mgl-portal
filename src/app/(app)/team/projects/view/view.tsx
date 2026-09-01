@@ -41,6 +41,10 @@ function TeamProjectDetail() {
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
   const allTasks = useStore((s) => s.tasks);
+  // See the matching comment in owner/projects/view/view.tsx — the store
+  // is empty until Supabase hydration finishes, which races the first
+  // render on a hard reload/direct link.
+  const hydrated = useStore((s) => s.hydrated);
 
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") as string;
@@ -69,6 +73,14 @@ function TeamProjectDetail() {
     // Guard against a direct/stale ?tab=requests link for non-managers.
     if (tab === "requests" && !isManager) setTab("overview");
   }, [tab, isManager]);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   if (!project) throw notFound();
   if (!client) throw notFound();

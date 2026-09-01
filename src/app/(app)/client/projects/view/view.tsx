@@ -154,6 +154,10 @@ function PortalProjectDetail() {
   const project = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
   const users = useStore((s) => s.users);
   const allTasks = useStore((s) => s.tasks);
+  // See the matching comment in owner/projects/view/view.tsx — the store
+  // is empty until Supabase hydration finishes, which races the first
+  // render on a hard reload/direct link.
+  const hydrated = useStore((s) => s.hydrated);
   // Header avatars show everyone actively contributing — management plus
   // anyone assigned to a task on this project — not just the Management list.
   const projectMemberIds = useMemo(() => {
@@ -165,6 +169,14 @@ function PortalProjectDetail() {
   const [tab, setTab] = useState<TabId>("overview");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   if (!project || project.clientId !== client.id) throw notFound();
 

@@ -193,6 +193,12 @@ function ProjectDetail() {
   const allRequests = useStore((s) => s.requests);
   const channels = useStore((s) => s.channels);
   const allTasks = useStore((s) => s.tasks);
+  // Data only exists in the store once Supabase hydration finishes (see
+  // StoreHydrator in providers.tsx) — on a hard reload/direct link, this
+  // component's first render happens with an empty store, before that.
+  // Without this guard, `project` would be momentarily undefined and the
+  // notFound() below would fire even for a project that genuinely exists.
+  const hydrated = useStore((s) => s.hydrated);
 
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") as string;
@@ -228,6 +234,14 @@ function ProjectDetail() {
       setTab(tabParam);
     }
   }, [tabParam]);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   if (!project) throw notFound();
   if (!client) throw notFound();
