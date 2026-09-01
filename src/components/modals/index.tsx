@@ -13,6 +13,7 @@
  */
 import { create } from "zustand";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AppDialog,
@@ -408,6 +409,8 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
   const deleteProject = useStore((s) => s.deleteProject);
   const { busy, run } = useAsyncAction();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname() || "";
   const [form, setForm] = useState(() => ({
     name: project?.name ?? "",
     clientId: project?.clientId ?? "",
@@ -460,6 +463,13 @@ function EditProjectModal({ close, payload }: { close: () => void; payload?: Mod
                 if (confirmDelete) {
                   await run(() => deleteProject(projectId), `${project.name} deleted`);
                   close();
+                  // Deleting from the project's own view page leaves that
+                  // route pointing at a project that no longer exists —
+                  // the page throws notFound() on the next render. Bounce
+                  // back to the list instead of letting that happen.
+                  if (pathname.includes("/projects/view")) {
+                    router.push(pathname.startsWith("/team") ? "/team/projects" : "/owner/projects");
+                  }
                 } else {
                   setConfirmDelete(true);
                 }
@@ -560,6 +570,8 @@ function DeleteProjectModal({ close, payload }: { close: () => void; payload?: M
   const project = useStore((s) => s.projects.find((p) => p.id === projectId));
   const deleteProject = useStore((s) => s.deleteProject);
   const { busy, run } = useAsyncAction();
+  const router = useRouter();
+  const pathname = usePathname() || "";
   if (!project) return null;
   return (
     <ConfirmDialog
@@ -572,6 +584,11 @@ function DeleteProjectModal({ close, payload }: { close: () => void; payload?: M
       onConfirm={async () => {
         await run(() => deleteProject(projectId), `${project.name} deleted`);
         close();
+        // Same guard as EditProjectModal's delete — avoid landing on the
+        // now-deleted project's own view page.
+        if (pathname.includes("/projects/view")) {
+          router.push(pathname.startsWith("/team") ? "/team/projects" : "/owner/projects");
+        }
       }}
       onCancel={close}
     />
