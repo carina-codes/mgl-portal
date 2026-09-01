@@ -7,13 +7,6 @@
 import { create } from "zustand";
 import { useMemo } from "react";
 import {
-  tasks as seedTasks,
-  requests as seedRequests,
-  documents as seedDocuments,
-  channels as seedChannels,
-  messages as seedMessages,
-  timeEntries as seedTime,
-  users as seedUsers,
   type Client,
   type Project,
   type ProjectStatus,
@@ -27,6 +20,8 @@ import {
   type TimeEntry,
   type User,
   type Comment,
+  type Channel,
+  type Message,
 } from "./mock-data";
 import {
   listClients,
@@ -34,6 +29,7 @@ import {
   updateClientRecord,
   archiveClientRecord,
   deleteClientRecord,
+  inviteClientContactRecord,
 } from "./data/clients";
 import {
   listProjects,
@@ -44,11 +40,50 @@ import {
   setProjectStatusRecord,
   duplicateProjectRecord,
 } from "./data/projects";
+import { listProfiles, inviteTeamMember, updateProfileRecord, deleteProfileRecord, resendTeamInviteRecord } from "./data/profiles";
+import {
+  listTasks,
+  createTaskRecord,
+  updateTaskRecord,
+  deleteTaskRecord,
+  setTaskStageRecord,
+  setTaskPriorityRecord,
+  assignTaskRecord,
+} from "./data/tasks";
+import {
+  listRequests,
+  createRequestRecord,
+  updateRequestRecord,
+  setRequestStatusRecord,
+  deleteRequestRecord,
+} from "./data/requests";
+import {
+  listDocuments,
+  uploadDocumentRecord,
+  renameDocumentRecord,
+  moveDocumentRecord,
+  deleteDocumentRecord,
+  setDocumentSharedRecord,
+  createFolderRecord,
+  renameFolderRecord,
+  deleteFolderRecord,
+} from "./data/documents";
+import {
+  listTimeEntries,
+  logTimeRecord,
+  updateTimeEntryRecord,
+  deleteTimeEntryRecord,
+} from "./data/time-entries";
+import { listComments, createCommentRecord, type ThreadType } from "./data/comments";
+import { listChannels } from "./data/channels";
 
-// clients + projects are now backed by Supabase (see src/lib/data/) — everything
-// else in this store (tasks, requests, documents, team, time, comments,
-// messages/channels, storage connections, AI log) is still the original
-// in-memory mock data, migrated one entity at a time.
+// clients, projects, team, tasks, requests, documents, time entries, and
+// comments are now backed by Supabase (see src/lib/data/); channels are
+// hydrated from Supabase too (read-only — see data/channels.ts for why).
+// messages, storage connections, and the AI log have no Supabase-backed data
+// layer yet — none of them are read by any page (verified: no component
+// subscribes to state.messages), so they're left as an empty/static
+// placeholder rather than migrated for their own sake.
 
 export type AIActionLog = {
   id: string;
@@ -81,8 +116,8 @@ type State = {
   tasks: Task[];
   requests: ClientRequest[];
   documents: Document[];
-  channels: typeof seedChannels;
-  messages: typeof seedMessages;
+  channels: Channel[];
+  messages: Message[];
   timeEntries: TimeEntry[];
   aiActions: AIActionLog[];
   comments: Comment[];
@@ -97,11 +132,16 @@ type State = {
   hydrating: boolean;
   hydrate: () => Promise<void>;
 
-  /* Clients — backed by Supabase (src/lib/data/clients.ts) */
+  /* Clients — backed by Supabase (src/lib/data/clients.ts). createClient also
+     invites the primary contact via magic link (best-effort — see impl). */
   createClient: (input: Partial<Client> & Pick<Client, "name" | "industry" | "contact" | "contactEmail">) => Promise<Client>;
   updateClient: (id: string, patch: Partial<Client>) => Promise<void>;
   archiveClient: (id: string) => Promise<void>;
   deleteClient: (id: string) => Promise<void>;
+  /** Resends the portal sign-in link to a client's contact (e.g. their first invite expired). */
+  resendClientInvite: (clientId: string) => Promise<void>;
+  /** Invites an additional contact at a client company to their own portal login (separate profile, same client_id). */
+  inviteClientContact: (clientId: string, name: string, email: string) => Promise<void>;
 
   /* Projects — backed by Supabase (src/lib/data/projects.ts) */
   createProject: (input: Partial<Project> & Pick<Project, "name" | "clientId">) => Promise<Project>;
@@ -111,47 +151,56 @@ type State = {
   duplicateProject: (id: string) => Promise<Project>;
   setProjectStatus: (id: string, status: ProjectStatus) => Promise<void>;
 
-  /* Tasks */
-  createTask: (input: Partial<Task> & Pick<Task, "projectId" | "title">) => Task;
-  updateTask: (id: string, patch: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  setTaskStage: (id: string, stage: TaskStage) => void;
-  setTaskPriority: (id: string, priority: Priority) => void;
-  assignTask: (id: string, assignees: string[]) => void;
+  /* Tasks — backed by Supabase (src/lib/data/tasks.ts) */
+  createTask: (input: Partial<Task> & Pick<Task, "projectId" | "title">) => Promise<Task>;
+  updateTask: (id: string, patch: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  setTaskStage: (id: string, stage: TaskStage) => Promise<void>;
+  setTaskPriority: (id: string, priority: Priority) => Promise<void>;
+  assignTask: (id: string, assignees: string[]) => Promise<void>;
 
-  /* Requests */
-  createRequest: (input: Partial<ClientRequest> & Pick<ClientRequest, "clientId" | "title" | "type">) => ClientRequest;
-  updateRequest: (id: string, patch: Partial<ClientRequest>) => void;
-  setRequestStatus: (id: string, status: RequestStatus) => void;
-  deleteRequest: (id: string) => void;
-  convertRequestToTask: (id: string, projectId: string, taskInput?: Partial<Task>) => Task | null;
+  /* Requests — backed by Supabase (src/lib/data/requests.ts) */
+  createRequest: (input: Partial<ClientRequest> & Pick<ClientRequest, "clientId" | "title" | "type">) => Promise<ClientRequest>;
+  updateRequest: (id: string, patch: Partial<ClientRequest>) => Promise<void>;
+  setRequestStatus: (id: string, status: RequestStatus) => Promise<void>;
+  deleteRequest: (id: string) => Promise<void>;
+  // Async now — it calls the Supabase-backed createTask().
+  convertRequestToTask: (id: string, projectId: string, taskInput?: Partial<Task>) => Promise<Task | null>;
   // Async now — it calls the Supabase-backed createProject().
   convertRequestToProject: (id: string, projectInput: Partial<Project>) => Promise<Project | null>;
 
-  /* Documents */
-  createFolder: (projectId: string, name: string) => void;
-  renameFolder: (projectId: string | undefined, oldName: string, newName: string) => void;
-  deleteFolder: (projectId: string | undefined, folderName: string) => void;
-  renameDocument: (id: string, name: string) => void;
-  uploadDocument: (input: Partial<Document> & Pick<Document, "projectId" | "name" | "folder">) => Document;
-  moveDocument: (id: string, folder: string) => void;
-  deleteDocument: (id: string) => void;
-  toggleDocumentShared: (id: string) => void;
+  /* Documents — backed by Supabase (src/lib/data/documents.ts). Folders are
+     derived: they're just the distinct `folder` values on documents. */
+  createFolder: (projectId: string, name: string) => Promise<void>;
+  renameFolder: (projectId: string | undefined, oldName: string, newName: string) => Promise<void>;
+  deleteFolder: (projectId: string | undefined, folderName: string) => Promise<void>;
+  renameDocument: (id: string, name: string) => Promise<void>;
+  uploadDocument: (input: Partial<Document> & Pick<Document, "projectId" | "name" | "folder">) => Promise<Document>;
+  moveDocument: (id: string, folder: string) => Promise<void>;
+  deleteDocument: (id: string) => Promise<void>;
+  toggleDocumentShared: (id: string) => Promise<void>;
 
-  /* Team */
-  addTeamMember: (input: Partial<User> & Pick<User, "name" | "email" | "title">) => User;
-  updateTeamMember: (id: string, patch: Partial<User>) => void;
-  removeTeamMember: (id: string) => void;
+  /* Team — backed by Supabase (src/lib/data/profiles.ts). addTeamMember
+     invites via magic link rather than inserting directly — see that file's
+     header for why (profiles.id is an auth.users FK; the browser only ever
+     holds the anon key). */
+  addTeamMember: (input: Partial<User> & Pick<User, "name" | "email" | "title">) => Promise<User>;
+  updateTeamMember: (id: string, patch: Partial<User>) => Promise<void>;
+  removeTeamMember: (id: string) => Promise<void>;
+  /** Resends the portal sign-in link to a team/manager member (e.g. their first invite expired). */
+  resendTeamInvite: (id: string) => Promise<void>;
 
-  /* Time */
-  logTime: (input: Partial<TimeEntry> & Pick<TimeEntry, "userId" | "projectId" | "hours" | "date">) => TimeEntry;
-  updateTimeEntry: (id: string, patch: Partial<TimeEntry>) => void;
-  deleteTimeEntry: (id: string) => void;
+  /* Time — backed by Supabase (src/lib/data/time-entries.ts) */
+  logTime: (input: Partial<TimeEntry> & Pick<TimeEntry, "userId" | "projectId" | "hours" | "date">) => Promise<TimeEntry>;
+  updateTimeEntry: (id: string, patch: Partial<TimeEntry>) => Promise<void>;
+  deleteTimeEntry: (id: string) => Promise<void>;
 
-  /* Comments */
-  createComment: (input: Partial<Comment> & Pick<Comment, "threadId" | "author" | "body" | "visibility">) => Comment;
+  /* Comments — backed by Supabase (src/lib/data/comments.ts). threadId can
+     point at a project, task, or request; the DB needs to know which, so
+     this resolves it by checking the store's own tasks/requests/projects. */
+  createComment: (input: Partial<Comment> & Pick<Comment, "threadId" | "author" | "body" | "visibility">) => Promise<Comment>;
 
-  /* Channels */
+  /* Channels — hydrated from Supabase (read-only, see data/channels.ts) */
   markChannelAsRead: (channelId: string) => void;
 
   /* Storage Connections */
@@ -192,62 +241,50 @@ export const seedComments: Comment[] = [
 ];
 
 export const useStore = create<State>((set, get) => ({
-  users: [...seedUsers],
   // Empty until hydrate() resolves — see Providers, which calls it once a
   // Supabase session exists. Deliberately not seeded with mock data: showing
   // fake numbers that then swap to different real ones is worse than a
   // brief empty state.
+  users: [],
   clients: [],
   projects: [],
+  tasks: [],
+  requests: [],
   hydrated: false,
   hydrating: false,
   hydrate: async () => {
     if (get().hydrating || get().hydrated) return;
     set({ hydrating: true });
     try {
-      const [clients, projects] = await Promise.all([listClients(), listProjects()]);
-      set({ clients, projects, hydrated: true });
+      const [users, clients, projects, tasks, requests, documents, timeEntries, comments, channels] = await Promise.all([
+        listProfiles(),
+        listClients(),
+        listProjects(),
+        listTasks(),
+        listRequests(),
+        listDocuments(),
+        listTimeEntries(),
+        listComments(),
+        listChannels(),
+      ]);
+      set({ users, clients, projects, tasks, requests, documents, timeEntries, comments, channels, hydrated: true });
     } catch (e) {
-      console.error("Failed to load clients/projects from Supabase", e);
+      console.error("Failed to load portal data from Supabase", e);
     } finally {
       set({ hydrating: false });
     }
   },
-  tasks: [...seedTasks],
-  requests: [...seedRequests],
-  documents: [
-    ...seedDocuments,
-    {
-      id: "doc-ext-1",
-      projectId: "p1",
-      folder: "Marketing Assets",
-      name: "Social-Campaign-Brief.pdf",
-      size: "1.2 MB",
-      uploadedBy: "u2",
-      uploadedAt: "Yesterday · 10:20 AM",
-      shared: true
-    },
-    {
-      id: "doc-ext-2",
-      projectId: "p1",
-      folder: "Marketing Assets",
-      name: "Instagram-Story-Ad-Mockups.zip",
-      size: "14.5 MB",
-      uploadedBy: "u4",
-      uploadedAt: "Yesterday · 11:05 AM",
-      shared: false
-    }
-  ],
-  channels: [...seedChannels],
-  messages: [...seedMessages],
-  timeEntries: [...seedTime],
+  documents: [],
+  channels: [],
+  messages: [],
+  timeEntries: [],
   aiActions: [
     { id: "a1", iconKey: "task", title: "Created task: Soften hero gradient", meta: "NovaBoard Mobile · assigned to Mia", ts: "12m ago" },
     { id: "a2", iconKey: "move", title: "Moved 2 tasks to In Review", meta: "Auto-detected from comment thread", ts: "1h ago" },
     { id: "a3", iconKey: "draft", title: "Drafted client reply to Elena", meta: "Northwind Brand · awaiting your review", ts: "2h ago" },
     { id: "a4", iconKey: "summary", title: "Summarized 4 requests from Lumen", meta: "Highlighted 1 needing clarification", ts: "Yesterday" },
   ],
-  comments: [...seedComments],
+  comments: [],
   storageConnections: [
     { provider: "gdrive", connected: false },
     { provider: "dropbox", connected: false },
@@ -266,7 +303,24 @@ export const useStore = create<State>((set, get) => ({
   createClient: async (input) => {
     const c = await createClientRecord(input);
     set((s) => ({ clients: [c, ...s.clients] }));
+    // Best-effort: the client company record above is the source of truth,
+    // so a flaky invite email (rate limit, bad address, etc.) shouldn't make
+    // client creation itself look like it failed. If this fails, the owner
+    // can resend from the client's page — see resendClientInvite.
+    try {
+      await inviteClientContactRecord(c.id, c.contact, c.contactEmail);
+    } catch (e) {
+      console.error(`Failed to invite ${c.contactEmail} to the client portal`, e);
+    }
     return c;
+  },
+  resendClientInvite: async (clientId) => {
+    const c = get().clients.find((c) => c.id === clientId);
+    if (!c) throw new Error("Client not found");
+    await inviteClientContactRecord(c.id, c.contact, c.contactEmail);
+  },
+  inviteClientContact: async (clientId, name, email) => {
+    await inviteClientContactRecord(clientId, name, email);
   },
   updateClient: async (id, patch) => {
     await updateClientRecord(id, patch);
@@ -319,11 +373,29 @@ export const useStore = create<State>((set, get) => ({
     const newProj = await duplicateProjectRecord(id);
     set((s) => ({ projects: [newProj, ...s.projects] }));
 
-    // Tasks are still mock-only in this pass — duplicate them locally same
-    // as before, just pointed at the new (real) project id.
+    // Recreate each task for real against the new project — tasks are
+    // Supabase-backed now too, so this can't just splice copies into local
+    // state the way it used to.
     const originalTasks = get().tasks.filter((t) => t.projectId === id);
-    const newTasks = originalTasks.map((t) => ({ ...t, id: uid("t"), projectId: newProj.id }));
-    set((s) => ({ tasks: [...newTasks, ...s.tasks] }));
+    await Promise.all(
+      originalTasks.map((t) =>
+        get().createTask({
+          projectId: newProj.id,
+          title: t.title,
+          note: t.note,
+          stage: t.stage,
+          priority: t.priority,
+          progress: t.progress,
+          dueDate: t.dueDate,
+          assignees: t.assignees,
+          startDate: t.startDate,
+          tags: t.tags,
+          followers: t.followers,
+          estimatedHours: t.estimatedHours,
+          customFields: t.customFields,
+        })
+      )
+    );
 
     return newProj;
   },
@@ -334,88 +406,73 @@ export const useStore = create<State>((set, get) => ({
     }));
   },
 
-  /* Tasks */
-  createTask: (input) => {
-    const now = new Date().toISOString();
-    const t: Task = {
-      id: uid("t"),
-      projectId: input.projectId,
-      title: input.title,
-      note: input.note ?? "",
-      stage: input.stage ?? "todo",
-      priority: input.priority ?? "medium",
-      progress: input.progress ?? 0,
-      dueDate: input.dueDate ?? "",
-      assignees: input.assignees ?? [],
-      attachments: 0,
-      comments: 0,
-      startDate: input.startDate ?? "",
-      tags: input.tags ?? [],
-      followers: input.followers ?? [],
-      estimatedHours: input.estimatedHours ?? 0,
-      customFields: input.customFields ?? {},
-      createdAt: now,
-      updatedAt: now,
-    };
+  /* Tasks — backed by Supabase (src/lib/data/tasks.ts) */
+  createTask: async (input) => {
+    const t = await createTaskRecord(input);
     set((s) => ({ tasks: [t, ...s.tasks] }));
     return t;
   },
-  updateTask: (id, patch) =>
+  updateTask: async (id, patch) => {
+    await updateTaskRecord(id, patch);
     set((s) => ({
-      tasks: s.tasks.map((t) =>
-        t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t
-      ),
-    })),
-  deleteTask: (id) => set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
-  setTaskStage: (id, stage) =>
+      tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t)),
+    }));
+  },
+  deleteTask: async (id) => {
+    await deleteTaskRecord(id);
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }));
+  },
+  setTaskStage: async (id, stage) => {
+    const progress = stage === "completed" ? 100 : undefined;
+    await setTaskStageRecord(id, stage, progress);
     set((s) => ({
-      tasks: s.tasks.map((t) =>
-        t.id === id ? { ...t, stage, progress: stage === "completed" ? 100 : t.progress } : t,
-      ),
-    })),
-  setTaskPriority: (id, priority) =>
-    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, priority } : t)) })),
-  assignTask: (id, assignees) =>
-    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, assignees } : t)) })),
+      tasks: s.tasks.map((t) => (t.id === id ? { ...t, stage, progress: progress ?? t.progress } : t)),
+    }));
+  },
+  setTaskPriority: async (id, priority) => {
+    await setTaskPriorityRecord(id, priority);
+    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, priority } : t)) }));
+  },
+  assignTask: async (id, assignees) => {
+    await assignTaskRecord(id, assignees);
+    set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, assignees } : t)) }));
+  },
 
-  /* Requests */
-  createRequest: (input) => {
-    const r: ClientRequest = {
-      id: uid("r"),
-      clientId: input.clientId,
-      projectId: input.projectId,
-      type: input.type,
-      title: input.title,
-      description: input.description ?? "",
-      status: input.status ?? "submitted",
-      submittedAt: "Just now",
-      submittedBy: input.submittedBy ?? "u1",
-      estimatedHours: input.estimatedHours,
-      priority: input.priority ?? "medium",
-    };
+  /* Requests — backed by Supabase (src/lib/data/requests.ts) */
+  createRequest: async (input) => {
+    const r = await createRequestRecord({
+      ...input,
+      submittedBy: input.submittedBy ?? get().users.find((u) => u.role === "owner")?.id ?? get().users[0]?.id,
+    });
     set((s) => ({ requests: [r, ...s.requests] }));
     return r;
   },
-  updateRequest: (id, patch) =>
-    set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
-  setRequestStatus: (id, status) =>
-    set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status } : r)) })),
-  deleteRequest: (id) =>
+  updateRequest: async (id, patch) => {
+    await updateRequestRecord(id, patch);
+    set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
+  },
+  setRequestStatus: async (id, status) => {
+    await setRequestStatusRecord(id, status);
+    set((s) => ({ requests: s.requests.map((r) => (r.id === id ? { ...r, status } : r)) }));
+  },
+  deleteRequest: async (id) => {
+    await deleteRequestRecord(id);
     set((s) => ({
       requests: s.requests.filter((r) => r.id !== id),
       comments: s.comments.filter((c) => c.threadId !== id),
-    })),
-  convertRequestToTask: (id, projectId, taskInput) => {
+    }));
+  },
+  convertRequestToTask: async (id, projectId, taskInput) => {
     const r = get().requests.find((x) => x.id === id);
     if (!r) return null;
-    const task = get().createTask({
+    const task = await get().createTask({
       projectId,
       title: r.title,
       note: r.description,
       priority: r.priority,
       ...taskInput,
     });
-    get().setRequestStatus(id, "convert");
+    await get().setRequestStatus(id, "convert");
     return task;
   },
   convertRequestToProject: async (id, projectInput) => {
@@ -430,119 +487,110 @@ export const useStore = create<State>((set, get) => ({
       hoursEstimate: projectInput.hoursEstimate ?? 40,
       team: projectInput.team ?? [],
     });
-    get().setRequestStatus(id, "convert");
+    await get().setRequestStatus(id, "convert");
     return project;
   },
 
 
 
-  /* Documents */
-  createFolder: (projectId, name) => {
+  /* Documents — backed by Supabase (src/lib/data/documents.ts) */
+  createFolder: async (projectId, name) => {
     // Folders are derived from documents — we add a hidden placeholder doc to materialize an empty folder.
-    set((s) => ({
-      documents: [
-        ...s.documents,
-        {
-          id: uid("doc"),
-          projectId,
-          folder: name,
-          name: ".keep",
-          size: "0 KB",
-          uploadedBy: "u1",
-          uploadedAt: "Just now",
-          shared: false,
-        },
-      ],
-    }));
+    const d = await createFolderRecord(projectId, name);
+    set((s) => ({ documents: [...s.documents, d] }));
   },
-  renameFolder: (projectId, oldName, newName) =>
+  renameFolder: async (projectId, oldName, newName) => {
+    await renameFolderRecord(projectId, oldName, newName);
     set((s) => ({
       documents: s.documents.map((d) =>
         (!projectId || d.projectId === projectId) && d.folder === oldName ? { ...d, folder: newName } : d,
       ),
-    })),
-  deleteFolder: (projectId, folderName) =>
+    }));
+  },
+  deleteFolder: async (projectId, folderName) => {
+    await deleteFolderRecord(projectId, folderName);
     set((s) => ({
       documents: s.documents.filter((d) => !((!projectId || d.projectId === projectId) && d.folder === folderName)),
       projectStorageMappings: s.projectStorageMappings.filter((m) => !((!projectId || m.projectId === projectId) && m.folderName === folderName)),
-    })),
-  renameDocument: (id, name) =>
+    }));
+  },
+  renameDocument: async (id, name) => {
+    await renameDocumentRecord(id, name);
     set((s) => ({
       documents: s.documents.map((d) => (d.id === id ? { ...d, name } : d)),
-    })),
-  uploadDocument: (input) => {
-    const d: Document = {
-      id: uid("doc"),
-      projectId: input.projectId,
-      name: input.name,
-      folder: input.folder,
-      size: input.size ?? `${Math.floor(Math.random() * 8 + 1)}.${Math.floor(Math.random() * 9)} MB`,
-      uploadedBy: input.uploadedBy ?? "u1",
-      uploadedAt: "Just now",
-      shared: input.shared ?? false,
-      previewUrl: input.previewUrl,
-    };
+    }));
+  },
+  uploadDocument: async (input) => {
+    const d = await uploadDocumentRecord(input);
     set((s) => ({ documents: [d, ...s.documents] }));
     return d;
   },
-  moveDocument: (id, folder) =>
-    set((s) => ({ documents: s.documents.map((d) => (d.id === id ? { ...d, folder } : d)) })),
-  deleteDocument: (id) => set((s) => ({ documents: s.documents.filter((d) => d.id !== id) })),
-  toggleDocumentShared: (id) =>
+  moveDocument: async (id, folder) => {
+    await moveDocumentRecord(id, folder);
+    set((s) => ({ documents: s.documents.map((d) => (d.id === id ? { ...d, folder } : d)) }));
+  },
+  deleteDocument: async (id) => {
+    await deleteDocumentRecord(id);
+    set((s) => ({ documents: s.documents.filter((d) => d.id !== id) }));
+  },
+  toggleDocumentShared: async (id) => {
+    const doc = get().documents.find((d) => d.id === id);
+    if (!doc) return;
+    await setDocumentSharedRecord(id, !doc.shared);
     set((s) => ({
       documents: s.documents.map((d) => (d.id === id ? { ...d, shared: !d.shared } : d)),
-    })),
+    }));
+  },
 
-  /* Team */
-  addTeamMember: (input) => {
+  /* Team — invites rather than inserts; see profiles.ts header. */
+  addTeamMember: async (input) => {
     const palette = ["#0049FE", "#FF7A59", "#10B981", "#A855F7", "#F59E0B", "#EC4899"];
-    const u: User = {
-      id: uid("u"),
-      name: input.name,
-      email: input.email,
-      title: input.title,
-      role: input.role ?? "team",
+    const u = await inviteTeamMember({
+      ...input,
       color: input.color ?? palette[Math.floor(Math.random() * palette.length)],
-      avatar: input.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
-    };
+      avatar: input.avatar ?? input.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+    });
     set((s) => ({ users: [...s.users, u] }));
     return u;
   },
-  updateTeamMember: (id, patch) =>
-    set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, ...patch } : u)) })),
-  removeTeamMember: (id) => set((s) => ({ users: s.users.filter((u) => u.id !== id) })),
+  updateTeamMember: async (id, patch) => {
+    await updateProfileRecord(id, patch);
+    set((s) => ({ users: s.users.map((u) => (u.id === id ? { ...u, ...patch } : u)) }));
+  },
+  removeTeamMember: async (id) => {
+    await deleteProfileRecord(id);
+    set((s) => ({ users: s.users.filter((u) => u.id !== id) }));
+  },
+  resendTeamInvite: async (id) => {
+    const u = get().users.find((u) => u.id === id);
+    if (!u) throw new Error("Team member not found");
+    await resendTeamInviteRecord(u.email);
+  },
 
-  /* Time */
-  logTime: (input) => {
-    const te: TimeEntry = {
-      id: uid("te"),
-      userId: input.userId,
-      projectId: input.projectId,
-      taskId: input.taskId,
-      date: input.date ?? today(),
-      hours: input.hours,
-      note: input.note ?? "",
-      billable: input.billable ?? true,
-    };
+  /* Time — backed by Supabase (src/lib/data/time-entries.ts) */
+  logTime: async (input) => {
+    const te = await logTimeRecord({ ...input, date: input.date ?? today() });
     set((s) => ({ timeEntries: [te, ...s.timeEntries] }));
     return te;
   },
-  updateTimeEntry: (id, patch) =>
-    set((s) => ({ timeEntries: s.timeEntries.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
-  deleteTimeEntry: (id) =>
-    set((s) => ({ timeEntries: s.timeEntries.filter((t) => t.id !== id) })),
+  updateTimeEntry: async (id, patch) => {
+    await updateTimeEntryRecord(id, patch);
+    set((s) => ({ timeEntries: s.timeEntries.map((t) => (t.id === id ? { ...t, ...patch } : t)) }));
+  },
+  deleteTimeEntry: async (id) => {
+    await deleteTimeEntryRecord(id);
+    set((s) => ({ timeEntries: s.timeEntries.filter((t) => t.id !== id) }));
+  },
 
-  /* Comments */
-  createComment: (input) => {
-    const c: Comment = {
-      id: uid("cm"),
-      threadId: input.threadId,
-      author: input.author,
-      body: input.body,
-      createdAt: "Just now",
-      visibility: input.visibility ?? "client",
-      attachments: input.attachments ?? [],
-    };
+  /* Comments — backed by Supabase (src/lib/data/comments.ts) */
+  createComment: async (input) => {
+    const s0 = get();
+    const threadType: ThreadType = s0.tasks.some((t) => t.id === input.threadId)
+      ? "task"
+      : s0.requests.some((r) => r.id === input.threadId)
+        ? "request"
+        : "project";
+    const c = await createCommentRecord({ ...input, threadType, visibility: input.visibility ?? "client" });
     set((s) => {
       // Also update comment count on the task if threadId represents a task
       const updatedTasks = s.tasks.map((t) => {
@@ -671,6 +719,16 @@ export function projectMemberIds(project: Project, tasks: Task[]): string[] {
     .filter((t) => t.projectId === project.id)
     .flatMap((t) => t.assignees);
   return Array.from(new Set([...project.team, ...taskAssignees]));
+}
+
+/**
+ * Sums logged hours for a user from a real (Supabase-backed) TimeEntry[]
+ * slice — e.g. `totalHoursByUser(useStore((s) => s.timeEntries), userId)`.
+ * Replaces the old mock-data.ts helper of the same name, which read the
+ * static seed timeEntries array instead of the store.
+ */
+export function totalHoursByUser(entries: TimeEntry[], userId: string): number {
+  return entries.filter((t) => t.userId === userId).reduce((s, t) => s + t.hours, 0);
 }
 
 export function getProjectProgress(projectId: string) {

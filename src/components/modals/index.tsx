@@ -686,12 +686,7 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
   };
 
   const [additionalContacts, setAdditionalContacts] = useState<any[]>([]);
-  const [clientShareToken, setClientShareToken] = useState(() => Math.random().toString(36).substring(2, 10));
-  const [copied, setCopied] = useState(false);
   const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string; displayInDropdown: boolean }>>([]);
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const accessLink = `${origin}/client?token=${clientShareToken}`;
 
   const addContact = () => {
     setAdditionalContacts([
@@ -724,17 +719,6 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
     setShortcuts(shortcuts.filter((_, i) => i !== index));
   };
 
-  const regenerateToken = () => {
-    const newToken = Math.random().toString(36).substring(2, 10);
-    setClientShareToken(newToken);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(accessLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const valid = form.name && form.contactEmail.includes("@");
 
   const handleSubmit = async () => {
@@ -751,9 +735,8 @@ function NewClientModal({ close }: { close: () => void; payload?: ModalPayload }
       tags,
       socialLinks,
       additionalContacts,
-      clientShareToken,
       shortcuts,
-    }), "Client added");
+    }), "Client added — an invite email is on its way to their contact");
     close();
   };
 
@@ -1076,14 +1059,11 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
   };
 
   const [additionalContacts, setAdditionalContacts] = useState(() => client?.additionalContacts || []);
-  const [clientShareToken, setClientShareToken] = useState(() => client?.clientShareToken || Math.random().toString(36).substring(2, 10));
-  const [copied, setCopied] = useState(false);
   const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string; displayInDropdown: boolean }>>(() => client?.shortcuts || []);
+  const resendInvite = useStore((s) => s.resendClientInvite);
+  const { busy: resendBusy, run: runResend } = useAsyncAction();
 
   if (!client) return null;
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const accessLink = `${origin}/client?token=${clientShareToken}`;
 
   const addContact = () => {
     setAdditionalContacts([
@@ -1116,17 +1096,6 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
     setShortcuts(shortcuts.filter((_, i) => i !== index));
   };
 
-  const regenerateToken = () => {
-    const newToken = Math.random().toString(36).substring(2, 10);
-    setClientShareToken(newToken);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(accessLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleSubmit = async () => {
     const tags = form.tagsString.split(",").map((t) => t.trim()).filter(Boolean);
     const socialLinks = {
@@ -1135,13 +1104,12 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
       twitter: form.twitter,
       facebook: form.facebook,
     };
-    
+
     await run(() => update(id, {
       ...form,
       tags,
       socialLinks,
       additionalContacts,
-      clientShareToken,
       shortcuts,
     }), "Client updated");
     close();
@@ -1190,35 +1158,27 @@ function EditClientModal({ close, payload }: { close: () => void; payload?: Moda
       }
     >
       <div className="space-y-6">
-        {/* Access link section */}
-        <div className="space-y-4">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Portal Access Link</h4>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                readOnly
-                value={accessLink}
-                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
-              >
-                {copied ? "Copied!" : "Copy Link"}
-              </button>
+        {/* Portal access section */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Portal Access</h4>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate">{client.contact}</div>
+              <div className="text-xs text-muted-foreground truncate">{client.contactEmail}</div>
             </div>
             <button
               type="button"
-              onClick={regenerateToken}
-              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
+              disabled={resendBusy}
+              onClick={() =>
+                runResend(() => resendInvite(client.id), `Invite email resent to ${client.contactEmail}`)
+              }
+              className="shrink-0 h-9 px-3.5 rounded-xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer disabled:opacity-60"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerate
+              Resend invite email
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground">
-            Anyone with this link will be able to access the client portal view without logging in.
+            Sends a fresh one-time sign-in link to the contact's email — useful if their first invite expired or got lost.
           </p>
         </div>
 
@@ -1961,6 +1921,7 @@ function InviteClientModal({ close, payload }: { close: () => void; payload?: Mo
   const clientId = payload?.clientId as string;
   const client = useStore((s) => s.clients.find((c) => c.id === clientId));
   const updateClient = useStore((s) => s.updateClient);
+  const inviteContact = useStore((s) => s.inviteClientContact);
   const { busy, run } = useAsyncAction();
 
   const [form, setForm] = useState({
@@ -1979,10 +1940,13 @@ function InviteClientModal({ close, payload }: { close: () => void; payload?: Mo
     if (!valid) return;
     const currentContacts = client.additionalContacts || [];
     const updatedContacts = [...currentContacts, { ...form }];
-    
+
     await run(async () => {
-      updateClient(client.id, { additionalContacts: updatedContacts });
-    }, "Contact invited");
+      // Gives this contact their own real portal login (separate profile,
+      // same client_id) — not just an entry in the read-only contacts list.
+      await inviteContact(client.id, form.name, form.email);
+      await updateClient(client.id, { additionalContacts: updatedContacts });
+    }, "Invite sent");
     close();
   };
 
@@ -3711,11 +3675,10 @@ function AddMemberModal({ close }: { close: () => void; payload?: ModalPayload }
     internalNotes: "",
     phone: "",
     timezone: "America/Los_Angeles",
-    memberShareToken: Math.random().toString(36).substring(2, 10),
   });
 
   const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string }>>([]);
-  
+
   const valid = form.name && form.email.includes("@");
 
   const addShortcut = () => {
@@ -3863,10 +3826,11 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
   const u = useStore((s) => s.users.find((u) => u.id === id));
   const update = useStore((s) => s.updateTeamMember);
   const remove = useStore((s) => s.removeTeamMember);
+  const resendInvite = useStore((s) => s.resendTeamInvite);
   const { busy, run } = useAsyncAction();
+  const { busy: resendBusy, run: runResend } = useAsyncAction();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [copied, setCopied] = useState(false);
-  
+
   const [form, setForm] = useState(() => ({
     name: u?.name ?? "",
     title: u?.title ?? "",
@@ -3881,28 +3845,11 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
     internalNotes: u?.internalNotes ?? u?.bio ?? "",
     phone: u?.phone ?? "",
     timezone: u?.timezone ?? "America/Los_Angeles",
-    memberShareToken: u?.memberShareToken || Math.random().toString(36).substring(2, 10),
   }));
 
   const [shortcuts, setShortcuts] = useState<Array<{ name: string; link: string }>>(() => u?.shortcuts || []);
 
   if (!u) return null;
-
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const accessLink = `${origin}/team?token=${form.memberShareToken}`;
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(accessLink);
-    setCopied(true);
-    toast.success("Access link copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const regenerateToken = () => {
-    const newToken = Math.random().toString(36).substring(2, 10);
-    setForm((prev) => ({ ...prev, memberShareToken: newToken }));
-    toast.success("Access token regenerated");
-  };
 
   const addShortcut = () => {
     setShortcuts([...shortcuts, { name: "", link: "" }]);
@@ -3969,35 +3916,25 @@ function EditMemberModal({ close, payload }: { close: () => void; payload?: Moda
       }
     >
       <div className="space-y-6">
-        {/* Access link section */}
-        <div className="space-y-4">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Team Member Portal Access Link</h4>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <input
-                readOnly
-                value={accessLink}
-                className="w-full h-11 rounded-2xl border border-border bg-muted/20 px-3 pr-20 text-xs text-foreground focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="absolute right-2 top-2 h-7 px-3 rounded-lg bg-background hover:bg-muted text-[11px] font-semibold border border-border/50 text-foreground transition-all cursor-pointer"
-              >
-                {copied ? "Copied!" : "Copy Link"}
-              </button>
+        {/* Portal access section */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Portal Access</h4>
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-muted/20 px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate">{u.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{u.email}</div>
             </div>
             <button
               type="button"
-              onClick={regenerateToken}
-              className="h-11 px-4 rounded-2xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer flex items-center gap-1.5"
+              disabled={resendBusy}
+              onClick={() => runResend(() => resendInvite(u.id), `Invite email resent to ${u.email}`)}
+              className="shrink-0 h-9 px-3.5 rounded-xl border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer disabled:opacity-60"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Regenerate
+              Resend invite email
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground">
-            Anyone with this link will be able to access the team portal view without logging in.
+            Sends a fresh one-time sign-in link to this member's email — useful if their first invite expired or got lost.
           </p>
         </div>
 
@@ -4128,7 +4065,7 @@ function LogTimeModal({ close, payload }: { close: () => void; payload?: ModalPa
   const lockedUserId = payload?.userId as string | undefined;
   const availableProjects = lockedUserId ? projects.filter((p) => isProjectMember(p, allTasks, lockedUserId)) : projects;
   const [form, setForm] = useState({
-    userId: lockedUserId ?? "u1",
+    userId: lockedUserId ?? team[0]?.id ?? "",
     projectId: (payload?.projectId as string) ?? availableProjects[0]?.id ?? "",
     taskId: (payload?.taskId as string) ?? "",
     date: new Date().toISOString().slice(0, 10),

@@ -128,8 +128,8 @@ function PortalHome() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3 items-start">
         {/* Latest Activity */}
-        <div className="xl:col-span-2 panel pt-6 px-6 pb-2 h-[760px] flex flex-col">
-          <div className="mb-[25px] flex items-start justify-between shrink-0">
+        <div className="xl:col-span-2 panel pt-6 px-6 pb-2 h-190 flex flex-col">
+          <div className="mb-6.25 flex items-start justify-between shrink-0">
             <div>
               <h2 className="text-lg font-semibold">Latest activity</h2>
               <p className="text-xs text-muted-foreground">Updates across your projects</p>
@@ -169,7 +169,7 @@ function PortalHome() {
                   <Link
                     key={act.id}
                     href={`/client/projects/view?projectId=${act.projectId}`}
-                    className="flex gap-4 pb-3.5 mb-4 border-b border-border/40 last:border-b-0 last:mb-0 hover:bg-muted/5 transition-all cursor-pointer block"
+                    className="flex gap-4 pb-3.5 mb-4 border-b border-border/40 last:border-b-0 last:mb-0 hover:bg-muted/5 transition-all cursor-pointer"
                   >
                     <div className={`h-9 w-9 rounded-xl shrink-0 flex items-center justify-center ${iconCls}`}>
                       <Icon className="h-4 w-4" />
@@ -200,7 +200,7 @@ function PortalHome() {
         </div>
 
         {/* Right column: Message Inbox & Request Inbox */}
-        <div className="flex flex-col gap-6 h-[760px]">
+        <div className="flex flex-col gap-6 h-190">
           {/* Message Inbox */}
           <div className="panel pt-6 px-6 pb-2 flex-1 flex flex-col overflow-hidden">
             <div className="mb-4 flex items-start justify-between shrink-0">

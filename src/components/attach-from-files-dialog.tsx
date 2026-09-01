@@ -67,7 +67,7 @@ export function AttachFromFilesDialog({
 
   const showWorkspaceToggle = allowWorkspaceToggle && !!projectId;
 
-  const handleUploadFile = (file: File) => {
+  const handleUploadFile = async (file: File) => {
     const targetProjectId = projectId || projects[0]?.id;
     if (!targetProjectId) return;
 
@@ -79,17 +79,21 @@ export function AttachFromFilesDialog({
       ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
       : `${(file.size / 1024).toFixed(0)} KB`;
 
-    const doc = uploadDocument({
-      projectId: targetProjectId,
-      name: file.name,
-      folder: "Attachments",
-      size,
-      previewUrl,
-      shared: true,
-    });
+    try {
+      const doc = await uploadDocument({
+        projectId: targetProjectId,
+        name: file.name,
+        folder: "Attachments",
+        size,
+        previewUrl,
+        shared: true,
+      });
 
-    toast.success(`${doc.name} uploaded`);
-    onSelect(doc);
+      toast.success(`${doc.name} uploaded`);
+      onSelect(doc);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to upload file");
+    }
   };
 
   const filteredDocuments = React.useMemo(() => {

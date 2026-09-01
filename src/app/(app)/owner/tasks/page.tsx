@@ -8,6 +8,7 @@ import { useStore } from "@/lib/store";
 import { useModals } from "@/components/modals";
 import { Search, FolderOpen, Calendar, AlertCircle, CheckCircle2, Circle, MoreHorizontal } from "lucide-react";
 import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
+import { useCurrentUser } from "@/lib/role-context";
 import { FilterBar, type FilterDef } from "@/components/filter-bar";
 import { AvatarStack } from "@/components/user-avatar";
 import {
@@ -71,8 +72,7 @@ export default function TasksPage() {
   const users = useStore((s) => s.users);
   const { open } = useModals();
 
-  // The owner is Carina Rivera, user ID "u1"
-  const currentUserId = "u1";
+  const currentUserId = useCurrentUser().id;
 
   // Filter tasks to show only those assigned to the current user
   const assignedTasks = useMemo(() => {
@@ -289,6 +289,7 @@ export default function TasksPage() {
       <TaskDetailsDrawer
         taskId={selectedTaskId}
         onClose={() => setSelectedTaskId(null)}
+        authorId={currentUserId}
       />
     </AppShell>
   );

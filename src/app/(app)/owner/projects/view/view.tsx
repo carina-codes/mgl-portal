@@ -6,6 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
 import { useStore, useProjects, type StorageConnection } from "@/lib/store";
 import { useModals } from "@/components/modals";
+import { useCurrentUser } from "@/lib/role-context";
 import { formatDateShort } from "@/lib/dates";
 import { DateInput } from "@/components/ui/date-input";
 import {
@@ -184,6 +185,7 @@ const formatSubmissionTime = (submittedAt: string) => {
 function ProjectDetail() {
   const router = useRouter();
   const { open } = useModals();
+  const currentUserId = useCurrentUser().id;
 
   const projects = useProjects();
   const clients = useStore((s) => s.clients);
@@ -298,43 +300,18 @@ function ProjectDetail() {
         {tab === "tasks" && <TasksTab projectId={project.id} selectedTaskId={selectedTaskId} setSelectedTaskId={setSelectedTaskId} />}
         {tab === "requests" && <RequestsTab projectId={project.id} onSelectRequest={setSelectedRequestId} />}
         {tab === "files" && <DocumentsTab projectId={project.id} />}
-        {tab === "chat" && <ChatTab projectId={project.id} onOpenTask={setSelectedTaskId} />}
-        {tab === "time" && <TimeTab projectId={project.id} onTaskClick={setSelectedTaskId} />}
+        {tab === "chat" && <ChatTab projectId={project.id} onOpenTask={setSelectedTaskId} authorId={currentUserId} />}
+        {tab === "time" && <TimeTab projectId={project.id} onTaskClick={setSelectedTaskId} authorId={currentUserId} />}
       </div>
 
       {/* Hoisted Task Details Drawer */}
-      <TaskDetailsDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} hideDiscussion={tab === "chat"} />
-      
+      <TaskDetailsDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} hideDiscussion={tab === "chat"} authorId={currentUserId} />
+
       {/* Hoisted Request Details Drawer */}
-      <RequestDetailsDrawer requestId={selectedRequestId} onClose={() => setSelectedRequestId(null)} />
+      <RequestDetailsDrawer requestId={selectedRequestId} onClose={() => setSelectedRequestId(null)} authorId={currentUserId} />
     </AppShell>
   );
 }
-
-interface LocalDeliverable {
-  id: string;
-  projectId: string;
-  title: string;
-  type: "file" | "folder" | "url";
-  updatedAt: string;
-  notes: string; // rich text HTML
-  // Type-specific values:
-  fileSource?: "upload" | "app";
-  fileName?: string; // name of selected document or uploaded file
-  fileSize?: string;
-  folderName?: string; // name of selected project folder
-  url?: string; // website URL
-}
-
-const LOCAL_DELIVERABLES: LocalDeliverable[] = [
-  { id: "d1", projectId: "p1", title: "Onboarding Flow SOW", type: "file", updatedAt: "1h ago", fileSource: "app", fileName: "NovaBoard SOW.pdf", fileSize: "428 KB", notes: "<h3>Onboarding flow specification</h3><p>This document details the onboarding flows and wireframe reviews. Client signed off on page transitions on June 12.</p>" },
-  { id: "d2", projectId: "p1", title: "Figma Design Prototype", type: "url", updatedAt: "3h ago", url: "https://figma.com/file/novaboard", notes: "<h3>Interactive Figma Prototype</h3><p>Design system components, wireframes, and prototypes. Check the <em>Mobile App UI</em> section for the latest developer handoff files.</p>" },
-  { id: "d3", projectId: "p1", title: "Marketing Assets Folder", type: "folder", updatedAt: "Yesterday", folderName: "Brand", notes: "<h3>Brand Assets</h3><p>Includes high-resolution assets, primary logo SVG source files, font files, and color palette specifications.</p>" },
-  { id: "d4", projectId: "p2", title: "Pricing page — final", type: "file", updatedAt: "Yesterday", fileSource: "app", fileName: "Sitemap v2.fig", fileSize: "18 MB", notes: "<h3>Sitemap and Pricing Draft</h3><p>Contains details on fixed pricing tables and billing structure drafts.</p>" },
-  { id: "d5", projectId: "p4", title: "Northwind wordmark — refinements", type: "file", updatedAt: "2d ago", fileSource: "upload", fileName: "wordmark-kerned.png", fileSize: "1.2 MB", notes: "<h3>Northwind Wordmark Refinements</h3><p>Refinements to characters 'W' and 'd' for balanced optical kerning.</p>" },
-  { id: "d6", projectId: "p6", title: "Lumen brand book", type: "file", updatedAt: "4d ago", fileSource: "upload", fileName: "lumen-book-v1.pdf", fileSize: "8.4 MB", notes: "<h3>Lumen Brand Book</h3><p>Full brand identity draft including typography pairings and photo shoot direction guidelines.</p>" },
-  { id: "d7", projectId: "p7", title: "Field & Form homepage R1", type: "file", updatedAt: "Today", fileSource: "upload", fileName: "homepage-mockup.png", fileSize: "2.3 MB", notes: "<h3>Editorial Homepage R1</h3><p>First review pass of the homepage layout featuring rich imagery options.</p>" },
-];
 
 export function Overview({ projectId }: { projectId: string }) {
   const projects = useProjects();
@@ -679,26 +656,30 @@ export function TasksTab({
 
   const stages: TaskStage[] = ["todo", "in_progress", "in_review", "completed"];
 
-  function handleCreateTask() {
+  async function handleCreateTask() {
     if (!newTask.title.trim()) {
       toast.error("Add a title for your task");
       return;
     }
-    const created = createTask({
-      projectId,
-      title: newTask.title.trim(),
-      note: newTask.description.replace(/<[^>]+>/g, "").slice(0, 140),
-      stage: newTask.stage,
-      priority: newTask.priority,
-      progress: newTask.stage === "completed" ? 100 : 0,
-      dueDate: newTask.dueDate ? formatDateShort(newTask.dueDate) : "",
-      startDate: newTask.startDate,
-      estimatedHours: newTask.estimatedHours,
-      assignees: newTask.assignees,
-    });
-    setNewTask(emptyNewTask);
-    setNewTaskOpen(false);
-    toast.success("Task created", { description: created.title });
+    try {
+      const created = await createTask({
+        projectId,
+        title: newTask.title.trim(),
+        note: newTask.description.replace(/<[^>]+>/g, "").slice(0, 140),
+        stage: newTask.stage,
+        priority: newTask.priority,
+        progress: newTask.stage === "completed" ? 100 : 0,
+        dueDate: newTask.dueDate ? formatDateShort(newTask.dueDate) : "",
+        startDate: newTask.startDate,
+        estimatedHours: newTask.estimatedHours,
+        assignees: newTask.assignees,
+      });
+      setNewTask(emptyNewTask);
+      setNewTaskOpen(false);
+      toast.success("Task created", { description: created.title });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong");
+    }
   }
 
   return (
@@ -1475,7 +1456,6 @@ export function TaskDetailsDrawer({
   const comments = useMemo(() => allComments.filter((c) => c.threadId === taskId), [allComments, taskId]);
   const documents = useStore((s) => s.documents);
   const deleteDocument = useStore((s) => s.deleteDocument);
-  const uploadDocument = useStore((s) => s.uploadDocument);
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [previewFile, setPreviewFile] = useState<Document | null>(null);
@@ -1493,7 +1473,7 @@ export function TaskDetailsDrawer({
     if (project?.lead) {
       return users.find((u) => u.id === project.lead);
     }
-    return users.find((u) => u.id === "u1");
+    return users.find((u) => u.role === "owner");
   }, [task, project, users]);
 
   const taskDocuments = useMemo(() => {
@@ -1501,65 +1481,26 @@ export function TaskDetailsDrawer({
     const commentDocIds = comments.reduce((acc, c) => [...acc, ...(c.attachments ?? [])], [] as string[]);
     const directDocIds = task.attachmentDocIds ?? [];
     const realDocIds = Array.from(new Set([...directDocIds, ...commentDocIds]));
-    const fromStore = documents.filter((d) => realDocIds.includes(d.id));
-    if (fromStore.length > 0) return fromStore;
-
-    const mockFiles: Document[] = [];
-    const count = task.attachments ?? 0;
-    for (let i = 0; i < count; i++) {
-      mockFiles.push({
-        id: `mock-doc-${task.id}-${i}`,
-        projectId: task.projectId,
-        name: i === 0 ? `${task.title.replace(/[\s/\\?%*:|"<>]+/g, "-")}-Mockup.fig` : `Reference-Resource-${i}.pdf`,
-        folder: "Design",
-        size: i === 0 ? "4.2 MB" : "1.8 MB",
-        uploadedBy: "u2",
-        uploadedAt: "3 days ago",
-        shared: true,
-      });
-    }
-    return mockFiles;
+    return documents.filter((d) => realDocIds.includes(d.id));
   }, [task, comments, documents]);
 
-  const handleRemoveAttachment = (doc: Document) => {
+  const handleRemoveAttachment = async (doc: Document) => {
     if (!task) return;
 
-    const isSyntheticMock = doc.id.startsWith(`mock-doc-${task.id}-`);
-
-    if (isSyntheticMock) {
-      // These placeholder attachments are re-derived purely from task.attachments
-      // (a count) every render — they have no stable id beyond their position in
-      // that loop. Removing one by just decrementing the count reshuffles the
-      // remaining slots, so it can look like the wrong file got removed.
-      // Fix: materialize the ones that should survive into real documents with
-      // stable ids, so future removals target the exact file clicked.
-      const remaining = taskDocuments.filter((d) => d.id !== doc.id);
-      const materializedIds = remaining.map(
-        (d) =>
-          uploadDocument({
-            projectId: task.projectId,
-            name: d.name,
-            folder: d.folder,
-            size: d.size,
-            uploadedBy: d.uploadedBy,
-            shared: d.shared,
-          }).id,
-      );
-      updateTask(task.id, { attachmentDocIds: materializedIds, attachments: materializedIds.length });
+    try {
+      // Real documents live in the global documents store.
+      if (documents.some((d) => d.id === doc.id)) {
+        await deleteDocument(doc.id);
+      }
+      const nextIds = (task.attachmentDocIds ?? []).filter((id) => id !== doc.id);
+      await updateTask(task.id, {
+        attachmentDocIds: nextIds,
+        attachments: Math.max(0, (task.attachments ?? 0) - 1),
+      });
       toast.success(`Removed ${doc.name}`);
-      return;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove attachment");
     }
-
-    // Real documents live in the global documents store.
-    if (documents.some((d) => d.id === doc.id)) {
-      deleteDocument(doc.id);
-    }
-    const nextIds = (task.attachmentDocIds ?? []).filter((id) => id !== doc.id);
-    updateTask(task.id, {
-      attachmentDocIds: nextIds,
-      attachments: Math.max(0, (task.attachments ?? 0) - 1),
-    });
-    toast.success(`Removed ${doc.name}`);
   };
 
   const descriptionAttachments = useMemo<RichAttachment[]>(() => {
@@ -1599,21 +1540,25 @@ export function TaskDetailsDrawer({
 
   const teamMembers = users.filter((u) => u.role !== "client");
 
-  const handleLogTime = () => {
+  const handleLogTime = async () => {
     if (!task || logHours <= 0) return;
-    logTime({
-      userId: authorId,
-      projectId: task.projectId,
-      taskId: task.id,
-      hours: logHours,
-      note: logNote.trim() || `Worked on task: ${task.title}`,
-      billable: logBillable,
-      date: new Date().toISOString().slice(0, 10),
-    });
-    setLogHours(0);
-    setLogNote("");
-    setLogBillable(true);
-    toast.success(`Logged ${logHours}h on task`);
+    try {
+      await logTime({
+        userId: authorId,
+        projectId: task.projectId,
+        taskId: task.id,
+        hours: logHours,
+        note: logNote.trim() || `Worked on task: ${task.title}`,
+        billable: logBillable,
+        date: new Date().toISOString().slice(0, 10),
+      });
+      setLogHours(0);
+      setLogNote("");
+      setLogBillable(true);
+      toast.success(`Logged ${logHours}h on task`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to log time");
+    }
   };
 
   if (!task) return null;
@@ -2025,29 +1970,42 @@ function NewCommentForm({ threadId, author = "u1" }: { threadId: string; author?
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
   const createComment = useStore((s) => s.createComment);
   const uploadDocument = useStore((s) => s.uploadDocument);
-  const projectId = useStore((s) => s.tasks.find((t) => t.id === threadId)?.projectId || "p1");
+  const projectId = useStore((s) => s.tasks.find((t) => t.id === threadId)?.projectId || "");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!commentText.trim() && attachments.length === 0) return;
 
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({
-        projectId,
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: !isInternal,
-      });
-      return doc.id;
-    });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId,
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: !isInternal,
+          });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post comment");
+      return;
+    }
 
-    createComment({
-      threadId,
-      author, // Defaults to Owner: Carina Rivera; overridden by team/manager callers
-      body: commentText.trim(),
-      visibility: isInternal ? "internal" : "client",
-      attachments: docIds,
-    });
+    try {
+      await createComment({
+        threadId,
+        author, // Defaults to Owner: Carina Rivera; overridden by team/manager callers
+        body: commentText.trim(),
+        visibility: isInternal ? "internal" : "client",
+        attachments: docIds,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post comment");
+      return;
+    }
     setCommentText("");
     setAttachments([]);
     toast.success("Comment posted successfully");
@@ -2310,16 +2268,20 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
     setValidationError(false);
   };
 
-  const handleSaveRename = (id: string) => {
+  const handleSaveRename = async (id: string) => {
     if (!editingDocName.trim()) {
       setValidationError(true);
       toast.error("File name cannot be empty");
       return;
     }
-    renameDocument(id, editingDocName.trim());
-    setEditingDocId(null);
-    setEditingDocName("");
-    toast.success("File renamed successfully");
+    try {
+      await renameDocument(id, editingDocName.trim());
+      setEditingDocId(null);
+      setEditingDocName("");
+      toast.success("File renamed successfully");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to rename file");
+    }
   };
 
   const handleCancelRename = () => {
@@ -2363,11 +2325,15 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
         <div className="flex items-center gap-2">
           {selectedFileIds.length > 0 && (
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (confirm(`Are you sure you want to delete ${selectedFileIds.length} selected files?`)) {
-                  selectedFileIds.forEach(id => deleteDocument(id));
-                  setSelectedFileIds([]);
-                  toast.success("Selected files deleted successfully");
+                  try {
+                    await Promise.all(selectedFileIds.map((id) => deleteDocument(id)));
+                    setSelectedFileIds([]);
+                    toast.success("Selected files deleted successfully");
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Failed to delete selected files");
+                  }
                 }
               }}
               className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-2 text-xs font-semibold text-rose-50 hover:bg-rose-700 transition-colors cursor-pointer"
@@ -2466,11 +2432,15 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                   
                   <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3">
                     <button
-                      onClick={() => {
-                        toggleDocumentShared(file.id);
-                        toast.success(`Visibility updated for ${file.name}`, {
-                          description: !file.shared ? "Changed to Client Shared" : "Changed to Internal Only"
-                        });
+                      onClick={async () => {
+                        try {
+                          await toggleDocumentShared(file.id);
+                          toast.success(`Visibility updated for ${file.name}`, {
+                            description: !file.shared ? "Changed to Client Shared" : "Changed to Internal Only"
+                          });
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Failed to update visibility");
+                        }
                       }}
                       className="inline-flex items-center gap-1 text-[10px] hover:bg-muted/80 px-2 py-0.5 rounded-full transition-all cursor-pointer border border-transparent hover:border-border/60"
                       title="Click to toggle visibility"
@@ -2604,11 +2574,15 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => {
-                            toggleDocumentShared(file.id);
-                            toast.success(`Visibility updated for ${file.name}`, {
-                              description: !file.shared ? "Changed to Client Shared" : "Changed to Internal Only"
-                            });
+                          onClick={async () => {
+                            try {
+                              await toggleDocumentShared(file.id);
+                              toast.success(`Visibility updated for ${file.name}`, {
+                                description: !file.shared ? "Changed to Client Shared" : "Changed to Internal Only"
+                              });
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : "Failed to update visibility");
+                            }
                           }}
                           className="inline-flex items-center gap-1 text-xs hover:bg-muted/80 px-2 py-0.5 rounded-full transition-all cursor-pointer border border-transparent hover:border-border/60"
                           title="Click to toggle visibility"
@@ -2720,17 +2694,20 @@ export function ChatTab({ projectId, onOpenTask, authorId = "u1" }: { projectId:
     });
   }, [tasks, chatSearch, comments]);
 
-  const handleAttachExistingFile = (doc: Document) => {
-    createComment({
-      threadId: activeThreadId,
-      author: authorId,
-      body: `Attached file: ${doc.name} (${doc.size})`,
-      visibility: attachFileIsInternal ? "internal" : "client",
-      attachments: [doc.id],
-    });
-
-    setUploadAttachOpen(false);
-    toast.success(`File ${doc.name} attached to conversation`);
+  const handleAttachExistingFile = async (doc: Document) => {
+    try {
+      await createComment({
+        threadId: activeThreadId,
+        author: authorId,
+        body: `Attached file: ${doc.name} (${doc.size})`,
+        visibility: attachFileIsInternal ? "internal" : "client",
+        attachments: [doc.id],
+      });
+      setUploadAttachOpen(false);
+      toast.success(`File ${doc.name} attached to conversation`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to attach file");
+    }
   };
 
   return (
@@ -2895,29 +2872,42 @@ function ChatInputBox({ threadId, onAttachClick, authorId = "u1" }: { threadId: 
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
   const createComment = useStore((s) => s.createComment);
   const uploadDocument = useStore((s) => s.uploadDocument);
-  const projectId = useSearchParams().get("projectId") || "p1";
+  const projectId = useSearchParams().get("projectId") || "";
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!commentText.trim() && attachments.length === 0) return;
 
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({
-        projectId,
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: !isInternal,
-      });
-      return doc.id;
-    });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId,
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: !isInternal,
+          });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post comment");
+      return;
+    }
 
-    createComment({
-      threadId,
-      author: authorId,
-      body: commentText.trim(),
-      visibility: isInternal ? "internal" : "client",
-      attachments: docIds,
-    });
+    try {
+      await createComment({
+        threadId,
+        author: authorId,
+        body: commentText.trim(),
+        visibility: isInternal ? "internal" : "client",
+        attachments: docIds,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post comment");
+      return;
+    }
     setCommentText("");
     setAttachments([]);
     toast.success("Comment posted");
@@ -3058,7 +3048,7 @@ export function TimeTab({ projectId, onTaskClick, basePath = "/owner", authorId 
           onDateRange={setDateRange}
           trailing={
             <button
-              onClick={() => open("time.log", authorId !== "u1" ? { projectId, userId: authorId } : { projectId })}
+              onClick={() => open("time.log", scopeToAuthor ? { projectId, userId: authorId } : { projectId })}
               className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/95 transition-all cursor-pointer whitespace-nowrap"
             >
               <Plus className="h-4 w-4" /> Log time

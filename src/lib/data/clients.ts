@@ -196,3 +196,29 @@ export async function deleteClientRecord(id: string): Promise<void> {
   const { error } = await supabase.from("clients").delete().eq("id", id);
   if (error) throw error;
 }
+
+/**
+ * Invites the client's primary contact via magic link, same pattern as
+ * inviteTeamMember() in profiles.ts (browser only has the anon key, so this
+ * can't be a plain INSERT into profiles — it has to go through Supabase Auth
+ * so an auth.users row exists for the FK). Passes client_id in the invite
+ * metadata so handle_new_user() links the resulting profile to this company
+ * (see migration 20260811000003_handle_new_user_client_id.sql) — without
+ * that, the contact would sign in to an empty portal with no client_id to
+ * scope their data by.
+ *
+ * Best-effort: failures here (e.g. email rate limits) are surfaced to the
+ * caller but shouldn't be treated as "the client wasn't created" — the
+ * clients row this is called after already exists.
+ */
+export async function inviteClientContactRecord(clientId: string, name: string, email: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
+      data: { name, role: "client", client_id: clientId },
+    },
+  });
+  if (error) throw error;
+}

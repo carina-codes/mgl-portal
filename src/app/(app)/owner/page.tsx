@@ -7,12 +7,8 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { UserAvatar } from "@/components/user-avatar";
 import { useModals } from "@/components/modals";
 import { useCurrentUser } from "@/lib/role-context";
-import {
-  clients,
-  requests,
-  users,
-  REQUEST_STATUS_META,
-} from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
+import { REQUEST_STATUS_META } from "@/lib/mock-data";
 import {
   TrendingUp,
   Inbox,
@@ -29,7 +25,6 @@ import {
   FolderCog,
   CircleDot,
 } from "lucide-react";
-import { projects } from "@/lib/mock-data";
 import { useActivityFeed, selectRecentActivity } from "@/lib/activity";
 
 const MESSAGE_INBOX = [
@@ -56,6 +51,10 @@ export default function Dashboard() {
   const user = useCurrentUser();
   const firstName = user?.name?.split(" ")[0] ?? "there";
   const greeting = useGreeting();
+  const projects = useStore((s) => s.projects);
+  const clients = useStore((s) => s.clients);
+  const users = useStore((s) => s.users);
+  const requests = useStore((s) => s.requests);
   const activeProjects = projects.filter((p) => p.status !== "completed").length;
   const openRequests = requests.filter((r) => ["submitted", "under_review"].includes(r.status)).length;
   const submittedRequestsCount = requests.filter((r) => r.status === "submitted").length;

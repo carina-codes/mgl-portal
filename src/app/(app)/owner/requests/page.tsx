@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { FilePreviewDialog } from "@/components/file-preview-dialog";
+import { useCurrentUser } from "@/lib/role-context";
 
 const formatSubmissionTime = (submittedAt: string) => {
   if (!submittedAt) return "";
@@ -121,6 +122,7 @@ function RequestsView() {
   const requests = useStore((s) => s.requests);
   const clients = useStore((s) => s.clients);
   const users = useStore((s) => s.users);
+  const currentUserId = useCurrentUser().id;
   const { open } = useModals();
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<{ from?: string; to?: string }>({});
@@ -487,7 +489,7 @@ function RequestsView() {
       )}
 
       {/* Hoisted Request Details Drawer */}
-      <RequestDetailsDrawer requestId={selectedRequestId} onClose={() => setSelectedRequestId(null)} />
+      <RequestDetailsDrawer requestId={selectedRequestId} onClose={() => setSelectedRequestId(null)} authorId={currentUserId} />
     </AppShell>
   );
 }
@@ -498,29 +500,42 @@ function NewCommentForm({ threadId, author = "u1" }: { threadId: string; author?
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
   const createComment = useStore((s) => s.createComment);
   const uploadDocument = useStore((s) => s.uploadDocument);
-  const projectId = useStore((s) => s.requests.find((r) => r.id === threadId)?.projectId || "p1");
+  const projectId = useStore((s) => s.requests.find((r) => r.id === threadId)?.projectId || "");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!commentText.trim() && attachments.length === 0) return;
 
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({
-        projectId,
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: !isInternal,
-      });
-      return doc.id;
-    });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId,
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: !isInternal,
+          });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post comment");
+      return;
+    }
 
-    createComment({
-      threadId,
-      author, // Defaults to Owner: Carina Rivera; overridden by team/manager callers
-      body: commentText.trim(),
-      visibility: isInternal ? "internal" : "client",
-      attachments: docIds,
-    });
+    try {
+      await createComment({
+        threadId,
+        author, // Defaults to Owner: Carina Rivera; overridden by team/manager callers
+        body: commentText.trim(),
+        visibility: isInternal ? "internal" : "client",
+        attachments: docIds,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post comment");
+      return;
+    }
     setCommentText("");
     setAttachments([]);
     toast.success("Comment posted successfully");
@@ -597,13 +612,13 @@ export function RequestDetailsDrawer({
     useStore.getState().updateRequest(req.id, { attachmentDocIds: ids });
   };
 
-  const handleRemoveAttachment = (doc: Document) => {
+  const handleRemoveAttachment = async (doc: Document) => {
     if (!req) return;
     if (documents.some((d) => d.id === doc.id)) {
-      deleteDocument(doc.id);
+      await deleteDocument(doc.id);
     }
     const nextIds = (req.attachmentDocIds ?? []).filter((id) => id !== doc.id);
-    useStore.getState().updateRequest(req.id, { attachmentDocIds: nextIds });
+    await useStore.getState().updateRequest(req.id, { attachmentDocIds: nextIds });
     toast.success(`Removed ${doc.name}`);
   };
 

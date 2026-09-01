@@ -13,6 +13,7 @@ import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-bo
 import { useStore, projectMemberIds } from "@/lib/store";
 import { toast } from "sonner";
 import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
+import { useCurrentUser } from "@/lib/role-context";
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
   owner: { label: "Owner", cls: "bg-violet-100 dark:bg-violet-950/45 text-violet-800 dark:text-violet-300" },
@@ -31,9 +32,10 @@ function MessagesPage() {
   const createComment = useStore((s) => s.createComment);
   const channels = useStore((s) => s.channels);
   const markChannelAsRead = useStore((s) => s.markChannelAsRead);
+  const currentUserId = useCurrentUser().id;
   const { open } = useModals();
 
-  const [active, setActive] = useState("p1");
+  const [active, setActive] = useState("");
   const [body, setBody] = useState("");
   const [internal, setInternal] = useState(false);
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
@@ -183,28 +185,41 @@ function MessagesPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  function send() {
+  async function send() {
     const plain = body.replace(/<[^>]+>/g, "").trim();
     if (!plain && attachments.length === 0) return;
 
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({
-        projectId: activeThread?.project?.id || "p1",
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: !internal,
-      });
-      return doc.id;
-    });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId: activeThread?.project?.id || projects[0]?.id || "",
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: !internal,
+          });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
 
-    createComment({
-      threadId: active,
-      author: "u1", // Owner: Carina Rivera
-      body,
-      visibility: internal ? "internal" : "client",
-      attachments: docIds,
-    });
+    try {
+      await createComment({
+        threadId: active,
+        author: currentUserId,
+        body,
+        visibility: internal ? "internal" : "client",
+        attachments: docIds,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
 
     setBody("");
     setAttachments([]);
@@ -479,6 +494,7 @@ function MessagesPage() {
         taskId={selectedTaskId}
         onClose={() => setSelectedTaskId(null)}
         hideDiscussion
+        authorId={currentUserId}
       />
     </AppShell>
   );

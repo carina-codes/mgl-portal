@@ -396,18 +396,17 @@ function ClientsPageContent() {
                             <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => {
-                              const origin = typeof window !== "undefined" ? window.location.origin : "";
-                              const token = c.clientShareToken || Math.random().toString(36).substring(2, 10);
-                              if (!c.clientShareToken) {
-                                useStore.getState().updateClient(c.id, { clientShareToken: token });
+                            onClick={async () => {
+                              try {
+                                await useStore.getState().resendClientInvite(c.id);
+                                toast.success(`Invite email resent to ${c.contactEmail}`);
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Failed to resend invite");
                               }
-                              navigator.clipboard.writeText(`${origin}/client?token=${token}`);
-                              toast.success("Access link copied to clipboard");
                             }}
                             className="flex items-center gap-2 cursor-pointer font-normal"
                           >
-                            <span>Copy access link</span>
+                            <span>Resend invite email</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => open("client.delete", { clientId: c.id })}
@@ -538,18 +537,17 @@ function ClientsPageContent() {
                                   <span>{c.status === "active" ? "Pause client" : "Activate client"}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
-                                    const token = c.clientShareToken || Math.random().toString(36).substring(2, 10);
-                                    if (!c.clientShareToken) {
-                                      useStore.getState().updateClient(c.id, { clientShareToken: token });
+                                  onClick={async () => {
+                                    try {
+                                      await useStore.getState().resendClientInvite(c.id);
+                                      toast.success(`Invite email resent to ${c.contactEmail}`);
+                                    } catch (e) {
+                                      toast.error(e instanceof Error ? e.message : "Failed to resend invite");
                                     }
-                                    navigator.clipboard.writeText(`${origin}/client?token=${token}`);
-                                    toast.success("Access link copied to clipboard");
                                   }}
                                   className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
-                                  <span>Copy access link</span>
+                                  <span>Resend invite email</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => open("client.delete", { clientId: c.id })}

@@ -154,29 +154,42 @@ function TeamMessages() {
     return () => clearTimeout(timer);
   }, [msgs, activeThread]);
 
-  function send() {
+  async function send() {
     const plain = body.replace(/<[^>]+>/g, "").trim();
     if (!plain && attachments.length === 0) return;
     if (!activeThread) return;
 
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({
-        projectId: activeThread.project?.id || myProjects[0]?.id || "",
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: !internal,
-      });
-      return doc.id;
-    });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId: activeThread.project?.id || myProjects[0]?.id || "",
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: !internal,
+          });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
 
-    createComment({
-      threadId: activeThread.id,
-      author: member.id,
-      body,
-      visibility: internal ? "internal" : "client",
-      attachments: docIds,
-    });
+    try {
+      await createComment({
+        threadId: activeThread.id,
+        author: member.id,
+        body,
+        visibility: internal ? "internal" : "client",
+        attachments: docIds,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
 
     setBody("");
     setAttachments([]);

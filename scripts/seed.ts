@@ -1,7 +1,8 @@
 /**
- * One-time seed script — populates a fresh Supabase project with data
- * equivalent to src/lib/mock-data.ts, so the app has something real to show
- * once store.ts stops reading from the mock arrays (see src/lib/data/).
+ * One-time seed script — populates a fresh Supabase project with the demo
+ * data in ./seed-data.ts, so the app has something real to show. The app
+ * itself only ever reads from Supabase (see src/lib/data/ + src/lib/store.ts);
+ * these arrays exist solely for this script.
  *
  * Uses the SERVICE ROLE key, which bypasses RLS entirely — this must only
  * ever run locally/offline, never in the browser or a client bundle.
@@ -39,7 +40,7 @@ import {
   channels as mockChannels,
   messages as mockMessages,
   timeEntries as mockTimeEntries,
-} from "../src/lib/mock-data";
+} from "./seed-data";
 import { seedComments as mockComments } from "../src/lib/store";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;

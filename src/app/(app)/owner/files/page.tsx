@@ -151,17 +151,21 @@ function FilesView() {
     setValidationError(false);
   };
 
-  const handleSaveRename = (id: string) => {
+  const handleSaveRename = async (id: string) => {
     if (!editingDocName.trim()) {
       setValidationError(true);
       toast.error("File name cannot be empty");
       return;
     }
-    renameDocument(id, editingDocName.trim());
-    toast.success("File renamed successfully");
-    setEditingDocId(null);
-    setEditingDocName("");
-    setValidationError(false);
+    try {
+      await renameDocument(id, editingDocName.trim());
+      toast.success("File renamed successfully");
+      setEditingDocId(null);
+      setEditingDocName("");
+      setValidationError(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to rename file");
+    }
   };
 
   const getFileIcon = (name: string) => {
@@ -215,11 +219,15 @@ function FilesView() {
         <div className="flex items-center gap-2">
           {selectedFileIds.length > 0 && (
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (confirm(`Are you sure you want to delete ${selectedFileIds.length} selected files?`)) {
-                  selectedFileIds.forEach(id => deleteDocument(id));
-                  setSelectedFileIds([]);
-                  toast.success("Selected files deleted successfully");
+                  try {
+                    await Promise.all(selectedFileIds.map((id) => deleteDocument(id)));
+                    setSelectedFileIds([]);
+                    toast.success("Selected files deleted successfully");
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Failed to delete selected files");
+                  }
                 }
               }}
               className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3.5 py-2 text-xs font-semibold text-rose-50 hover:bg-rose-700 transition-colors cursor-pointer"
@@ -364,11 +372,15 @@ function FilesView() {
 
                         <div className="mt-4 flex items-center justify-between border-t border-border/40 pt-3">
                           <button
-                            onClick={() => {
-                              toggleDocumentShared(file.id);
-                              toast.success(`Visibility updated for ${file.name}`, {
-                                description: !file.shared ? "Changed to Client Shared" : "Changed to Internal Only"
-                              });
+                            onClick={async () => {
+                              try {
+                                await toggleDocumentShared(file.id);
+                                toast.success(`Visibility updated for ${file.name}`, {
+                                  description: !file.shared ? "Changed to Client Shared" : "Changed to Internal Only"
+                                });
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Failed to update visibility");
+                              }
                             }}
                             className="inline-flex items-center gap-1 text-[10px] hover:bg-muted/80 px-2 py-0.5 rounded-full transition-all cursor-pointer border border-transparent hover:border-border/60"
                             title="Click to toggle visibility"
@@ -513,10 +525,14 @@ function FilesView() {
                             Download
                           </button>
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              deleteDocument(file.id);
-                              toast.success(`Deleted ${file.name}`);
+                              try {
+                                await deleteDocument(file.id);
+                                toast.success(`Deleted ${file.name}`);
+                              } catch (err) {
+                                toast.error(err instanceof Error ? err.message : "Failed to delete file");
+                              }
                             }}
                             className="rounded-full px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-500/5 cursor-pointer transition-all"
                           >

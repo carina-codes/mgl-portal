@@ -10,6 +10,7 @@ import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { useStore } from "@/lib/store";
 import { useActiveClient } from "@/hooks/use-active-client";
+import { useCurrentUser } from "@/lib/role-context";
 import { cn, stripHtml } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -136,19 +137,13 @@ function downloadDocument(doc: Document) {
   }
 }
 
-function useClientAsUser(client: ReturnType<typeof useActiveClient>["client"]) {
-  return useMemo(
-    () => ({
-      id: `client-${client.id}`,
-      name: client.contact,
-      email: client.contactEmail,
-      role: "client" as const,
-      title: client.contactRole || client.name,
-      avatar: client.contactAvatar || client.contact.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2),
-      color: client.logoColor,
-    }),
-    [client],
-  );
+/** The signed-in client contact's real profile — used as the comment/message
+ * author so writes satisfy RLS's `author = auth.uid()` check. Used to be a
+ * synthetic `client-{companyId}` id derived from the Client (company) record,
+ * which doesn't match any real profiles row and made every comment insert
+ * fail once RLS was enforced for real. */
+function useClientAsUser() {
+  return useCurrentUser();
 }
 
 function PortalProjectDetail() {
@@ -298,7 +293,7 @@ function OverviewTab({ projectId }: { projectId: string }) {
   const tasks = useMemo(() => allTasks.filter((t) => t.projectId === projectId), [allTasks, projectId]);
   const users = useStore((s) => s.users);
   const { client } = useActiveClient();
-  const clientAsUser = useClientAsUser(client);
+  const clientAsUser = useClientAsUser();
 
   // The Team panel shows everyone actively contributing — management plus
   // anyone assigned to a task here — not just the Management list.
@@ -650,7 +645,7 @@ function ReadOnlyTaskCard({ task, users }: { task: Task; users: User[] }) {
 
 function TaskDetailDrawerClient({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
   const { client } = useActiveClient();
-  const clientAsUser = useClientAsUser(client);
+  const clientAsUser = useClientAsUser();
   const tasks = useStore((s) => s.tasks);
   const task = useMemo(() => tasks.find((t) => t.id === taskId), [tasks, taskId]);
   const projects = useStore((s) => s.projects);
@@ -676,7 +671,7 @@ function TaskDetailDrawerClient({ taskId, onClose }: { taskId: string | null; on
     const taskObj = task as any;
     if (taskObj.createdBy) return users.find((u) => u.id === taskObj.createdBy);
     if (project?.lead) return users.find((u) => u.id === project.lead);
-    return users.find((u) => u.id === "u1");
+    return users.find((u) => u.role === "owner");
   }, [task, project, users]);
 
   const taskDocuments = useMemo(() => {
@@ -686,52 +681,38 @@ function TaskDetailDrawerClient({ taskId, onClose }: { taskId: string | null; on
     const commentDocIds = comments.reduce((acc, c) => [...acc, ...(c.attachments ?? [])], [] as string[]);
     const directDocIds = task.attachmentDocIds ?? [];
     const realDocIds = Array.from(new Set([...directDocIds, ...commentDocIds]));
-    const fromStore = documents.filter((d) => realDocIds.includes(d.id) && d.shared);
-    if (fromStore.length > 0) return fromStore;
-
-    // Legacy tasks only have a bare `attachments` count with no real documents
-    // behind them yet — mirror the owner view's placeholder generation so the
-    // client sees the same files instead of an empty section.
-    const mockFiles: Document[] = [];
-    const count = task.attachments ?? 0;
-    for (let i = 0; i < count; i++) {
-      mockFiles.push({
-        id: `mock-doc-${task.id}-${i}`,
-        projectId: task.projectId,
-        name: i === 0 ? `${task.title.replace(/[\s/\\?%*:|"<>]+/g, "-")}-Mockup.fig` : `Reference-Resource-${i}.pdf`,
-        folder: "Design",
-        size: i === 0 ? "4.2 MB" : "1.8 MB",
-        uploadedBy: "u2",
-        uploadedAt: "3 days ago",
-        shared: true,
-      });
-    }
-    return mockFiles;
+    return documents.filter((d) => realDocIds.includes(d.id) && d.shared);
   }, [task, comments, documents]);
 
-  const handleReply = () => {
+  const handleReply = async () => {
     if (!task) return;
     if (!replyText.replace(/<[^>]+>/g, "").trim() && replyAttachments.length === 0) return;
-    const docIds = replyAttachments.map((att) => {
-      const doc = uploadDocument({
-        projectId: task.projectId,
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: true,
+    try {
+      const docIds = await Promise.all(
+        replyAttachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId: task.projectId,
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: true,
+          });
+          return doc.id;
+        }),
+      );
+      await createComment({
+        threadId: task.id,
+        author: clientAsUser.id,
+        body: replyText.trim(),
+        visibility: "client",
+        attachments: docIds,
       });
-      return doc.id;
-    });
-    createComment({
-      threadId: task.id,
-      author: clientAsUser.id,
-      body: replyText.trim(),
-      visibility: "client",
-      attachments: docIds,
-    });
-    setReplyText("");
-    setReplyAttachments([]);
-    toast.success("Reply posted");
+      setReplyText("");
+      setReplyAttachments([]);
+      toast.success("Reply posted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post reply");
+    }
   };
 
   if (!task) return null;
@@ -969,7 +950,7 @@ function RequestsTabClient({ projectId, clientId, onSelectRequest }: { projectId
 
 function RequestDetailDrawerClient({ requestId, onClose, clientId }: { requestId: string | null; onClose: () => void; clientId: string }) {
   const { client } = useActiveClient();
-  const clientAsUser = useClientAsUser(client);
+  const clientAsUser = useClientAsUser();
   const requests = useStore((s) => s.requests);
   const req = useMemo(() => requests.find((r) => r.id === requestId), [requests, requestId]);
   const setStatus = useStore((s) => s.setRequestStatus);
@@ -992,14 +973,27 @@ function RequestDetailDrawerClient({ requestId, onClose, clientId }: { requestId
 
   const resolveUser = (authorId: string) => users.find((u) => u.id === authorId) || (authorId === clientAsUser.id ? clientAsUser : null);
 
-  const handleReply = () => {
+  const handleReply = async () => {
     if (!req) return;
     if (!replyText.replace(/<[^>]+>/g, "").trim() && replyAttachments.length === 0) return;
-    const docIds = replyAttachments.map((att) => {
-      const doc = uploadDocument({ projectId: req.projectId || "", name: att.name, folder: "Attachments", size: formatBytes(att.size), shared: true });
-      return doc.id;
-    });
-    createComment({ threadId: req.id, author: clientAsUser.id, body: replyText.trim(), visibility: "client", attachments: docIds });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        replyAttachments.map(async (att) => {
+          const doc = await uploadDocument({ projectId: req.projectId || "", name: att.name, folder: "Attachments", size: formatBytes(att.size), shared: true });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post reply");
+      return;
+    }
+    try {
+      await createComment({ threadId: req.id, author: clientAsUser.id, body: replyText.trim(), visibility: "client", attachments: docIds });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post reply");
+      return;
+    }
     setReplyText("");
     setReplyAttachments([]);
     toast.success("Reply posted");
@@ -1225,7 +1219,7 @@ function FilesTabClient({ projectId }: { projectId: string }) {
 
 function ChatTabClient({ projectId, onOpenTask }: { projectId: string; onOpenTask: (id: string) => void }) {
   const { client } = useActiveClient();
-  const clientAsUser = useClientAsUser(client);
+  const clientAsUser = useClientAsUser();
   const [activeThreadId, setActiveThreadId] = useState<string>(projectId);
   const [chatSearch, setChatSearch] = useState("");
 
@@ -1264,14 +1258,27 @@ function ChatTabClient({ projectId, onOpenTask }: { projectId: string; onOpenTas
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
 
-  const send = () => {
+  const send = async () => {
     const plain = body.replace(/<[^>]+>/g, "").trim();
     if (!plain && attachments.length === 0) return;
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({ projectId, name: att.name, folder: "Attachments", size: formatBytes(att.size), shared: true });
-      return doc.id;
-    });
-    createComment({ threadId: activeThreadId, author: clientAsUser.id, body, visibility: "client", attachments: docIds });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({ projectId, name: att.name, folder: "Attachments", size: formatBytes(att.size), shared: true });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
+    try {
+      await createComment({ threadId: activeThreadId, author: clientAsUser.id, body, visibility: "client", attachments: docIds });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
     setBody("");
     setAttachments([]);
     toast.success("Message sent");

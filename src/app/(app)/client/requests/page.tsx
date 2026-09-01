@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useStore } from "@/lib/store";
 import { useActiveClient } from "@/hooks/use-active-client";
+import { useCurrentUser } from "@/lib/role-context";
 import {
   REQUEST_STATUS_META,
   REQUEST_TYPE_META,
@@ -380,6 +381,7 @@ function NewRequestDialog({
   projects: { id: string; name: string }[];
 }) {
   const create = useStore((s) => s.createRequest);
+  const currentUserId = useCurrentUser().id;
   const [form, setForm] = useState({
     projectId: "",
     type: "revision" as RequestType,
@@ -406,19 +408,23 @@ function NewRequestDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             disabled={!valid}
-            onClick={() => {
-              create({
-                clientId,
-                submittedBy: `client-${clientId}`,
-                type: form.type,
-                title: form.title,
-                description: form.description,
-                priority: form.priority,
-                projectId: form.projectId || undefined,
-              });
-              toast.success("Request submitted");
-              onOpenChange(false);
-              reset();
+            onClick={async () => {
+              try {
+                await create({
+                  clientId,
+                  submittedBy: currentUserId,
+                  type: form.type,
+                  title: form.title,
+                  description: form.description,
+                  priority: form.priority,
+                  projectId: form.projectId || undefined,
+                });
+                toast.success("Request submitted");
+                onOpenChange(false);
+                reset();
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Failed to submit request");
+              }
             }}
           >
             Submit request
@@ -457,34 +463,47 @@ function NewRequestDialog({
 
 /* ---------- Request detail (read-only status, reply thread) ---------- */
 
-function NewReplyForm({ threadId, clientId, projectId }: { threadId: string; clientId: string; projectId?: string }) {
-  const { client } = useActiveClient();
+function NewReplyForm({ threadId, projectId }: { threadId: string; clientId: string; projectId?: string }) {
+  const currentUserId = useCurrentUser().id;
   const [commentText, setCommentText] = useState("");
   const [attachments, setAttachments] = useState<RichAttachment[]>([]);
   const createComment = useStore((s) => s.createComment);
   const uploadDocument = useStore((s) => s.uploadDocument);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!commentText.replace(/<[^>]+>/g, "").trim() && attachments.length === 0) return;
 
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({
-        projectId: projectId || "",
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: true,
-      });
-      return doc.id;
-    });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId: projectId || "",
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: true,
+          });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post reply");
+      return;
+    }
 
-    createComment({
-      threadId,
-      author: `client-${clientId}`,
-      body: commentText.trim(),
-      visibility: "client",
-      attachments: docIds,
-    });
+    try {
+      await createComment({
+        threadId,
+        author: currentUserId,
+        body: commentText.trim(),
+        visibility: "client",
+        attachments: docIds,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to post reply");
+      return;
+    }
     setCommentText("");
     setAttachments([]);
     toast.success("Reply posted");
@@ -516,7 +535,6 @@ function RequestDetailsDrawer({
   onClose: () => void;
   clientId: string;
 }) {
-  const { client } = useActiveClient();
   const requests = useStore((s) => s.requests);
   const req = useMemo(() => requests.find((r) => r.id === requestId), [requests, requestId]);
   const setStatus = useStore((s) => s.setRequestStatus);
@@ -535,18 +553,10 @@ function RequestDetailsDrawer({
     return documents.filter((d) => ids.includes(d.id) && d.shared);
   }, [req, documents]);
 
-  const clientAsUser = useMemo(
-    () => ({
-      id: `client-${client.id}`,
-      name: client.contact,
-      email: client.contactEmail,
-      role: "client" as const,
-      title: client.contactRole || client.name,
-      avatar: client.contactAvatar || client.contact.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2),
-      color: client.logoColor,
-    }),
-    [client],
-  );
+  // The signed-in client contact's real profile — used to resolve/display
+  // "you" as the author of your own comments (falls back here only if
+  // `users` hasn't finished hydrating yet).
+  const clientAsUser = useCurrentUser();
   const resolveUser = (authorId: string) => users.find((u) => u.id === authorId) || (authorId === clientAsUser.id ? clientAsUser : null);
 
   if (!req) return null;

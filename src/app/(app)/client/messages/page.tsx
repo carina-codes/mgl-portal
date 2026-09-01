@@ -11,6 +11,7 @@ import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { useStore, projectMemberIds } from "@/lib/store";
 import { useActiveClient } from "@/hooks/use-active-client";
+import { useCurrentUser } from "@/lib/role-context";
 import { toast } from "sonner";
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -40,20 +41,11 @@ function PortalMessages() {
 
   const comments = useMemo(() => allComments.filter((c) => c.visibility !== "internal"), [allComments]);
 
-  const clientAsUser = useMemo(
-    () => ({
-      id: `client-${client.id}`,
-      name: client.contact,
-      email: client.contactEmail,
-      role: "client" as const,
-      title: client.contactRole || client.name,
-      avatar:
-        client.contactAvatar ||
-        client.contact.split(" ").map((x) => x[0]).join("").toUpperCase().slice(0, 2),
-      color: client.logoColor,
-    }),
-    [client],
-  );
+  // The signed-in client contact's real profile — used as the comment author
+  // so writes satisfy RLS's `author = auth.uid()` check. Used to be a
+  // synthetic `client-{companyId}` id that didn't match any real profiles
+  // row, which made every message send fail once RLS was enforced for real.
+  const clientAsUser = useCurrentUser();
 
   const resolveUser = (authorId: string) =>
     storeUsers.find((u) => u.id === authorId) || (authorId === clientAsUser.id ? clientAsUser : null);
@@ -166,29 +158,42 @@ function PortalMessages() {
     return () => clearTimeout(timer);
   }, [msgs, activeThread]);
 
-  function send() {
+  async function send() {
     const plain = body.replace(/<[^>]+>/g, "").trim();
     if (!plain && attachments.length === 0) return;
     if (!activeThread) return;
 
-    const docIds = attachments.map((att) => {
-      const doc = uploadDocument({
-        projectId: activeThread.project?.id || myProjects[0]?.id || "",
-        name: att.name,
-        folder: "Attachments",
-        size: formatBytes(att.size),
-        shared: true,
-      });
-      return doc.id;
-    });
+    let docIds: string[];
+    try {
+      docIds = await Promise.all(
+        attachments.map(async (att) => {
+          const doc = await uploadDocument({
+            projectId: activeThread.project?.id || myProjects[0]?.id || "",
+            name: att.name,
+            folder: "Attachments",
+            size: formatBytes(att.size),
+            shared: true,
+          });
+          return doc.id;
+        }),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
 
-    createComment({
-      threadId: activeThread.id,
-      author: clientAsUser.id,
-      body,
-      visibility: "client",
-      attachments: docIds,
-    });
+    try {
+      await createComment({
+        threadId: activeThread.id,
+        author: clientAsUser.id,
+        body,
+        visibility: "client",
+        attachments: docIds,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      return;
+    }
 
     setBody("");
     setAttachments([]);

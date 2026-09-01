@@ -41,7 +41,6 @@ import {
   Send,
   FolderOpen,
 } from "lucide-react";
-import { users } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -389,6 +388,10 @@ export function RichEditor({
           folder: folderPath,
           size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
           shared: true,
+        }).catch(() => {
+          // Best-effort background sync to the connected storage folder — the
+          // in-editor attachment (already added to atts above) still works
+          // even if this fails.
         });
       }
     });
@@ -714,9 +717,13 @@ export function formatBytes(n: number) {
 
 type MentionItem = { id: string; label: string; subtitle: string; color: string };
 
+// mentionItems is called from Tiptap's suggestion config, outside any React
+// component, so it reads live users via the store's getState() rather than
+// the useStore() hook.
 const mentionItems = (query: string): MentionItem[] =>
-  users
-    .filter((u) => u.name.toLowerCase().includes(query.toLowerCase()))
+  useStore
+    .getState()
+    .users.filter((u) => u.name.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 6)
     .map((u) => ({ id: u.id, label: u.name, subtitle: u.title, color: u.color }));
 

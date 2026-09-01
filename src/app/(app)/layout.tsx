@@ -19,12 +19,25 @@ const PORTAL_FOR_ROLE: Record<string, string> = {
 };
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { role, session, loading } = useRole();
+  const { role, session, profile, loading, signOut } = useRole();
   const pathname = usePathname() || "";
   const router = useRouter();
 
+  // A session with no profile means the account was removed (deleteProfileRecord
+  // in src/lib/data/profiles.ts only deletes the profiles row — it can't reach
+  // the underlying auth.users row without the service-role key). role-context
+  // falls back to "owner" for `role` in this state purely so nav doesn't crash
+  // during the brief pre-hydration window — it must NOT be treated as real
+  // owner access here, or a removed team member would land back in /owner.
+  const revoked = !loading && !!session && !profile;
+
   useEffect(() => {
     if (loading) return;
+
+    if (revoked) {
+      signOut().then(() => router.replace("/"));
+      return;
+    }
 
     if (!session) {
       router.replace("/");
@@ -35,9 +48,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!pathname.startsWith(home)) {
       router.replace(home);
     }
-  }, [role, session, loading, pathname, router]);
+  }, [role, session, revoked, loading, pathname, router, signOut]);
 
-  if (loading || !session) {
+  if (loading || !session || revoked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-sm text-muted-foreground animate-pulse">Loading...</div>

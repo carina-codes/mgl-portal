@@ -6,8 +6,7 @@ import { AppShell } from "@/components/app-shell";
 import { UserAvatar } from "@/components/user-avatar";
 import { FilterBar } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
-import { useStore, isProjectMember } from "@/lib/store";
-import { totalHoursByUser } from "@/lib/mock-data";
+import { useStore, isProjectMember, totalHoursByUser } from "@/lib/store";
 import { UserPlus, Pencil, Trash2, LayoutGrid, List as ListIcon, Mail, MoreHorizontal, Plus } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -27,6 +26,7 @@ function TeamPage() {
   const allUsers = useStore((s) => s.users);
   const projects = useStore((s) => s.projects);
   const allTasks = useStore((s) => s.tasks);
+  const timeEntries = useStore((s) => s.timeEntries);
   const updateTeamMember = useStore((s) => s.updateTeamMember);
   const { open } = useModals();
   const [search, setSearch] = useState("");
@@ -110,8 +110,8 @@ function TeamPage() {
         valA = projects.filter((p) => isProjectMember(p, allTasks, a.id)).length;
         valB = projects.filter((p) => isProjectMember(p, allTasks, b.id)).length;
       } else if (sortBy === "time") {
-        valA = totalHoursByUser(a.id);
-        valB = totalHoursByUser(b.id);
+        valA = totalHoursByUser(timeEntries, a.id);
+        valB = totalHoursByUser(timeEntries, b.id);
       } else {
         valA = a.name;
         valB = b.name;
@@ -121,7 +121,7 @@ function TeamPage() {
       if (valA > valB) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-  }, [team, projects, search, filters, sortBy, sortOrder]);
+  }, [team, projects, allTasks, timeEntries, search, filters, sortBy, sortOrder]);
 
   return (
     <AppShell
@@ -172,7 +172,7 @@ function TeamPage() {
             {filtered.map((u) => {
               const assignedProjects = projects.filter((p) => isProjectMember(p, allTasks, u.id));
               const userTasks = allTasks.filter((t) => t.assignees.includes(u.id));
-              const hours = totalHoursByUser(u.id);
+              const hours = totalHoursByUser(timeEntries, u.id);
               const currentStatus = u.status || (assignedProjects.length > 2 ? "Busy" : "Available");
               const isBusy = currentStatus === "Busy";
 
@@ -315,18 +315,17 @@ function TeamPage() {
                             <span>{isBusy ? "Set to available" : "Set to busy"}</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => {
-                              const origin = typeof window !== "undefined" ? window.location.origin : "";
-                              const token = u.memberShareToken || Math.random().toString(36).substring(2, 10);
-                              if (!u.memberShareToken) {
-                                useStore.getState().updateTeamMember(u.id, { memberShareToken: token });
+                            onClick={async () => {
+                              try {
+                                await useStore.getState().resendTeamInvite(u.id);
+                                toast.success(`Invite email resent to ${u.email}`);
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Failed to resend invite");
                               }
-                              navigator.clipboard.writeText(`${origin}/team?token=${token}`);
-                              toast.success("Access link copied to clipboard");
                             }}
                             className="flex items-center gap-2 cursor-pointer font-normal"
                           >
-                            <span>Copy access link</span>
+                            <span>Resend invite email</span>
                           </DropdownMenuItem>
                           {u.shortcuts?.filter((sh: any) => sh.name && sh.link).map((sh: any, sIdx: number) => (
                             <DropdownMenuItem
@@ -386,7 +385,7 @@ function TeamPage() {
                 <tbody>
                   {filtered.map((u) => {
                     const assignedProjects = projects.filter((p) => isProjectMember(p, allTasks, u.id));
-                    const hours = totalHoursByUser(u.id);
+                    const hours = totalHoursByUser(timeEntries, u.id);
                     const currentStatus = u.status || (assignedProjects.length > 2 ? "Busy" : "Available");
                     const isBusy = currentStatus === "Busy";
 
@@ -469,18 +468,17 @@ function TeamPage() {
                                   <span>{isBusy ? "Set to available" : "Set to busy"}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    const origin = typeof window !== "undefined" ? window.location.origin : "";
-                                    const token = u.memberShareToken || Math.random().toString(36).substring(2, 10);
-                                    if (!u.memberShareToken) {
-                                      useStore.getState().updateTeamMember(u.id, { memberShareToken: token });
+                                  onClick={async () => {
+                                    try {
+                                      await useStore.getState().resendTeamInvite(u.id);
+                                      toast.success(`Invite email resent to ${u.email}`);
+                                    } catch (e) {
+                                      toast.error(e instanceof Error ? e.message : "Failed to resend invite");
                                     }
-                                    navigator.clipboard.writeText(`${origin}/team?token=${token}`);
-                                    toast.success("Access link copied to clipboard");
                                   }}
                                   className="flex items-center gap-2 cursor-pointer font-normal"
                                 >
-                                  <span>Copy access link</span>
+                                  <span>Resend invite email</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => open("team.remove", { userId: u.id })}

@@ -30,7 +30,18 @@ function StoreHydrator() {
     if (session) {
       useStore.getState().hydrate();
     } else {
-      useStore.setState({ clients: [], projects: [], hydrated: false });
+      useStore.setState({
+        users: [],
+        clients: [],
+        projects: [],
+        tasks: [],
+        requests: [],
+        documents: [],
+        timeEntries: [],
+        comments: [],
+        channels: [],
+        hydrated: false,
+      });
     }
   }, [session, loading]);
 
