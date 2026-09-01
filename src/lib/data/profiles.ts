@@ -206,8 +206,26 @@ export async function updateProfileRecord(id: string, patch: Partial<User>): Pro
   }
 }
 
-/** Deletes the profile row only — see the file header re: orphaned auth.users rows. */
+/** Deletes the profile row only — see the file header re: orphaned auth.users rows.
+ *
+ * comments.author and messages.author reference profiles with `on delete
+ * restrict` (by design — an old comment/message should never end up
+ * pointing at a row that no longer exists), so this fails with Postgres
+ * error 23503 for anyone who has ever posted a comment or message. That's
+ * intentional, but Supabase's PostgrestError isn't an `Error` instance, so
+ * left as-is it surfaces to the UI as a bare "Something went wrong" (see
+ * useAsyncAction in components/modals/index.tsx, which only shows
+ * `e.message` for real Error instances). Wrap it in a real Error with an
+ * honest explanation instead.
+ */
 export async function deleteProfileRecord(id: string): Promise<void> {
   const { error } = await supabase.from("profiles").delete().eq("id", id);
-  if (error) throw error;
+  if (error) {
+    if (error.code === "23503") {
+      throw new Error(
+        "This person has authored comments or messages in the portal, so they can't be permanently deleted — that history needs to stay attributed to someone."
+      );
+    }
+    throw new Error(error.message || "Failed to delete team member.");
+  }
 }
