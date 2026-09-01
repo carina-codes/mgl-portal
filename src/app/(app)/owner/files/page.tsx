@@ -28,6 +28,8 @@ import {
   Pen,
   FileArchive,
   FileCode,
+  FileVideo,
+  ExternalLink,
   Check,
   X,
 } from "lucide-react";
@@ -180,6 +182,12 @@ function FilesView() {
     return FileText;
   };
 
+  // A document created via "paste a video link" instead of a real upload:
+  // it has a previewUrl (the link itself) but no storagePath, since
+  // nothing was ever sent to Storage.
+  const isVideoLinkDocument = (file: { previewUrl?: string; storagePath?: string }) =>
+    !!file.previewUrl && !file.storagePath;
+
   const getAssociatedTask = (fileName: string, projectId: string) => {
     const projectTasks = tasks.filter(t => t.projectId === projectId);
     if (projectTasks.length === 0) return null;
@@ -315,6 +323,8 @@ function FilesView() {
                             alt={file.name}
                             className="h-full w-full object-cover"
                           />
+                        ) : isVideoLinkDocument(file) ? (
+                          <FileVideo className="h-10 w-10 text-foreground" />
                         ) : (
                           <FileIcon className="h-10 w-10 text-foreground" />
                         )}
@@ -397,13 +407,25 @@ function FilesView() {
                             )}
                           </button>
                           <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => downloadDocument(file)}
-                              className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
-                              title="Download"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                            </button>
+                            {isVideoLinkDocument(file) ? (
+                              <a
+                                href={file.previewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
+                                title="Open video link"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            ) : (
+                              <button
+                                onClick={() => downloadDocument(file)}
+                                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
+                                title="Download"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                             <button
                               onClick={() => startEditing(file.id, file.name)}
                               className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
@@ -492,7 +514,11 @@ function FilesView() {
                               />
                             ) : (
                               <div className="h-7 w-7 flex items-center justify-center rounded bg-muted/40 text-muted-foreground border border-border/20 shrink-0">
-                                <FileIcon className="h-4 w-4" />
+                                {isVideoLinkDocument(file) ? (
+                                  <FileVideo className="h-4 w-4" />
+                                ) : (
+                                  <FileIcon className="h-4 w-4" />
+                                )}
                               </div>
                             )}
                             <span>{file.name}</span>
@@ -514,15 +540,27 @@ function FilesView() {
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              downloadDocument(file);
-                            }}
-                            className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
-                          >
-                            Download
-                          </button>
+                          {isVideoLinkDocument(file) ? (
+                            <a
+                              href={file.previewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
+                            >
+                              <ExternalLink className="h-3 w-3" /> Open link
+                            </a>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadDocument(file);
+                              }}
+                              className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
+                            >
+                              Download
+                            </button>
+                          )}
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();

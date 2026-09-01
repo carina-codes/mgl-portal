@@ -126,6 +126,13 @@ const getFileIcon = (name: string, className?: string) => {
   return <IconComponent className={cn(className, "text-foreground")} />;
 };
 
+// A document created via "paste a video link" instead of a real upload: it
+// has a previewUrl (the link itself) but no storagePath, since nothing was
+// ever sent to Storage. Real uploads always get a storagePath once the
+// upload completes, so this is a reliable way to tell the two apart.
+const isVideoLinkDocument = (file: { previewUrl?: string; storagePath?: string }) =>
+  !!file.previewUrl && !file.storagePath;
+
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "tasks", label: "Tasks", icon: ListTodo },
@@ -2410,6 +2417,8 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                       alt={file.name}
                       className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
                     />
+                  ) : isVideoLinkDocument(file) ? (
+                    <FileVideo className="h-10 w-10 text-foreground" />
                   ) : (
                     getFileIcon(file.name, "h-10 w-10")
                   )}
@@ -2480,12 +2489,25 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                           <Eye className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      <button
-                        onClick={() => downloadDocument(file)}
-                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </button>
+                      {isVideoLinkDocument(file) ? (
+                        <a
+                          href={file.previewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
+                          title="Open video link"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => downloadDocument(file)}
+                          className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
+                          title="Download"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => startEditing(file.id, file.name)}
                         className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
@@ -2578,7 +2600,11 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                             className="inline-flex items-center gap-2 cursor-pointer"
                             title="Double-click to rename"
                           >
-                            {getFileIcon(file.name, "h-3.5 w-3.5")}
+                            {isVideoLinkDocument(file) ? (
+                              <FileVideo className="h-3.5 w-3.5 text-foreground" />
+                            ) : (
+                              getFileIcon(file.name, "h-3.5 w-3.5")
+                            )}
                             {file.name}
                           </span>
                         )}
@@ -2621,12 +2647,25 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                               <Eye className="h-3.5 w-3.5" />
                             </button>
                           )}
-                          <button
-                            onClick={() => downloadDocument(file)}
-                            className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </button>
+                          {isVideoLinkDocument(file) ? (
+                            <a
+                              href={file.previewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
+                              title="Open video link"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => downloadDocument(file)}
+                              className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
+                              title="Download"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => startEditing(file.id, file.name)}
                             className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"

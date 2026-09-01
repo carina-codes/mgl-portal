@@ -48,6 +48,8 @@ import {
   TrendingUp,
   Coins,
   Briefcase,
+  FileVideo,
+  ExternalLink,
 } from "lucide-react";
 import {
   Sheet,
@@ -1143,6 +1145,13 @@ function getFileExt(name: string) {
   return name.split(".").pop()?.toLowerCase() ?? "";
 }
 
+// A document created via "paste a video link" instead of a real upload: it
+// has a previewUrl (the link itself) but no storagePath, since nothing was
+// ever sent to Storage.
+function isVideoLinkDocument(file: { previewUrl?: string; storagePath?: string }) {
+  return !!file.previewUrl && !file.storagePath;
+}
+
 function FilesTabClient({ projectId }: { projectId: string }) {
   const allDocuments = useStore((s) => s.documents);
   const documents = useMemo(
@@ -1178,7 +1187,7 @@ function FilesTabClient({ projectId }: { projectId: string }) {
             <div key={doc.id} className="flex items-center justify-between bg-card border border-border/50 p-3.5 rounded-2xl">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-9 w-9 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] uppercase">
-                  {getFileExt(doc.name)}
+                  {isVideoLinkDocument(doc) ? <FileVideo className="h-4 w-4" /> : getFileExt(doc.name)}
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-foreground truncate" title={doc.name}>{doc.name}</div>
@@ -1195,14 +1204,26 @@ function FilesTabClient({ projectId }: { projectId: string }) {
                     <Eye className="h-4 w-4" />
                   </button>
                 )}
-                <a
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); downloadDocument(doc); }}
-                  className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all cursor-pointer"
-                  title="Download file"
-                >
-                  <Download className="h-4 w-4" />
-                </a>
+                {isVideoLinkDocument(doc) ? (
+                  <a
+                    href={doc.previewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                    title="Open video link"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                ) : (
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); downloadDocument(doc); }}
+                    className="p-1.5 hover:bg-primary/10 rounded-md text-muted-foreground hover:text-primary transition-all cursor-pointer"
+                    title="Download file"
+                  >
+                    <Download className="h-4 w-4" />
+                  </a>
+                )}
               </div>
             </div>
           ))}
