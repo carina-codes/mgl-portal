@@ -92,6 +92,7 @@ import {
 } from "lucide-react";
 import { UserAvatar, AvatarStack } from "@/components/user-avatar";
 import { Switch } from "@/components/ui/switch";
+import { checkUploadAllowed } from "@/lib/upload-validation";
 
 /* ─────────────────────────── Registry types ─────────────────────────── */
 
@@ -3294,16 +3295,21 @@ function UploadDocumentModal({ close, payload }: { close: () => void; payload?: 
   const docs = useStore((s) => s.documents);
   const upload = useStore((s) => s.uploadDocument);
   const { busy, run } = useAsyncAction();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [videoLink, setVideoLink] = useState("");
   const [form, setForm] = useState({
     projectId: (payload?.projectId as string) ?? projects[0]?.id ?? "",
     name: "",
     folder: (payload?.folder as string) ?? "General",
     shared: false,
     size: undefined as string | undefined,
-    previewUrl: undefined as string | undefined,
   });
   const folders = Array.from(new Set(docs.filter((d) => d.projectId === form.projectId).map((d) => d.folder)));
   if (!folders.includes("General")) folders.push("General");
+
+  // Either a real file (validated/picked via Dropzone — no videos, see
+  // upload-validation.ts) or a pasted video link, never both.
+  const canSubmit = form.name.trim() && (selectedFile || videoLink.trim());
 
   return (
     <AppDialog
@@ -3316,8 +3322,17 @@ function UploadDocumentModal({ close, payload }: { close: () => void; payload?: 
           <GhostButton onClick={close}>Cancel</GhostButton>
           <PrimaryButton
             loading={busy}
-            disabled={!form.name.trim()}
-            onClick={async () => { await run(() => upload(form), "File uploaded"); close(); }}
+            disabled={!canSubmit}
+            onClick={async () => {
+              await run(
+                () => upload(
+                  videoLink.trim() ? { ...form, previewUrl: videoLink.trim() } : form,
+                  selectedFile ?? undefined
+                ),
+                "File uploaded"
+              );
+              close();
+            }}
           >
             Upload
           </PrimaryButton>
@@ -3327,13 +3342,25 @@ function UploadDocumentModal({ close, payload }: { close: () => void; payload?: 
       <FieldGroup>
         <Dropzone
           onFileSelect={(info) => {
-            setForm((f) => ({
-              ...f,
-              name: info.name,
-              size: info.size,
-              previewUrl: info.previewUrl,
-            }));
+            setSelectedFile(info.file);
+            setVideoLink("");
+            setForm((f) => ({ ...f, name: info.name, size: info.size }));
           }}
+        />
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
+        </div>
+        <TextField
+          label="Video link"
+          value={videoLink}
+          onChange={(e) => {
+            setVideoLink(e.target.value);
+            setSelectedFile(null);
+            if (e.target.value.trim() && !form.name.trim()) {
+              setForm((f) => ({ ...f, name: "Video link" }));
+            }
+          }}
+          placeholder="https://youtube.com/... or vimeo.com/..."
         />
         <TextField label="File name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. brief-v2.pdf" />
         {!payload?.projectId ? (
@@ -4433,10 +4460,25 @@ function Dropzone({
   onFileSelect,
 }: {
   onFileName?: (n: string) => void;
-  onFileSelect?: (fileInfo: { name: string; size: string; previewUrl?: string }) => void;
+  onFileSelect?: (fileInfo: { name: string; size: string; file: File }) => void;
 }) {
   const [hover, setHover] = useState(false);
   const [name, setName] = useState<string | null>(null);
+
+  function handleFile(f: File) {
+    const rejection = checkUploadAllowed(f);
+    if (rejection) {
+      toast.error(rejection.message);
+      return;
+    }
+    setName(f.name);
+    onFileName?.(f.name);
+    const sizeStr = f.size > 1024 * 1024
+      ? `${(f.size / (1024 * 1024)).toFixed(1)} MB`
+      : `${(f.size / 1024).toFixed(0)} KB`;
+    onFileSelect?.({ name: f.name, size: sizeStr, file: f });
+  }
+
   return (
     <label
       onDragOver={(e) => { e.preventDefault(); setHover(true); }}
@@ -4445,18 +4487,7 @@ function Dropzone({
         e.preventDefault();
         setHover(false);
         const f = e.dataTransfer.files?.[0];
-        if (f) {
-          setName(f.name);
-          onFileName?.(f.name);
-          let previewUrl: string | undefined;
-          if (f.type.startsWith("image/")) {
-            previewUrl = URL.createObjectURL(f);
-          }
-          const sizeStr = f.size > 1024 * 1024
-            ? `${(f.size / (1024 * 1024)).toFixed(1)} MB`
-            : `${(f.size / 1024).toFixed(0)} KB`;
-          onFileSelect?.({ name: f.name, size: sizeStr, previewUrl });
-        }
+        if (f) handleFile(f);
       }}
       className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 text-center transition-colors ${hover ? "border-primary bg-primary/5" : "border-border bg-muted/30 hover:bg-muted"}`}
     >
@@ -4465,25 +4496,14 @@ function Dropzone({
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) {
-            setName(f.name);
-            onFileName?.(f.name);
-            let previewUrl: string | undefined;
-            if (f.type.startsWith("image/")) {
-              previewUrl = URL.createObjectURL(f);
-            }
-            const sizeStr = f.size > 1024 * 1024
-              ? `${(f.size / (1024 * 1024)).toFixed(1)} MB`
-              : `${(f.size / 1024).toFixed(0)} KB`;
-            onFileSelect?.({ name: f.name, size: sizeStr, previewUrl });
-          }
+          if (f) handleFile(f);
         }}
       />
       <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary">
         {name ? <FilePlus2 className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
       </div>
       <div className="text-sm font-medium">{name ?? "Drop a file or click to browse"}</div>
-      <div className="text-[11px] text-muted-foreground">PDF, PNG, JPG, ZIP — up to 100 MB</div>
+      <div className="text-[11px] text-muted-foreground">PDF, PNG, JPG, ZIP — up to 100 MB. No videos — paste a link instead.</div>
     </label>
   );
 }

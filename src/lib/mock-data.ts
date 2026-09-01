@@ -241,6 +241,11 @@ export type Document = {
   uploadedAt: string;
   shared: boolean;
   previewUrl?: string;
+  /** Path within the `documents` Storage bucket — set once the file's
+   * bytes have actually been uploaded (see uploadDocumentRecord). Absent
+   * for placeholder ".keep" folder rows and any document created before
+   * real Storage upload was wired up. */
+  storagePath?: string;
 };
 
 export type Message = {

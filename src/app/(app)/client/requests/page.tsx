@@ -3,6 +3,7 @@
 import { AppShell } from "@/components/app-shell";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useStore } from "@/lib/store";
+import { downloadDocument } from "@/lib/download-document";
 import { useActiveClient } from "@/hooks/use-active-client";
 import { useCurrentUser } from "@/lib/role-context";
 import {
@@ -45,6 +46,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { checkNameAllowed } from "@/lib/upload-validation";
 
 function Button({ className, ...props }: React.ComponentProps<typeof BaseButton>) {
   return <BaseButton className={cn("rounded-full font-semibold", className)} {...props} />;
@@ -477,6 +479,8 @@ function NewReplyForm({ threadId, projectId }: { threadId: string; clientId: str
     try {
       docIds = await Promise.all(
         attachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({
             projectId: projectId || "",
             name: att.name,
@@ -687,7 +691,7 @@ function RequestDetailsDrawer({
     <FilePreviewDialog
       file={previewFile}
       onClose={() => setPreviewFile(null)}
-      onDownload={(f) => toast.success(`Downloading ${f.name}...`)}
+      onDownload={(f) => downloadDocument(f)}
     />
     </>
   );

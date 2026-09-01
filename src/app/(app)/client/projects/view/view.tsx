@@ -9,6 +9,7 @@ import { FilterBar, inRange, type FilterDef, type FilterOption } from "@/compone
 import { RichEditor, formatBytes, type RichAttachment } from "@/components/rich-editor";
 import { FormattedBody, CommentAttachmentsList } from "@/components/formatted-body";
 import { useStore } from "@/lib/store";
+import { downloadDocument } from "@/lib/download-document";
 import { useActiveClient } from "@/hooks/use-active-client";
 import { useCurrentUser } from "@/lib/role-context";
 import { cn, stripHtml } from "@/lib/utils";
@@ -56,6 +57,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { FilePreviewDialog, isPreviewableFile } from "@/components/file-preview-dialog";
+import { checkNameAllowed } from "@/lib/upload-validation";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -122,21 +124,6 @@ const formatDate = (dateStr: string) => {
 /** Trigger a real download when the document has a working file URL behind
  * it; otherwise fall back to a simulated toast (most seed documents in this
  * prototype don't have real files backing them yet). */
-function downloadDocument(doc: Document) {
-  if (doc.previewUrl) {
-    const link = window.document.createElement("a");
-    link.href = doc.previewUrl;
-    link.download = doc.name;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    window.document.body.appendChild(link);
-    link.click();
-    window.document.body.removeChild(link);
-  } else {
-    toast.success(`Downloading ${doc.name}...`);
-  }
-}
-
 /** The signed-in client contact's real profile — used as the comment/message
  * author so writes satisfy RLS's `author = auth.uid()` check. Used to be a
  * synthetic `client-{companyId}` id derived from the Client (company) record,
@@ -702,6 +689,8 @@ function TaskDetailDrawerClient({ taskId, onClose }: { taskId: string | null; on
     try {
       const docIds = await Promise.all(
         replyAttachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({
             projectId: task.projectId,
             name: att.name,
@@ -992,6 +981,8 @@ function RequestDetailDrawerClient({ requestId, onClose, clientId }: { requestId
     try {
       docIds = await Promise.all(
         replyAttachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({ projectId: req.projectId || "", name: att.name, folder: "Attachments", size: formatBytes(att.size), shared: true });
           return doc.id;
         }),
@@ -1277,6 +1268,8 @@ function ChatTabClient({ projectId, onOpenTask }: { projectId: string; onOpenTas
     try {
       docIds = await Promise.all(
         attachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({ projectId, name: att.name, folder: "Attachments", size: formatBytes(att.size), shared: true });
           return doc.id;
         }),

@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { FilterBar, inRange } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
+import { downloadDocument } from "@/lib/download-document";
 import { REQUEST_STATUS_META, REQUEST_TYPE_META, PRIORITY_META, type Document } from "@/lib/mock-data";
 import {
   Plus,
@@ -84,6 +85,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { checkNameAllowed } from "@/lib/upload-validation";
 
 const TYPE_ICONS: Record<string, any> = {
   RefreshCw,
@@ -509,6 +511,8 @@ function NewCommentForm({ threadId, author = "u1" }: { threadId: string; author?
     try {
       docIds = await Promise.all(
         attachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({
             projectId,
             name: att.name,
@@ -888,7 +892,7 @@ export function RequestDetailsDrawer({
     <FilePreviewDialog
       file={previewFile}
       onClose={() => setPreviewFile(null)}
-      onDownload={(f) => toast.success(`Downloading ${f.name}...`)}
+      onDownload={(f) => downloadDocument(f)}
     />
     </>
   );

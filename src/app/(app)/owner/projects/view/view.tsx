@@ -5,6 +5,7 @@ import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AvatarStack, UserAvatar } from "@/components/user-avatar";
 import { useStore, useProjects, type StorageConnection } from "@/lib/store";
+import { downloadDocument } from "@/lib/download-document";
 import { useModals } from "@/components/modals";
 import { useCurrentUser } from "@/lib/role-context";
 import { formatDateShort } from "@/lib/dates";
@@ -100,6 +101,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { checkNameAllowed } from "@/lib/upload-validation";
 
 const getFileIcon = (name: string, className?: string) => {
   const ext = name.split(".").pop()?.toLowerCase() || "";
@@ -1972,7 +1974,7 @@ export function TaskDetailsDrawer({
     <FilePreviewDialog
       file={previewFile}
       onClose={() => setPreviewFile(null)}
-      onDownload={(f) => toast.success(`Downloading ${f.name}...`)}
+      onDownload={(f) => downloadDocument(f)}
     />
     </>
   );
@@ -1993,6 +1995,8 @@ function NewCommentForm({ threadId, author = "u1" }: { threadId: string; author?
     try {
       docIds = await Promise.all(
         attachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({
             projectId,
             name: att.name,
@@ -2217,7 +2221,7 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
 
   // File preview
-  const [previewFile, setPreviewFile] = useState<{ id: string; name: string; size: string; folder: string; previewUrl?: string } | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ id: string; name: string; size: string; folder: string; previewUrl?: string; storagePath?: string } | null>(null);
 
   useEffect(() => {
     setSelectedFileIds([]);
@@ -2477,9 +2481,7 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                         </button>
                       )}
                       <button
-                        onClick={() => {
-                          toast.success("Download started", { description: file.name });
-                        }}
+                        onClick={() => downloadDocument(file)}
                         className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
                       >
                         <Download className="h-3.5 w-3.5" />
@@ -2620,9 +2622,7 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
                             </button>
                           )}
                           <button
-                            onClick={() => {
-                              toast.success("Download started", { description: file.name });
-                            }}
+                            onClick={() => downloadDocument(file)}
                             className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
                           >
                             <Download className="h-3.5 w-3.5" />
@@ -2655,7 +2655,7 @@ export function DocumentsTab({ projectId }: { projectId: string }) {
       <FilePreviewDialog
         file={previewFile}
         onClose={() => setPreviewFile(null)}
-        onDownload={(f) => toast.success("Download started", { description: f.name })}
+        onDownload={(f) => downloadDocument(f)}
       />
     </>
   );
@@ -2895,6 +2895,8 @@ function ChatInputBox({ threadId, onAttachClick, authorId = "u1" }: { threadId: 
     try {
       docIds = await Promise.all(
         attachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({
             projectId,
             name: att.name,

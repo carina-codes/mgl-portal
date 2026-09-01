@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/lib/store";
+import { checkUploadAllowed } from "@/lib/upload-validation";
 import { toast } from "sonner";
 import { FileAttachmentCard } from "@/components/file-attachment-card";
 import { useParams } from "next/navigation";
@@ -262,6 +263,16 @@ export function RichEditor({
 
     setAtts([...atts, att]);
 
+    // Deliberately NOT embedding real uploads inline here even though
+    // they're images: setImage() bakes whatever URL we give it directly
+    // into the saved comment HTML, and a Storage signed URL expires
+    // (60s) — a comment saved with one would show a broken image forever
+    // once it did. previewUrl (a legacy session-local blob: URL) is the
+    // only src stable enough for the duration of a single compose, so
+    // that's the only case this still handles; otherwise the file stays
+    // available as a downloadable/previewable attachment chip below,
+    // which resolves its preview URL fresh each time (see
+    // CommentAttachmentsList in formatted-body.tsx).
     if (type.startsWith("image/") && doc.previewUrl) {
       editor?.chain().focus().setImage({ src: doc.previewUrl, alt: doc.name }).run();
     }
@@ -368,6 +379,12 @@ export function RichEditor({
     }
 
     Array.from(files).forEach((file) => {
+      const rejection = checkUploadAllowed(file);
+      if (rejection) {
+        toast.error(rejection.message);
+        return;
+      }
+
       const url = URL.createObjectURL(file);
       const att: RichAttachment = {
         id: crypto.randomUUID(),
@@ -382,13 +399,16 @@ export function RichEditor({
       }
       
       if (activeConn) {
-        uploadDocument({
-          projectId: projectId || "",
-          name: file.name,
-          folder: folderPath,
-          size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          shared: true,
-        }).catch(() => {
+        uploadDocument(
+          {
+            projectId: projectId || "",
+            name: file.name,
+            folder: folderPath,
+            size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+            shared: true,
+          },
+          file
+        ).catch(() => {
           // Best-effort background sync to the connected storage folder — the
           // in-editor attachment (already added to atts above) still works
           // even if this fails.

@@ -175,7 +175,7 @@ type State = {
   renameFolder: (projectId: string | undefined, oldName: string, newName: string) => Promise<void>;
   deleteFolder: (projectId: string | undefined, folderName: string) => Promise<void>;
   renameDocument: (id: string, name: string) => Promise<void>;
-  uploadDocument: (input: Partial<Document> & Pick<Document, "projectId" | "name" | "folder">) => Promise<Document>;
+  uploadDocument: (input: Partial<Document> & Pick<Document, "projectId" | "name" | "folder">, file?: File) => Promise<Document>;
   moveDocument: (id: string, folder: string) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
   toggleDocumentShared: (id: string) => Promise<void>;
@@ -520,8 +520,8 @@ export const useStore = create<State>((set, get) => ({
       documents: s.documents.map((d) => (d.id === id ? { ...d, name } : d)),
     }));
   },
-  uploadDocument: async (input) => {
-    const d = await uploadDocumentRecord(input);
+  uploadDocument: async (input, file) => {
+    const d = await uploadDocumentRecord(input, file);
     set((s) => ({ documents: [d, ...s.documents] }));
     return d;
   },

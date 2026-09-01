@@ -13,6 +13,7 @@ import { useStore, isProjectMember, projectMemberIds } from "@/lib/store";
 import { useActiveTeamMember } from "@/hooks/use-active-team-member";
 import { toast } from "sonner";
 import { TaskDetailsDrawer } from "@/app/(app)/owner/projects/view/view";
+import { checkNameAllowed } from "@/lib/upload-validation";
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
   owner: { label: "Owner", cls: "bg-violet-100 dark:bg-violet-950/45 text-violet-800 dark:text-violet-300" },
@@ -163,6 +164,8 @@ function TeamMessages() {
     try {
       docIds = await Promise.all(
         attachments.map(async (att) => {
+          const rejection = checkNameAllowed(att.name, att.type);
+          if (rejection) throw new Error(rejection.message);
           const doc = await uploadDocument({
             projectId: activeThread.project?.id || myProjects[0]?.id || "",
             name: att.name,

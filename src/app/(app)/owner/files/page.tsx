@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { FilterBar } from "@/components/filter-bar";
 import { useModals } from "@/components/modals";
 import { useStore } from "@/lib/store";
+import { downloadDocument } from "@/lib/download-document";
 import { AppDialog, TextField, FieldGroup, FieldLabel } from "@/components/ui/app-dialog";
 import {
   Download,
@@ -397,9 +398,7 @@ function FilesView() {
                           </button>
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => {
-                                toast.success("Download started", { description: file.name });
-                              }}
+                              onClick={() => downloadDocument(file)}
                               className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-all cursor-pointer"
                               title="Download"
                             >
@@ -518,7 +517,7 @@ function FilesView() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              toast.info(`Downloading ${file.name}...`);
+                              downloadDocument(file);
                             }}
                             className="rounded-full px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted cursor-pointer transition-all"
                           >

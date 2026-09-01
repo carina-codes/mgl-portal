@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { File, FileText, FileImage, FileVideo, FileArchive, Search, Plus, Minus, Upload } from "lucide-react";
 import type { Document } from "@/lib/mock-data";
 import { toast } from "sonner";
+import { checkUploadAllowed } from "@/lib/upload-validation";
 
 export function getAttachFileIcon(fileName: string, className = "h-4 w-4 shrink-0") {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
@@ -71,23 +72,27 @@ export function AttachFromFilesDialog({
     const targetProjectId = projectId || projects[0]?.id;
     if (!targetProjectId) return;
 
-    let previewUrl: string | undefined;
-    if (file.type.startsWith("image/")) {
-      previewUrl = URL.createObjectURL(file);
+    const rejection = checkUploadAllowed(file);
+    if (rejection) {
+      toast.error(rejection.message);
+      return;
     }
+
     const size = file.size > 1024 * 1024
       ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
       : `${(file.size / 1024).toFixed(0)} KB`;
 
     try {
-      const doc = await uploadDocument({
-        projectId: targetProjectId,
-        name: file.name,
-        folder: "Attachments",
-        size,
-        previewUrl,
-        shared: true,
-      });
+      const doc = await uploadDocument(
+        {
+          projectId: targetProjectId,
+          name: file.name,
+          folder: "Attachments",
+          size,
+          shared: true,
+        },
+        file
+      );
 
       toast.success(`${doc.name} uploaded`);
       onSelect(doc);

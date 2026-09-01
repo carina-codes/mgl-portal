@@ -1,13 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { Download, FileText } from "lucide-react";
+import { getDocumentDownloadUrl } from "@/lib/data/documents";
 
 export type PreviewableFile = {
   name: string;
   size: string;
   folder?: string;
   previewUrl?: string;
+  /** Storage path for a real uploaded file (see uploadDocumentRecord). When
+   * present, this is used to fetch a signed preview URL instead of relying
+   * on previewUrl, which for uploaded files is just a session-local blob:
+   * URL that stops working the moment the tab reloads. */
+  storagePath?: string;
 };
 
 const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
@@ -41,8 +48,36 @@ export function FilePreviewDialog({
   onDownload?: (file: PreviewableFile) => void;
 }) {
   if (!file) return null;
+  return <FilePreviewDialogInner file={file} onClose={onClose} onDownload={onDownload} />;
+}
+
+/** Split out so the signed-URL-fetching effect only runs while a file is
+ * actually open, and resets cleanly (via `key`-driven remount below is
+ * unnecessary — file identity is enough) each time a different file opens. */
+function FilePreviewDialogInner({
+  file,
+  onClose,
+  onDownload,
+}: {
+  file: PreviewableFile;
+  onClose: () => void;
+  onDownload?: (file: PreviewableFile) => void;
+}) {
   const isImage = isImageFile(file.name);
   const isPdf = isPdfFile(file.name);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSignedUrl(null);
+    if (!file.storagePath || !(isImage || isPdf)) return;
+    let cancelled = false;
+    getDocumentDownloadUrl(file.storagePath)
+      .then((url) => { if (!cancelled) setSignedUrl(url); })
+      .catch(() => { /* falls back to the "no preview" state below */ });
+    return () => { cancelled = true; };
+  }, [file.storagePath, isImage, isPdf]);
+
+  const previewSrc = signedUrl ?? file.previewUrl;
 
   return (
     <AppDialog
@@ -69,11 +104,11 @@ export function FilePreviewDialog({
         </div>
       }
     >
-      {file.previewUrl ? (
+      {previewSrc ? (
         isImage ? (
-          <img src={file.previewUrl} alt={file.name} className="w-full max-h-[70vh] object-contain rounded-xl" />
+          <img src={previewSrc} alt={file.name} className="w-full max-h-[70vh] object-contain rounded-xl" />
         ) : isPdf ? (
-          <iframe src={file.previewUrl} title={file.name} className="w-full h-[70vh] rounded-xl border border-border/60" />
+          <iframe src={previewSrc} title={file.name} className="w-full h-[70vh] rounded-xl border border-border/60" />
         ) : null
       ) : (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-sm text-muted-foreground rounded-xl border border-dashed border-border/60">
